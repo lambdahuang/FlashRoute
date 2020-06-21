@@ -44,10 +44,11 @@ void ResultDumper::scheduleDumpData(uint32_t destination, uint32_t responder,
                                     uint16_t probeSourcePort,
                                     uint16_t probeDestinationPort) {
   if (!stopDumping_) {
-    dumpingBuffer_->pushFront(
-        {destination, responder, distance, (fromDestination ? 1 : 0), rtt,
-         probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
-         probeSourcePort, probeDestinationPort});
+    dumpingBuffer_->pushFront({destination, responder, distance,
+                               static_cast<uint8_t>(fromDestination ? 1 : 0),
+                               rtt, probePhase, replyIpid, replyTtl, replySize,
+                               probeSize, probeIpid, probeSourcePort,
+                               probeDestinationPort});
   }
 }
 
