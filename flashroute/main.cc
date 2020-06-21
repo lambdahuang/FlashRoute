@@ -35,7 +35,7 @@ ABSL_FLAG(int16_t, split_ttl, 16, "Default split ttl.");
 ABSL_FLAG(std::string, interface, "", "Relay Interface.");
 ABSL_FLAG(int32_t, probing_rate, 400000, "Probing rate.");
 ABSL_FLAG(std::string, default_payload_message,
-          "experiment purpose, question to email: yxh641@case.edu  ",
+          "flashroute",
           "Message embedded in payload of probe.");
 
 // Optimization: Preprobing.
