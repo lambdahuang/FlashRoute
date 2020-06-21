@@ -82,8 +82,8 @@ bind(
 git_repository(
     name = "rules_python",
     remote = "https://github.com/bazelbuild/rules_python.git",
-    commit = "230f6d15b4ab23cd3a46c54023c9e5fb3e1e3542",
-    shallow_since = "1571866091 -0400",
+    commit = "a0fbf98d4e3a232144df4d0d80b577c7a693b570",
+    shallow_since = "1586444447 +0200",
 )
 load("@rules_python//python:repositories.bzl", "py_repositories")
 py_repositories()
@@ -97,7 +97,8 @@ load("@rules_python//python:pip.bzl", "pip_import")
 # @parser_dependencies//:requirements.bzl, which itself exposes a pip_install method.
 pip_import(
     name = "parser_dependencies",
-    requirements = "//parsers:requirements.txt"
+    requirements = "//parsers:requirements.txt",
+    python_interpreter = "python3"
 )
 
 # Load the pip_install symbol for my_deps, and create the dependencies'
