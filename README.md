@@ -1,6 +1,6 @@
 # FlashRoute
 
-![Gif](https://github.com/lambdahuang/FlashTraceroute/blob/refactor/image/tty.gif)
+![Gif](https://github.com/lambdahuang/FlashRoute/blob/v0.0.2/example.gif)
 
 FlashRoute is a tool to discover network topology, which is specially optimized for full Internet topology discovery. 
 It has high time efficiency in which it can finish the scan over the full IPv4 /24 address space in 7 minutes at probing speed of 200 Kpps, and 17 mins at probing speed of 100 Kpps.
