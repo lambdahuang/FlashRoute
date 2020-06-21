@@ -1,0 +1,7 @@
+#!/bin/bash
+EXIT_CODE=5
+
+cppcheck --language=c++ --error-exitcode=$EXIT_CODE --enable=warning,performance,portability,style flashroute/*.cc
+if [ “$?” -eq “$EXIT_CODE” ]; then
+ echo “== STATUS: static analysis error.”
+fi
