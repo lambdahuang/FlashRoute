@@ -178,6 +178,8 @@ sudo ./bazel-bin/flashroute/flashroute --interface eth0 --probing_rate 10000 --o
 
 ---
 
+`--remove_reserved_addresses` Remove the IETF-reserved addresses from scanning. By default, true.
+
 `--blacklist` Specify the file path to blacklist. One IP address per a line. By default, empty.
 
 `--tcpdump_dump_filepath` autorun the tcpdump to collect the packets and dump the collected packets to a pcap file.

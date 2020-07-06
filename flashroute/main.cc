@@ -57,12 +57,16 @@ ABSL_FLAG(int16_t, gaplimit, 5,
 ABSL_FLAG(bool, remove_redundancy, true,
           "Remove redundancy in backward probing.");
 
+// Miscellaneous
 ABSL_FLAG(std::string, output, "", "Output path.");
 
 ABSL_FLAG(std::string, tcpdump_output, "", "Tcpdump output path.");
 ABSL_FLAG(std::string, hitlist, "", "Hitlist filepath.");
 ABSL_FLAG(std::string, targets, "",
               "Target filepath.");
+
+ABSL_FLAG(bool, remove_reserved_addresses, true,
+          "Remove the reserved addresses.");
 ABSL_FLAG(std::string, blacklist, "", "Blacklist filepath.");
 
 ABSL_FLAG(uint16_t, dst_port, 33434, "Destination port number.");
@@ -194,10 +198,14 @@ int main(int argc, char* argv[]) {
 
     Tracerouter& traceRouter = *traceRouterPtr.get();
 
-    // traceRouter.goOverAllElement();
+    // Remove exclusion/blacklist list.
     Blacklist::removeAddressFromFile(absl::GetFlag(FLAGS_blacklist),
                                      &traceRouter);
-    Blacklist::removeReservedAddress(&traceRouter);
+
+    // Remove reserved addresses.
+    if (absl::GetFlag(FLAGS_remove_reserved_addresses))
+      Blacklist::removeReservedAddress(&traceRouter);
+
     // Load hitlist.
     if (!absl::GetFlag(FLAGS_hitlist).empty()) {
       Hitlist::loadHitlist(absl::GetFlag(FLAGS_hitlist), &traceRouter);
