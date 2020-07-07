@@ -19,7 +19,7 @@ TEST(UdpProber, PackProbeTest) {
          uint32_t probeSize, uint16_t probeIpid, uint16_t probeSourcePort,
          uint16_t probeDestinationPort) {};
 
-  UdpProber prober(&response_handler, 0, 1, 0, "test");
+  UdpProber prober(&response_handler, 0, 1, 0, "test", true);
 
   uint8_t buffer[kTestBufferSize];
   size_t size = prober.packProbe(destinationIp, sourceIp, initialTtl, buffer);

@@ -1,10 +1,13 @@
-#include <memory>
-#include <cstring>
+/* Copyright (C) 2019 Neo Huang - All Rights Reserved */
+
 
 #include <netinet/ip.h>       // ip header
 #include <netinet/ip_icmp.h>  // icmp header
 #include <netinet/tcp.h>
 #include <netinet/udp.h>  // udp header
+
+#include <memory>
+#include <cstring>
 
 #include "glog/logging.h"
 #include "flashroute/udp_prober.h"
@@ -19,12 +22,14 @@ const uint8_t kMaxTtl = 32;
 UdpProber::UdpProber(PacketReceiverCallback* callback,
                      const int32_t checksumOffset, const uint8_t probePhaseCode,
                      const uint16_t destinationPort,
-                     const std::string& payloadMessage) {
+                     const std::string& payloadMessage,
+                     const bool encodeTimestamp) {
   probePhaseCode_ = probePhaseCode;
   callback_ = callback;
   checksumOffset_ = checksumOffset;
   payloadMessage_ = payloadMessage;
   destinationPort_ = htons(destinationPort);
+  encodeTimestamp_ = encodeTimestamp;
   checksumMismatches = 0;
   distanceAbnormalities = 0;
 }
@@ -45,15 +50,18 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
   packet->ip.ip_src = *((struct in_addr*)(&sourceIp));
   packet->ip.ip_p = kUdpProtocol;  // UDP protocol
   packet->ip.ip_ttl = ttl;
-  // ipid: 5-bit for intiial TTL, 1 bit for probeType, 10-bit for timestamp
-  // reuse ip id for storing the orignal ttl
+  // ipid: 5-bit for encoding intiial TTL, 1 bit for encoding probeType, 10-bit
+  // for encoding timestamp.
   // 0x3FF = 2^10 to extract first 10-bit of timestamp
-  uint16_t ipid = (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5) |
-                     ((timestamp & 0x3FF) << 6);
+  uint16_t ipid = (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
+  int32_t packet_expect_size = 128;
 
-  // packet-size encode 6-bit timestamp
-  // (((timestamp >> 10) & 0x3F) << 6): the rest 6-bit of time stamp
-  int32_t packet_expect_size = 128 + (((timestamp >> 10) & 0x3F) << 1);
+  if (encodeTimestamp_) {
+    ipid = ipid | ((timestamp & 0x3FF) << 6);
+    // packet-size encode 6-bit timestamp
+    // (((timestamp >> 10) & 0x3F) << 6): the rest 6-bit of timestamp
+    packet_expect_size = packet_expect_size | (((timestamp >> 10) & 0x3F) << 1);
+  }
   // In OSX, please use: packet->ip.ip_len = packet_expect_size;
   // Otherwise, you will have an Errno-22.
 #if defined(__APPLE__) || defined(__MACH__)

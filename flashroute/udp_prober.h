@@ -26,8 +26,10 @@ const uint32_t kTimestampSlot = 65536;
  *    callback,   // Callback function to handle responses.
  *    0,          // Checksum offset to support discovery-optimized mode.
  *    1,          // 0 stands for preprobing, 1 stands for main probing.
- *    53,         // Destination port number
- *    "message payload");   //payload message.
+ *    53,         // Destination port number.
+ *    "message payload",  //payload message.
+ *    false        // Not encode timestamp into probe so scan is idempotent.
+ * );
  *
  * // Pass prober instance to network manager, so users can call
  * schedualProbeRemoteHost to issue probe or process responses in callback func.
@@ -47,7 +49,7 @@ class UdpProber : public virtual Prober {
 
   UdpProber(PacketReceiverCallback* callback, const int32_t checksumOffset,
             const uint8_t probePhaseCode, const uint16_t destinationPort,
-            const std::string& payloadMessage);
+            const std::string& payloadMessage, const bool encodeTimestamp);
 
   // Construct probe.
   size_t packProbe(const uint32_t destinationIp, const uint32_t sourceIp,
@@ -77,6 +79,7 @@ class UdpProber : public virtual Prober {
   uint8_t probePhaseCode_;
   uint16_t destinationPort_;
   std::string payloadMessage_;
+  bool encodeTimestamp_;
 };
 
 }  // namespace flashroute

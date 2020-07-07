@@ -65,6 +65,11 @@ ABSL_FLAG(std::string, hitlist, "", "Hitlist filepath.");
 ABSL_FLAG(std::string, targets, "",
               "Target filepath.");
 
+ABSL_FLAG(bool, encode_timestamp, true,
+          "Encode timestamp into the packets. Disable this can make the scan "
+          "idempotent, in which two scans taking at different times sending "
+          "the same set of probes. By defalt, true.");
+
 ABSL_FLAG(bool, remove_reserved_addresses, true,
           "Remove the reserved addresses.");
 ABSL_FLAG(std::string, blacklist, "", "Blacklist filepath.");
@@ -194,7 +199,8 @@ int main(int argc, char* argv[]) {
         seed, finalInterface, absl::GetFlag(FLAGS_src_port),
         absl::GetFlag(FLAGS_dst_port),
         absl::GetFlag(FLAGS_default_payload_message),
-        absl::GetFlag(FLAGS_probing_rate), absl::GetFlag(FLAGS_output));
+        absl::GetFlag(FLAGS_probing_rate), absl::GetFlag(FLAGS_output),
+        absl::GetFlag(FLAGS_encode_timestamp));
 
     Tracerouter& traceRouter = *traceRouterPtr.get();
 
@@ -276,7 +282,8 @@ int main(int argc, char* argv[]) {
         };
 
     UdpProber udpProber(&response_handler, 0, 0, absl::GetFlag(FLAGS_dst_port),
-                        absl::GetFlag(FLAGS_default_payload_message));
+                        absl::GetFlag(FLAGS_default_payload_message),
+                        absl::GetFlag(FLAGS_encode_timestamp));
     NetworkManager networkManager(&udpProber, finalInterface, 2);
     uint32_t remoteHost =
         parseIpFromStringToInt(target);

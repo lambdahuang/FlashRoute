@@ -56,7 +56,8 @@ Tracerouter::Tracerouter(
     const int32_t predictionProximitySpan, const int32_t scanCount,
     const uint32_t seed, const std::string& interface, const uint16_t srcPort,
     const uint16_t dstPort, const std::string& defaultPayloadMessage,
-    const int64_t probingRate, const std::string& resultFilepath)
+    const int64_t probingRate, const std::string& resultFilepath,
+    const bool encodeTimestamp)
     : stopProbing_(false),
       probePhase_(ProbePhase::NONE),
       defaultSplitTTL_(defaultSplitTTL),
@@ -79,7 +80,8 @@ Tracerouter::Tracerouter(
       srcPort_(srcPort),
       dstPort_(dstPort),
       defaultPayloadMessage_(defaultPayloadMessage),
-      probingRate_(probingRate) {
+      probingRate_(probingRate),
+      encodeTimestamp_(encodeTimestamp) {
   // Thread pool for handling different purposes.
   threadPool_ = std::make_unique<boost::asio::thread_pool>(kThreadPoolSize);
 
@@ -159,7 +161,7 @@ void Tracerouter::startMetricMonitoring() {
   });
 }
 
-void Tracerouter::startScan(bool useHitlist) {
+void Tracerouter::startScan(bool regenerateDestinationAfterPreprobing) {
   stopProbing_ = false;
   checksumMismatches_ = 0;
   distanceAbnormalities_ = 0;
@@ -167,7 +169,7 @@ void Tracerouter::startScan(bool useHitlist) {
   startMetricMonitoring();
   if (preprobingMark_) {
     startPreprobing();
-    if (useHitlist) {
+    if (regenerateDestinationAfterPreprobing) {
       generateRandomAddressForEachDcb();
     } else {
       if (defaultSplitTTL_ == defaultPreprobingTTL_) {
@@ -371,9 +373,9 @@ void Tracerouter::startPreprobing() {
             probeSourcePort, probeDestinationPort);
       };
 
-  prober_ = std::make_unique<UdpProber>(&callback, 0, kPreProbePhase,
-                                        dstPort_,
-                                        defaultPayloadMessage_);
+  prober_ =
+      std::make_unique<UdpProber>(&callback, 0, kPreProbePhase, dstPort_,
+                                  defaultPayloadMessage_, encodeTimestamp_);
   // Set network manager
   networkManager_ =
       std::make_unique<NetworkManager>(prober_.get(), interface_, probingRate_);
@@ -425,9 +427,9 @@ void Tracerouter::startProbing() {
             probeSourcePort, probeDestinationPort);
       };
 
-  prober_ = std::make_unique<UdpProber>(&callback, 0, kMainProbePhase,
-                                        dstPort_,
-                                        defaultPayloadMessage_);
+  prober_ =
+      std::make_unique<UdpProber>(&callback, 0, kMainProbePhase, dstPort_,
+                                  defaultPayloadMessage_, encodeTimestamp_);
   networkManager_ =
       std::make_unique<NetworkManager>(prober_.get(), interface_, probingRate_);
 

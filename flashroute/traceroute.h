@@ -29,20 +29,40 @@ enum class ProbePhase { PREPROBE, PROBE, NONE };
  * Examples:
  * Tracerouter tracerouter(
  *    "123.123.123.123/24",       // Target network
- *    32,                         // Split TTL
+ *    16,                         // Split TTL
  *    32,                         // Preprobing TTL
  *    true,                       // Forward probing switch.
  *    5,                          // Forward Probing gaplimit.
  *    true,                       // Remove redundancy in backward probing.
- *    true,                       // perform distance prediction in preprobing.
- *    5,                          // the proximity span to appy prediction.
- *    53,                         // expected source port (can be overrided by
- *                                // algorithm).
- *    53,                         // expected destination port.
- *    3);                         // seed for random generation.
+ *    true,                       // Perform preprobing to measure distances.
+ *    true,                       // Perform distance prediction in preprobing.
+ *    5,                          // Set the proximity span to appy prediction.
+ *    1,                          // Set the number of scans. The scans after
+ *                                // first round of scan will be treated as
+ *                                // discovery-optimized mode.
+ *    3,                          // Set the seed for guiding random processes,
+ *                                // for example, destination generation or
+ *                                // probing sequence randomization. 
+ *    "eth0",                     // Specify the interface for scan.
+ *    53,                         // Set the expected source port (can be
+ *                                // overrided by algorithm).
+ *    53,                         // Set the expected destination port.
+ *    "test",                     // Message to encode into the payload of each
+ *                                // probe.   
+ *    10000,                      // Set probing rate. 
+ *    "./output.dat",             // Set the output filepath.
+ *    true                        // Control whether to encode timestamp to each
+ *                                // probe. (Test function)
+ * );
  * 
- * tracerouter.startScan(false);
- * tracerouter.stopScan(false);
+ * // startScan accepts two parameters:
+ * // regenerateDestinationAfterPreprobing: control whether or not to
+ * // regenerate destinations after preprobing.
+ * // withTimestamp: 
+ * 
+ * tracerouter.startScan(false, true);
+ * tracerouter.stopScan();
+ * 
  */
 
 class Tracerouter {
@@ -58,11 +78,12 @@ class Tracerouter {
               const uint32_t seed, const std::string& interface,
               const uint16_t srcPort, const uint16_t dstPort,
               const std::string& defaultPayloadMessage,
-              const int64_t probingRate, const std::string& resultFilepath);
+              const int64_t probingRate, const std::string& resultFilepath,
+              const bool encodeTimestamp);
 
   ~Tracerouter();
 
-  void startScan(bool useHitlist);
+  void startScan(bool regenerateDestinationAfterPreprobing);
 
   void stopScan() { stopProbing_ = true; }
 
@@ -200,6 +221,9 @@ class Tracerouter {
 
   // The traversing sequence of Dcbs.
   std::vector<std::pair<uint32_t, uint32_t>> dcbLinkSnapshot_;
+
+  // The variable to encode timestamp.
+  bool encodeTimestamp_;
 
   void initializeDcbVector(absl::string_view targetNetwork);
 
