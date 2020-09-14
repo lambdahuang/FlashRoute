@@ -17,7 +17,7 @@ DestinationControlBlock::DestinationControlBlock(uint32_t ip,
       nextBackwardHop_(initialTtl),
       preprobedMark_(false),
       accurateDistanceMark_(false),
-      maxProbedHop_(initialTtl),
+      nextForwardHop_(initialTtl + 1),
       forwardHorizon_(initialTtl) {
   visitMutex_ = std::make_unique<std::recursive_mutex>();
 }
@@ -35,10 +35,8 @@ bool DestinationControlBlock::updateSplitTtl(uint8_t ttlToUpdate,
       nextBackwardHop_ = ttlToUpdate;
       // update the initial TTL for backward probing.
       initialBackwardProbingTtl = ttlToUpdate;
-      // Also update the max probed distance. Although we did not probe it
-      // yet, we make assumption that this distance will be discovered once
-      // the main probing starts.
-      maxProbedHop_ = ttlToUpdate;
+      // Also update the next forward hop.
+      nextForwardHop_ = ttlToUpdate + 1;
       forwardHorizon_ = ttlToUpdate;
       // If the updated TTL is from an accurate preprobing result, we lock the
       // future update.
@@ -79,14 +77,13 @@ uint8_t DestinationControlBlock::peekBackwardTask() {
 
 bool DestinationControlBlock::hasForwardTask() {
   std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
-  return forwardHorizon_ > maxProbedHop_;
+  return forwardHorizon_ >= nextForwardHop_;
 }
 
 uint8_t DestinationControlBlock::pullForwardTask() {
   std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
-  if (forwardHorizon_ > maxProbedHop_) {
-    maxProbedHop_++;
-    return maxProbedHop_;
+  if (forwardHorizon_ >= nextForwardHop_) {
+    return nextForwardHop_++;
   } else {
       return 0;
   }
@@ -99,19 +96,7 @@ void DestinationControlBlock::stopForwardProbing() {
 
 int16_t DestinationControlBlock::getMaxProbedDistance() {
   std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
-  return maxProbedHop_;
-}
-
-void DestinationControlBlock::setMaxProbedDistance(uint8_t maxProbedHop) {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
-  if (maxProbedHop_ < maxProbedHop) {
-    maxProbedHop_ = maxProbedHop;
-  }
-}
-
-uint8_t DestinationControlBlock::getNextForwardHopTask() {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
-  return forwardHorizon_;
+  return nextForwardHop_ - 1;
 }
 
 void DestinationControlBlock::setForwardHorizon(uint8_t forwardExploredHop) {
@@ -127,7 +112,7 @@ void DestinationControlBlock::setForwardHorizon(uint8_t forwardExploredHop) {
 void DestinationControlBlock::resetProbingProgress(uint8_t ttl) {
   nextBackwardHop_ = ttl;
   initialBackwardProbingTtl = ttl;
-  maxProbedHop_ = ttl;
+  nextForwardHop_ = ttl + 1;
   forwardHorizon_ = ttl;
   removed = false;
 }

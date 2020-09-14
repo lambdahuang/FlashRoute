@@ -69,17 +69,6 @@ class DestinationControlBlock {
   int16_t getMaxProbedDistance();
 
   /**
-   * set the max probed TTL. The given value has to be larger than the current
-   * maxProbedHop_, otherwise, the current value will be kept.
-   */
-  void setMaxProbedDistance(uint8_t maxProbedHop);
-
-  /**
-   * return the nextForwardHop_.
-   */
-  uint8_t getNextForwardHopTask();
-
-  /**
    * set forward probing horizon.
    */
   void setForwardHorizon(uint8_t forwardExploredHop);
@@ -101,7 +90,7 @@ class DestinationControlBlock {
   // std::unique_ptr<std::mutex> preprobedMarkMutex_;
 
   // The maximal hop-distance that is probed already.
-  uint8_t maxProbedHop_;
+  uint8_t nextForwardHop_;
   // std::unique_ptr<std::mutex> maxProbedHopMutex_;
 
   // The maximal hop-distance that is expected to be explored by forward
