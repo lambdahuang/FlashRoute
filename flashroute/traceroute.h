@@ -132,6 +132,7 @@ class Tracerouter {
   // Record the current probe phase which will be used for logging
   ProbePhase probePhase_;
 
+  bool dumpEnable_;
   std::unique_ptr<ResultDumper> resultDumper_;
 
   std::unique_ptr<boost::asio::thread_pool> threadPool_;

@@ -86,7 +86,13 @@ Tracerouter::Tracerouter(
   threadPool_ = std::make_unique<boost::asio::thread_pool>(kThreadPoolSize);
 
   // Result dumper.
-  resultDumper_ = std::make_unique<ResultDumper>(resultFilepath);
+  if (resultFilepath.empty()) {
+    LOG(INFO) << "Internal recording disabled.";
+    dumpEnable_ = false;
+  } else {
+    resultDumper_ = std::make_unique<ResultDumper>(resultFilepath);
+    dumpEnable_ = true;
+  }
 
   initializeDcbVector(targetNetwork);
 
@@ -367,10 +373,11 @@ void Tracerouter::startPreprobing() {
              uint16_t probeSize, uint16_t probeIpid, uint16_t probeSourcePort,
              uint16_t probeDestinationPort) {
         parseIcmpPreprobing(destination, responder, distance, fromDestination);
-        resultDumper_->scheduleDumpData(
-            destination, responder, distance, fromDestination, rtt, probePhase,
-            replyIpid, replyTtl, replySize, probeSize, probeIpid,
-            probeSourcePort, probeDestinationPort);
+        if (dumpEnable_)
+          resultDumper_->scheduleDumpData(
+              destination, responder, distance, fromDestination, rtt,
+              probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
+              probeSourcePort, probeDestinationPort);
       };
 
   prober_ =
@@ -421,10 +428,12 @@ void Tracerouter::startProbing() {
              uint16_t probeSize, uint16_t probeIpid, uint16_t probeSourcePort,
              uint16_t probeDestinationPort) {
         parseIcmpProbing(destination, responder, distance, fromDestination);
-        resultDumper_->scheduleDumpData(
-            destination, responder, distance, fromDestination, rtt, probePhase,
-            replyIpid, replyTtl, replySize, probeSize, probeIpid,
-            probeSourcePort, probeDestinationPort);
+
+        if (dumpEnable_)
+          resultDumper_->scheduleDumpData(
+              destination, responder, distance, fromDestination, rtt,
+              probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
+              probeSourcePort, probeDestinationPort);
       };
 
   prober_ =
