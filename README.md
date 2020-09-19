@@ -71,7 +71,7 @@ Bazel is an open-source build system, developed by Google and widely adopted by 
 
 Bazel supports [ different installation methods ](https://docs.bazel.build/versions/master/install-ubuntu.html).
 
-This example provides the installation of Bazel 2.0.0, but you can freely replace the version to whatsoever the version you like to install.
+This example provides the installation of Bazel 2.0.0, but you can freely replace the version to whatever the version you like to install.
 FlashRoute can be built by Bazel from 0.x to 3.2 on x86_64 machines.
 However, for Arm users, **Bazel 2.1.1 is recommended**.
 
@@ -88,7 +88,7 @@ export BAZEL_CXXOPTS="-std=c++14"
 
 **Caveat**: Make sure your computer has Internet connection when building, Bazel will download underlying libraries for FlashRoute.
 
-The compiling can be done simply using this commandline in side the directory of this project.
+The compiling can be done simply using this commandline inside the directory of this project.
 
 ```
 bazel build flashroute
