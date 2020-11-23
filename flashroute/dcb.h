@@ -79,7 +79,6 @@ class DestinationControlBlock {
   void resetProbingProgress(uint8_t ttl);
 
  private:
-  std::unique_ptr<std::recursive_mutex> visitMutex_;
   uint8_t nextBackwardHop_;
   // std::unique_ptr<std::mutex> ttlToProbeMutex_;
 
@@ -97,6 +96,7 @@ class DestinationControlBlock {
   // probbing. We probe router
   uint8_t forwardHorizon_;
   // std::unique_ptr<std::mutex> forwardExploredHopMutex_;
+  std::unique_ptr<std::atomic_flag> testAndSet;
 };
 
 }  // namespace flashroute

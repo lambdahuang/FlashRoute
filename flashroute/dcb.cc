@@ -19,19 +19,18 @@ DestinationControlBlock::DestinationControlBlock(uint32_t ip,
       accurateDistanceMark_(false),
       nextForwardHop_(initialTtl + 1),
       forwardHorizon_(initialTtl) {
-  visitMutex_ = std::make_unique<std::recursive_mutex>();
+  testAndSet = std::make_unique<std::atomic_flag>();
+  (*testAndSet).clear();
 }
 
 bool DestinationControlBlock::updateSplitTtl(uint8_t ttlToUpdate,
                                                bool confirmResult) {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
+  while (testAndSet->test_and_set(std::memory_order_acquire)) {}
   bool result = !preprobedMark_;
   // If the target does not have any confirmed hop-distance, we are allowed to
   // update it.
   if (!accurateDistanceMark_) {
     {
-      std::lock_guard<std::recursive_mutex> guard(
-          *visitMutex_.get());  // ttlToProbeMutex_
       nextBackwardHop_ = ttlToUpdate;
       // update the initial TTL for backward probing.
       initialBackwardProbingTtl = ttlToUpdate;
@@ -46,67 +45,95 @@ bool DestinationControlBlock::updateSplitTtl(uint8_t ttlToUpdate,
       preprobedMark_ = true;
     }
   }
+  testAndSet->clear(std::memory_order_release);
   return result;
 }
 
 uint8_t DestinationControlBlock::stopBackwardProbing() {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
+  while (testAndSet->test_and_set(std::memory_order_acquire)) {}
   uint8_t remains = nextBackwardHop_;
   nextBackwardHop_ = 0;
+  testAndSet->clear(std::memory_order_release);
   return remains;
 }
 
 uint8_t DestinationControlBlock::pullBackwardTask() {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
+  while (testAndSet->test_and_set(std::memory_order_acquire)) {}
   if (nextBackwardHop_ > 0) {
-    return nextBackwardHop_--;
+    auto tmp = nextBackwardHop_--;
+    testAndSet->clear(std::memory_order_release);
+    return tmp;
   } else {
+    testAndSet->clear(std::memory_order_release);
     return 0;
   }
 }
 
 bool DestinationControlBlock::hasBackwardTask() {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
-  return nextBackwardHop_ > 0;
+  while (testAndSet->test_and_set(std::memory_order_acquire)) {
+  }
+  auto tmp = nextBackwardHop_ > 0;
+  testAndSet->clear(std::memory_order_release);
+  return tmp;
 }
 
 uint8_t DestinationControlBlock::peekBackwardTask() {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
-  return nextBackwardHop_;
+  while (testAndSet->test_and_set(std::memory_order_acquire)) {
+  }
+  auto tmp = nextBackwardHop_;
+  testAndSet->clear(std::memory_order_release);
+  return tmp;
 }
 
 bool DestinationControlBlock::hasForwardTask() {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
-  return forwardHorizon_ >= nextForwardHop_;
+  while (testAndSet->test_and_set(std::memory_order_acquire)) {
+  }
+  auto tmp = forwardHorizon_ >= nextForwardHop_;
+  testAndSet->clear(std::memory_order_release);
+  return tmp;
 }
 
 uint8_t DestinationControlBlock::pullForwardTask() {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
+  while (testAndSet->test_and_set(std::memory_order_acquire)) {
+  }
   if (forwardHorizon_ >= nextForwardHop_) {
-    return nextForwardHop_++;
+    auto tmp = nextForwardHop_++;
+    testAndSet->clear(std::memory_order_release);
+    return tmp;
   } else {
-      return 0;
+    testAndSet->clear(std::memory_order_release);
+    return 0;
   }
 }
 
 void DestinationControlBlock::stopForwardProbing() {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
+  while (testAndSet->test_and_set(std::memory_order_acquire)) {
+  }
   forwardHorizon_ = 0;
+  testAndSet->clear(std::memory_order_release);
 }
 
 int16_t DestinationControlBlock::getMaxProbedDistance() {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
-  return nextForwardHop_ - 1;
+  while (testAndSet->test_and_set(std::memory_order_acquire)) {
+  }
+  auto tmp = nextForwardHop_ - 1;
+  testAndSet->clear(std::memory_order_release);
+  return tmp;
 }
 
 void DestinationControlBlock::setForwardHorizon(uint8_t forwardExploredHop) {
-  std::lock_guard<std::recursive_mutex> guard(*visitMutex_.get());
+  while (testAndSet->test_and_set(std::memory_order_acquire)) {
+  }
   // forwardHorizon_ == 0 means that the forward probing is done;
   // therefore, we will not update the variable regarding the forward probing.
-  if (forwardHorizon_ == 0) return;
+  if (forwardHorizon_ == 0) {
+    testAndSet->clear(std::memory_order_release);
+    return;
+  }
   if (forwardExploredHop > forwardHorizon_) {
     forwardHorizon_ = forwardExploredHop;
   }
+  testAndSet->clear(std::memory_order_release);
 }
 
 void DestinationControlBlock::resetProbingProgress(uint8_t ttl) {
