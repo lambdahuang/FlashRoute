@@ -94,7 +94,7 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
   packet->udp.dest = destinationPort_;
   packet->udp.source =
       getChecksum((uint16_t*)(&destinationIp), checksumOffset_);
-  packet->udp.uh_ulen = htons(packet_expect_size - sizeof(packet->ip));
+  packet->udp.len = htons(packet_expect_size - sizeof(packet->ip));
   // htons(message.size() + sizeof(packet->udp));
 
   memcpy(packet->payload, payloadMessage_.c_str(), payloadMessage_.size());
