@@ -140,7 +140,9 @@ sudo ./bazel-bin/flashroute/flashroute --interface eth0 --probing_rate 10000 --o
 
 ## Flags
 
-`--split_ttl` Specify initial TTL to start Scan. By default, 16
+`--split_ttl` Specify initial TTL to start Scan. By default, 16.
+
+`--granularity` Specify the granularity of the scan. For example, if this value is set to 24, FlashRoute will scan one address per /24 prefix. The range of this value is [1, 32]. By default, 24. Caveat: this value will affect the memory footprint and the network probes and time usage of a scan.
 
 `--preprobing` Enable optimization to use preprobing measure hop distance first. By default, enabled.
 
