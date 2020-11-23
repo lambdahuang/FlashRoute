@@ -126,6 +126,8 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
   uint32_t responder = 0;
   int16_t distance = 0;
   bool fromDestination = false;
+
+#ifdef __FAVOR_BSD
   if (getChecksum(
           reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
           checksumOffset_) != residualUdpPacket->udp.uh_sport) {
@@ -133,6 +135,15 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
     checksumMismatches += 1;
     return;
   }
+#else
+  if (getChecksum(
+          reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
+          checksumOffset_) != residualUdpPacket->udp.source) {
+    // Checksum unmatched.
+    checksumMismatches += 1;
+    return;
+  }
+#endif
   destination = ntohl(residualUdpPacket->ip.ip_dst.s_addr);
   responder = ntohl(parsedPacket->ip.ip_src.s_addr);
 
@@ -186,11 +197,19 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
     distanceAbnormalities += 1;
     return;
   }
+#ifdef __FAVOR_BSD
   (*callback_)(destination, responder, static_cast<uint8_t>(distance),
                fromDestination, rtt, probePhase, replyIpId,
                parsedPacket->ip.ip_ttl, replyIpLen, probeIpLen, probeIpId,
                ntohs(residualUdpPacket->udp.uh_sport),
                ntohs(residualUdpPacket->udp.uh_dport));
+#else
+  (*callback_)(destination, responder, static_cast<uint8_t>(distance),
+               fromDestination, rtt, probePhase, replyIpId,
+               parsedPacket->ip.ip_ttl, replyIpLen, probeIpLen, probeIpId,
+               ntohs(residualUdpPacket->udp.source),
+               ntohs(residualUdpPacket->udp.dest));
+#endif
 }
 
 uint16_t UdpProber::getTimestamp() const {
