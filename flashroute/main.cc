@@ -127,6 +127,8 @@ void printFlags() {
                    (absl::GetFlag(FLAGS_sequential_scan) ? "true" : "false");
   VLOG(1) << boost::format("Probing rate: %|30t|%1% Packet Per Second") %
                    absl::GetFlag(FLAGS_probing_rate);
+  VLOG(1) << boost::format("Scan granularity: %|30t|%1%") %
+                   absl::GetFlag(FLAGS_granularity);
   VLOG(1) << boost::format("Preprobing: %|30t|%1%") %
                    (absl::GetFlag(FLAGS_preprobing) ? "true" : "false");
   VLOG(1) << boost::format("Forward probing: %|30t|%1%") %
