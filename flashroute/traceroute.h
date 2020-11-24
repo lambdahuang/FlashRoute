@@ -16,9 +16,9 @@
 #include "glog/logging.h"
 
 #include "flashroute/dcb.h"
-#include "flashroute/network.h"
-#include "flashroute/udp_prober.h"
 #include "flashroute/dump_result.h"
+#include "flashroute/network.h"
+#include "flashroute/prober.h"
 
 namespace flashroute {
 
@@ -140,7 +140,7 @@ class Tracerouter {
 
   std::unique_ptr<boost::asio::thread_pool> threadPool_;
 
-  std::unique_ptr<UdpProber> prober_;
+  std::unique_ptr<Prober> prober_;
   std::unique_ptr<NetworkManager> networkManager_;
 
   // The scan granularity, which decides one address per /24, /25, or /26
