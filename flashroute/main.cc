@@ -31,6 +31,10 @@ ABSL_FLAG(std::string, dump_targets_file, "", "Dump targets to file.");
 
 
 ABSL_FLAG(int16_t, split_ttl, 16, "Default split ttl.");
+ABSL_FLAG(
+    int16_t, granularity, 24,
+    "The granularity of scan; that is, scan pick 1 address per the given "
+    "length of prefix. The range of this value is [1, 32]. By default, 24.");
 
 ABSL_FLAG(std::string, interface, "", "Relay Interface.");
 ABSL_FLAG(int32_t, probing_rate, 400000, "Probing rate.");
@@ -123,6 +127,8 @@ void printFlags() {
                    (absl::GetFlag(FLAGS_sequential_scan) ? "true" : "false");
   VLOG(1) << boost::format("Probing rate: %|30t|%1% Packet Per Second") %
                    absl::GetFlag(FLAGS_probing_rate);
+  VLOG(1) << boost::format("Scan granularity: %|30t|%1%") %
+                   absl::GetFlag(FLAGS_granularity);
   VLOG(1) << boost::format("Preprobing: %|30t|%1%") %
                    (absl::GetFlag(FLAGS_preprobing) ? "true" : "false");
   VLOG(1) << boost::format("Forward probing: %|30t|%1%") %
@@ -200,7 +206,8 @@ int main(int argc, char* argv[]) {
         absl::GetFlag(FLAGS_dst_port),
         absl::GetFlag(FLAGS_default_payload_message),
         absl::GetFlag(FLAGS_probing_rate), absl::GetFlag(FLAGS_output),
-        absl::GetFlag(FLAGS_encode_timestamp));
+        absl::GetFlag(FLAGS_encode_timestamp),
+        static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
 
     Tracerouter& traceRouter = *traceRouterPtr.get();
 

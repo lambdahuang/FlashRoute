@@ -51,8 +51,10 @@ enum class ProbePhase { PREPROBE, PROBE, NONE };
  *                                // probe.   
  *    10000,                      // Set probing rate. 
  *    "./output.dat",             // Set the output filepath.
- *    true                        // Control whether to encode timestamp to each
- *                                // probe. (Test function)
+ *    true,                       // Control whether to encode timestamp to each
+ *                                // probe. (Test function).
+ *    24                          // Granularity of scan. (One address per /24
+ *                                // prefix)
  * );
  * 
  * // startScan accepts two parameters:
@@ -79,7 +81,8 @@ class Tracerouter {
               const uint16_t srcPort, const uint16_t dstPort,
               const std::string& defaultPayloadMessage,
               const int64_t probingRate, const std::string& resultFilepath,
-              const bool encodeTimestamp);
+              const bool encodeTimestamp,
+              const uint8_t granularity);
 
   ~Tracerouter();
 
@@ -139,6 +142,10 @@ class Tracerouter {
 
   std::unique_ptr<UdpProber> prober_;
   std::unique_ptr<NetworkManager> networkManager_;
+
+  // The scan granularity, which decides one address per /24, /25, or /26
+  // prefix.
+  uint8_t granularity_;
 
   // The default max ttl which is also the starting hop-distance of probing.
   uint8_t defaultSplitTTL_;

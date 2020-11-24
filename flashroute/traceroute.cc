@@ -57,9 +57,10 @@ Tracerouter::Tracerouter(
     const uint32_t seed, const std::string& interface, const uint16_t srcPort,
     const uint16_t dstPort, const std::string& defaultPayloadMessage,
     const int64_t probingRate, const std::string& resultFilepath,
-    const bool encodeTimestamp)
+    const bool encodeTimestamp, const uint8_t granularity)
     : stopProbing_(false),
       probePhase_(ProbePhase::NONE),
+      granularity_(granularity),
       defaultSplitTTL_(defaultSplitTTL),
       defaultPreprobingTTL_(defaultPreprobingTTL),
       forwardProbingMark_(forwardProbing),
@@ -272,7 +273,7 @@ void Tracerouter::initializeDcbVector(absl::string_view targetNetwork) {
   // left Boundary + 1 ip address.
   targetNetworkSize_ = static_cast<int64_t>(targetNetworkLastAddress_) -
                        static_cast<int64_t>(targetNetworkFirstAddress_) + 1;
-  blockFactor_ = static_cast<uint32_t>(std::pow(2, 32 - kProbingGranularity));
+  blockFactor_ = static_cast<uint32_t>(std::pow(2, 32 - granularity_));
   uint32_t dcbCount =
       static_cast<uint32_t>(targetNetworkSize_ / blockFactor_) + 1;
   targetList_.reserve(dcbCount);
@@ -290,7 +291,7 @@ void Tracerouter::initializeDcbVector(absl::string_view targetNetwork) {
       // randomly generate IP addresse avoid the first and last ip address
       // in the block.
       targetList_.push_back(DestinationControlBlock(
-          targetNetworkFirstAddress_ + ((i - 1) << (32 - kProbingGranularity)) +
+          targetNetworkFirstAddress_ + ((i - 1) << (32 - granularity_)) +
               (rand() % (blockFactor_ - 3)) + 2,
           nextElement, previousElement, defaultSplitTTL_));
     }
@@ -670,7 +671,7 @@ void Tracerouter::generateRandomAddressForEachDcb() {
   for (int64_t i = 0; i < static_cast<int64_t>(targetList_.size()); i++) {
     if (i != 0) {
       targetList_[i].ipAddress = targetNetworkFirstAddress_ +
-                                 ((i - 1) << (32 - kProbingGranularity)) +
+                                 ((i - 1) << (32 - granularity_)) +
                                  rand() % 253 + 2;
     }
   }
