@@ -450,11 +450,11 @@ void Tracerouter::startProbing(ProberType proberType) {
 
   if (proberType == ProberType::UDP_PROBER) {
     prober_ =
-        std::make_unique<UdpProber>(&callback, 0, kPreProbePhase, dstPort_,
+        std::make_unique<UdpProber>(&callback, 0, kMainProbePhase, dstPort_,
                                     defaultPayloadMessage_, encodeTimestamp_);
   } else if (proberType == ProberType::UDP_IDEMPOTENT_PROBER) {
     prober_ = std::make_unique<UdpIdempotentProber>(
-        &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_,
+        &callback, 0, kMainProbePhase, dstPort_, defaultPayloadMessage_,
         encodeTimestamp_);
   } else {
     LOG(FATAL) << "Error in creating prober.";
