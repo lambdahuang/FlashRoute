@@ -43,9 +43,6 @@ const uint32_t kTimestampSlot = 65536;
 
 class UdpProber : public virtual Prober {
  public:
-  // Metrics
-  uint64_t checksumMismatches;
-  uint64_t distanceAbnormalities;
 
   UdpProber(PacketReceiverCallback* callback, const int32_t checksumOffset,
             const uint8_t probePhaseCode, const uint16_t destinationPort,

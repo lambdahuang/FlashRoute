@@ -56,9 +56,6 @@ class Prober {
                              SocketType socketType) = 0;
 
   virtual void setChecksumOffset(int32_t checksumOffset) = 0;
-
- private:
-  int32_t checksumOffset_;
 };
 
 }  // namespace flashroute

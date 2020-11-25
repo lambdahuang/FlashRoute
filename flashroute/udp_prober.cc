@@ -74,6 +74,7 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
 
 
   memset(&packet->udp, '\0', sizeof(packet->udp));
+  memcpy(packet->payload, payloadMessage_.c_str(), payloadMessage_.size());
 
 #ifdef __FAVOR_BSD
   packet->udp.uh_dport = destinationPort_;
@@ -94,7 +95,6 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
       getChecksum((uint16_t*)(&destinationIp), checksumOffset_);
   packet->udp.len = htons(packet_expect_size - sizeof(packet->ip));
 
-  memcpy(packet->payload, payloadMessage_.c_str(), payloadMessage_.size());
   // if you set a checksum to zero, your kernel's IP stack should fill in
   // the correct checksum during transmission
   // packet->udp.uh_sum = 0;
@@ -104,7 +104,6 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
                   (uint16_t*)(packetBuffer + sizeof(struct ip)));
 #endif
 
-  memcpy(packet->payload, payloadMessage_.c_str(), payloadMessage_.size());
   return packet_expect_size;
 }
 
