@@ -32,8 +32,8 @@ UdpIdempotentProber::UdpIdempotentProber(PacketReceiverCallback* callback,
   payloadMessage_ = payloadMessage;
   destinationPort_ = htons(destinationPort);
   encodeTimestamp_ = encodeTimestamp;
-  checksumMismatches = 0;
-  distanceAbnormalities = 0;
+  checksumMismatches_ = 0;
+  distanceAbnormalities_ = 0;
 }
 
 size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
@@ -124,7 +124,7 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
           reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
           checksumOffset_) != residualUdpPacket->udp.uh_sport) {
     // Checksum unmatched.
-    checksumMismatches += 1;
+    checksumMismatches_ += 1;
     return;
   }
 #else
@@ -132,7 +132,7 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
           reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
           checksumOffset_) != residualUdpPacket->udp.source) {
     // Checksum unmatched.
-    checksumMismatches += 1;
+    checksumMismatches_ += 1;
     return;
   }
 #endif
@@ -179,7 +179,7 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
   }
 
   if (distance <= 0 || distance > kMaxTtl) {
-    distanceAbnormalities += 1;
+    distanceAbnormalities_ += 1;
     return;
   }
 #ifdef __FAVOR_BSD

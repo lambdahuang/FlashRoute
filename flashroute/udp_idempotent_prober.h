@@ -40,10 +40,6 @@ namespace flashroute {
 
 class UdpIdempotentProber : public virtual Prober {
  public:
-  // Metrics
-  uint64_t checksumMismatches;
-  uint64_t distanceAbnormalities;
-
   UdpIdempotentProber(PacketReceiverCallback* callback, const int32_t checksumOffset,
             const uint8_t probePhaseCode, const uint16_t destinationPort,
             const std::string& payloadMessage, const bool encodeTimestamp);

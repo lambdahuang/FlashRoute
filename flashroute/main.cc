@@ -166,9 +166,9 @@ int main(int argc, char* argv[]) {
   }
 
   ProberType proberType = ProberType::UDP_PROBER;
-  if (absl::GetFlag(FLAGS_prober_type).compare("udp")) {
+  if (absl::GetFlag(FLAGS_prober_type).compare("udp") == 0) {
     proberType = ProberType::UDP_PROBER;
-  } else if (absl::GetFlag(FLAGS_prober_type).compare("udp_idempotent")) {
+  } else if (absl::GetFlag(FLAGS_prober_type).compare("udp_idempotent") == 0) {
     proberType = ProberType::UDP_IDEMPOTENT_PROBER;
   } else {
     LOG(FATAL) << "Unkown prober type.";
