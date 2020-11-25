@@ -24,6 +24,8 @@ namespace flashroute {
 
 enum class ProbePhase { PREPROBE, PROBE, NONE };
 
+enum class ProberType { UDP_PROBER, UDP_IDEMPOTENT_PROBER };
+
 /**
  * Traceroute module contains the major logics and strategies of probing.
  * Examples:
@@ -86,7 +88,8 @@ class Tracerouter {
 
   ~Tracerouter();
 
-  void startScan(bool regenerateDestinationAfterPreprobing);
+  void startScan(bool regenerateDestinationAfterPreprobing,
+                 ProberType proberType);
 
   void stopScan() { stopProbing_ = true; }
 
@@ -237,9 +240,9 @@ class Tracerouter {
 
   void swapDcbElementSequence(uint32_t x, uint32_t y);
 
-  void startPreprobing();
+  void startPreprobing(ProberType proberType);
 
-  void startProbing();
+  void startProbing(ProberType proberType);
 
   void parseIcmpPreprobing(uint32_t destination, uint32_t responder,
                            uint8_t distance, bool fromDestination);
