@@ -30,8 +30,8 @@ UdpProber::UdpProber(PacketReceiverCallback* callback,
   payloadMessage_ = payloadMessage;
   destinationPort_ = htons(destinationPort);
   encodeTimestamp_ = encodeTimestamp;
-  checksumMismatches = 0;
-  distanceAbnormalities = 0;
+  checksumMismatches_ = 0;
+  distanceAbnormalities_ = 0;
 }
 
 size_t UdpProber::packProbe(const uint32_t destinationIp,
@@ -137,7 +137,7 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
           reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
           checksumOffset_) != residualUdpPacket->udp.source) {
     // Checksum unmatched.
-    checksumMismatches += 1;
+    checksumMismatches_ += 1;
     return;
   }
 #endif
@@ -191,7 +191,7 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
   }
 
   if (distance <= 0 || distance > kMaxTtl) {
-    distanceAbnormalities += 1;
+    distanceAbnormalities_ += 1;
     return;
   }
 #ifdef __FAVOR_BSD
@@ -270,6 +270,16 @@ uint16_t UdpProber::getChecksum(const uint8_t protocolValue,
   // Take the bitwise complement of sum
   sum = ~sum;
   return htons(((uint16_t)sum));
+}
+
+// Get metrics information
+
+uint64_t UdpProber::getChecksummismatches() {
+  return checksumMismatches_;
+}
+
+uint64_t UdpProber::getDistanceAbnormalities() {
+  return distanceAbnormalities_;
 }
 
 }  // namespace flashroute

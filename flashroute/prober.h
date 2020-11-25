@@ -44,10 +44,6 @@ using PacketReceiverCallback = std::function<void(
 
 class Prober {
  public:
-  // Metrics
-  uint64_t checksumMismatches;
-  uint64_t distanceAbnormalities;
-
   virtual size_t packProbe(const uint32_t destinationIp,
                            const uint32_t sourceIp, const uint8_t ttl,
                            uint8_t* packetBuffer) = 0;
@@ -56,6 +52,9 @@ class Prober {
                              SocketType socketType) = 0;
 
   virtual void setChecksumOffset(int32_t checksumOffset) = 0;
+
+  virtual uint64_t getChecksummismatches() = 0;
+  virtual uint64_t getDistanceAbnormalities() = 0;
 };
 
 }  // namespace flashroute

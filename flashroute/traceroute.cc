@@ -414,8 +414,8 @@ void Tracerouter::startPreprobing() {
   probePhase_ = ProbePhase::NONE;
   sentPreprobes_ = networkManager_.get()->getSentPacketCount();
   receivedResponses_ = networkManager_.get()->getReceivedPacketCount();
-  checksumMismatches_ = prober_->checksumMismatches;
-  distanceAbnormalities_ = prober_->distanceAbnormalities;
+  checksumMismatches_ = prober_->getChecksummismatches();
+  distanceAbnormalities_ = prober_->getDistanceAbnormalities();
 }
 
 void Tracerouter::startProbing() {
@@ -531,8 +531,8 @@ void Tracerouter::startProbing() {
                    timeDifference;
   sentProbes_ = networkManager_.get()->getSentPacketCount();
   receivedResponses_ += networkManager_.get()->getReceivedPacketCount();
-  checksumMismatches_ += prober_->checksumMismatches;
-  distanceAbnormalities_ += prober_->distanceAbnormalities;
+  checksumMismatches_ += prober_->getChecksummismatches();
+  distanceAbnormalities_ += prober_->getDistanceAbnormalities();
   probePhase_ = ProbePhase::NONE;
 }
 

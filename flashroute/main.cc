@@ -332,8 +332,9 @@ int main(int argc, char* argv[]) {
     }
     LOG(INFO) << " =============================";
 
-    LOG(INFO) << "Checksum Mismatches: " << udpProber.checksumMismatches;
-    LOG(INFO) << "Distance Abnormalities: " << udpProber.distanceAbnormalities;
+    LOG(INFO) << "Checksum Mismatches: " << udpProber.getChecksummismatches();
+    LOG(INFO) << "Distance Abnormalities: "
+              << udpProber.getDistanceAbnormalities();
   }
   LOG(INFO) << "The program ends.";
 }
