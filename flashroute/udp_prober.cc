@@ -54,21 +54,21 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
   // for encoding timestamp.
   // 0x3FF = 2^10 to extract first 10-bit of timestamp
   uint16_t ipid = (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
-  int32_t packet_expect_size = 128;
+  int32_t packetExpectedSize = 128;
 
   if (encodeTimestamp_) {
     ipid = ipid | ((timestamp & 0x3FF) << 6);
     // packet-size encode 6-bit timestamp
     // (((timestamp >> 10) & 0x3F) << 6): the rest 6-bit of timestamp
-    packet_expect_size = packet_expect_size | (((timestamp >> 10) & 0x3F) << 1);
+    packetExpectedSize = packetExpectedSize | (((timestamp >> 10) & 0x3F) << 1);
   }
-  // In OSX, please use: packet->ip.ip_len = packet_expect_size;
+  // In OSX, please use: packet->ip.ip_len = packetExpectedSize;
   // Otherwise, you will have an Errno-22.
 #if defined(__APPLE__) || defined(__MACH__)
-  packet->ip.ip_len = packet_expect_size;
+  packet->ip.ip_len = packetExpectedSize;
   packet->ip.ip_id = ipid;
 #else
-  packet->ip.ip_len = htons(packet_expect_size);
+  packet->ip.ip_len = htons(packetExpectedSize);
   packet->ip.ip_id = htons(ipid);
 #endif
 
@@ -80,31 +80,31 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
   packet->udp.uh_dport = destinationPort_;
   packet->udp.uh_sport =
       getChecksum((uint16_t*)(&destinationIp), checksumOffset_);
-  packet->udp.uh_ulen = htons(packet_expect_size - sizeof(packet->ip));
+  packet->udp.uh_ulen = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
   // the correct checksum during transmission
   // packet->udp.uh_sum = 0;
   packet->udp.uh_sum =
-      getChecksum(kUdpProtocol, packet_expect_size - sizeof(packet->ip),
+      getChecksum(kUdpProtocol, packetExpectedSize - sizeof(packet->ip),
                   (uint16_t*)(&sourceIp), (uint16_t*)(&destinationIp),
                   (uint16_t*)(packetBuffer + sizeof(struct ip)));
 #else
   packet->udp.dest = destinationPort_;
   packet->udp.source =
       getChecksum((uint16_t*)(&destinationIp), checksumOffset_);
-  packet->udp.len = htons(packet_expect_size - sizeof(packet->ip));
+  packet->udp.len = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
   // the correct checksum during transmission
   // packet->udp.uh_sum = 0;
   packet->udp.check =
-      getChecksum(kUdpProtocol, packet_expect_size - sizeof(packet->ip),
+      getChecksum(kUdpProtocol, packetExpectedSize - sizeof(packet->ip),
                   (uint16_t*)(&sourceIp), (uint16_t*)(&destinationIp),
                   (uint16_t*)(packetBuffer + sizeof(struct ip)));
 #endif
 
-  return packet_expect_size;
+  return packetExpectedSize;
 }
 
 void UdpProber::setChecksumOffset(int32_t checksumOffset) {
