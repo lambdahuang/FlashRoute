@@ -118,6 +118,10 @@ void signalHandler(int signalNumber) {
 
 void printFlags() {
   VLOG(1) << boost::format("Boost version: %|30t|%1%") % BOOST_LIB_VERSION;
+  VLOG(1) << boost::format("Prober Type: %|30t|%1%") %
+                 ((absl::GetFlag(FLAGS_prober_type).compare("udp") == 0)
+                      ? "udp"
+                      : "udp-idempotent");
   VLOG(1) << boost::format("Default Payload Message: %|30t|%1%") %
                    absl::GetFlag(FLAGS_default_payload_message);
   VLOG(1) << boost::format("Interface: %|30t|%1%") % finalInterface;
