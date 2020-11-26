@@ -86,8 +86,7 @@ size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
                   (uint16_t*)(packetBuffer + sizeof(struct ip)));
 #else
   packet->udp.dest = destinationPort_;
-  packet->udp.source =
-      getChecksum((uint16_t*)(&destinationIp), checksumOffset_);
+  packet->udp.source = getChecksum((uint16_t*)(packetBuffer));
   packet->udp.len = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
@@ -120,17 +119,16 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
   bool fromDestination = false;
 
 #ifdef __FAVOR_BSD
-  if (getChecksum(
-          reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
-          checksumOffset_) != residualUdpPacket->udp.uh_sport) {
+
+  if (getChecksum(reinterpret_cast<uint16_t*>(buffer + 28)) !=
+      residualUdpPacket->udp.uh_sport) {
     // Checksum unmatched.
     checksumMismatches_ += 1;
     return;
   }
 #else
-  if (getChecksum(
-          reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
-          checksumOffset_) != residualUdpPacket->udp.source) {
+  if (getChecksum(reinterpret_cast<uint16_t*>(buffer + 28)) !=
+      residualUdpPacket->udp.source) {
     // Checksum unmatched.
     checksumMismatches_ += 1;
     return;
@@ -240,6 +238,32 @@ uint16_t UdpIdempotentProber::getChecksum(const uint8_t protocolValue,
    */
   for (uint32_t i = 0; i < (packetLength / 2); i++) {
     sum += ntohs(buff[i]);
+  }
+
+  // keep only the last 16 bits of the 32 bit calculated sum and add the
+  // carries
+  sum = (sum & 0xFFFF) + (sum >> 16);
+  // sum += (sum >> 16);
+
+  // Take the bitwise complement of sum
+  sum = ~sum;
+  return htons(((uint16_t)sum));
+}
+
+uint16_t UdpIdempotentProber::getChecksum(uint16_t* buff) const {
+  uint32_t sum = 0;
+
+  /*
+   * calculate the checksum for the tcp header and payload
+   * len_tcp represents number of 8-bit bytes,
+   * we are working with 16-bit words so divide len_tcp by 2.
+   */
+  for (uint32_t i = 0; i < 10; i++) {
+    if (i != 4) {
+      sum += buff[i];
+    } else {
+      sum += buff[i] & 0xFF00;
+    }
   }
 
   // keep only the last 16 bits of the 32 bit calculated sum and add the
