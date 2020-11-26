@@ -18,8 +18,9 @@ const uint8_t kUdpProtocol = 17;  // Default UDP protocol id.
 
 // The maximum ttl we will explore.
 const uint8_t kMaxTtl = 32;
-// The default IPID.
-const uint16_t kDefaultIPID = 0;
+// The default IPID. Don't set to 0 cause it would compel OS to give it a random
+// value.
+const uint16_t kDefaultIPID = 1234;
 
 UdpIdempotentProber::UdpIdempotentProber(PacketReceiverCallback* callback,
                      const int32_t checksumOffset, const uint8_t probePhaseCode,
