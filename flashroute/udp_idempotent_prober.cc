@@ -19,7 +19,7 @@ const uint8_t kUdpProtocol = 17;  // Default UDP protocol id.
 // The maximum ttl we will explore.
 const uint8_t kMaxTtl = 32;
 // The default IPID.
-const uint8_t kDefaultIPID = 0;
+const uint16_t kDefaultIPID = 0;
 
 UdpIdempotentProber::UdpIdempotentProber(PacketReceiverCallback* callback,
                      const int32_t checksumOffset, const uint8_t probePhaseCode,
@@ -257,11 +257,13 @@ uint16_t UdpIdempotentProber::getChecksum(uint16_t* buff) const {
    * len_tcp represents number of 8-bit bytes,
    * we are working with 16-bit words so divide len_tcp by 2.
    */
-  for (uint32_t i = 0; i < 10; i++) {
-    if (i != 4) {
-      sum += buff[i];
-    } else {
+  for (uint32_t i = 1; i < 10; i++) {
+    if (i == 4) {
       sum += buff[i] & 0xFF00;
+    } else if (i == 5) {
+      // do nothing
+    } else {
+      sum += buff[i];
     }
   }
 

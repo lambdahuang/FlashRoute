@@ -642,7 +642,7 @@ void Tracerouter::calculateStatistic(uint64_t elapsedTime) {
                    receivedResponses_;
   LOG(INFO) << boost::format("Dropped responses: %|30t|%ld") %
                    (checksumMismatches_ + distanceAbnormalities_);
-  LOG(INFO) << boost::format("Checksum Mistatches: %|30t|%ld") %
+  LOG(INFO) << boost::format("Checksum Mismatches: %|30t|%ld") %
                    (checksumMismatches_);
   LOG(INFO) << boost::format("Distance Abnormalities: %|30t|%ld") %
                    (distanceAbnormalities_);
