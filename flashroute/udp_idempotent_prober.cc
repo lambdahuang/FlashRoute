@@ -63,10 +63,11 @@ size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
   // Otherwise, you will have an Errno-22.
 #if defined(__APPLE__) || defined(__MACH__)
   packet->ip.ip_len = packetExpectedSize;
-  packet->ip.ip_id = kDefaultIPID;
+  packet->ip.ip_id = getChecksum((uint16_t*)(&destinationIp), checksumOffset_);
 #else
   packet->ip.ip_len = htons(packetExpectedSize);
-  packet->ip.ip_id = htons(kDefaultIPID);
+  packet->ip.ip_id =
+      htons(getChecksum((uint16_t*)(&destinationIp), checksumOffset_));
 #endif
 
   memset(&packet->udp, '\0', sizeof(packet->udp));
@@ -74,7 +75,8 @@ size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
 
 #ifdef __FAVOR_BSD
   packet->udp.uh_dport = destinationPort_;
-  packet->udp.uh_sport = getChecksum((uint16_t*)(packetBuffer));
+  packet->udp.uh_sport =
+      getChecksum((uint16_t*)(packetBuffer), checksumOffset_);
   packet->udp.uh_ulen = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
@@ -86,7 +88,7 @@ size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
                   (uint16_t*)(packetBuffer + sizeof(struct ip)));
 #else
   packet->udp.dest = destinationPort_;
-  packet->udp.source = getChecksum((uint16_t*)(packetBuffer));
+  packet->udp.source = getChecksum((uint16_t*)(packetBuffer), checksumOffset_);
   packet->udp.len = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
@@ -118,17 +120,19 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
   int16_t distance = 0;
   bool fromDestination = false;
 
-#ifdef __FAVOR_BSD
-
-  if (getChecksum(reinterpret_cast<uint16_t*>(buffer + 28)) !=
-      residualUdpPacket->udp.uh_sport) {
+// Verify ipid(checksum of destination) with destination in quotation.
+#if defined(__APPLE__) || defined(__MACH__)
+  if (getChecksum(
+          reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
+          checksumOffset_) != residualUdpPacket->ip.ip_id) {
     // Checksum unmatched.
     checksumMismatches_ += 1;
     return;
   }
 #else
-  if (getChecksum(reinterpret_cast<uint16_t*>(buffer + 28)) !=
-      residualUdpPacket->udp.source) {
+  if (getChecksum(
+          reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
+          checksumOffset_) != ntohs(residualUdpPacket->ip.ip_id)) {
     // Checksum unmatched.
     checksumMismatches_ += 1;
     return;
@@ -250,7 +254,8 @@ uint16_t UdpIdempotentProber::getChecksum(const uint8_t protocolValue,
   return htons(((uint16_t)sum));
 }
 
-uint16_t UdpIdempotentProber::getChecksum(uint16_t* buff) const {
+uint16_t UdpIdempotentProber::getChecksum(uint16_t* buff,
+                                          uint16_t offset) const {
   uint32_t sum = 0;
 
   /*
@@ -258,10 +263,10 @@ uint16_t UdpIdempotentProber::getChecksum(uint16_t* buff) const {
    * len_tcp represents number of 8-bit bytes,
    * we are working with 16-bit words so divide len_tcp by 2.
    */
-  for (uint32_t i = 1; i < 10; i++) {
+  for (uint32_t i = 0; i < 10; i++) {
     if (i == 4) {
       sum += buff[i] & 0xFF00;
-    } else if (i == 5) {
+    } else if (i == 5 || i == 1) {
       // do nothing
     } else {
       sum += buff[i];
@@ -275,7 +280,7 @@ uint16_t UdpIdempotentProber::getChecksum(uint16_t* buff) const {
 
   // Take the bitwise complement of sum
   sum = ~sum;
-  return htons(((uint16_t)sum));
+  return htons(((uint16_t)sum + offset));
 }
 
 // Get metrics information

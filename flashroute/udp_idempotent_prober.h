@@ -63,7 +63,7 @@ class UdpIdempotentProber : public virtual Prober {
                        const uint16_t* src_addr, const uint16_t* dest_addr,
                        uint16_t* buff) const;
 
-  uint16_t getChecksum(uint16_t* buff) const;
+  uint16_t getChecksum(uint16_t* buff, uint16_t offset) const;
 
   // Get metrics information
   uint64_t getChecksummismatches() override;
