@@ -56,7 +56,8 @@ class UdpIdempotentProber : public virtual Prober {
   void setChecksumOffset(int32_t checksumOffset);
 
   // Put here for testing purpose.
-  uint16_t getChecksum(const uint16_t* ipaddress, uint16_t offset) const;
+  uint16_t getDestAddrChecksum(const uint16_t* ipaddress,
+                               const uint16_t offset) const;
 
   // Put here for testing purpose.
   uint16_t getChecksum(const uint8_t protocolValue, size_t packetLength,

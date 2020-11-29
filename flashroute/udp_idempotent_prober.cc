@@ -63,11 +63,12 @@ size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
   // Otherwise, you will have an Errno-22.
 #if defined(__APPLE__) || defined(__MACH__)
   packet->ip.ip_len = packetExpectedSize;
-  packet->ip.ip_id = getChecksum((uint16_t*)(&destinationIp), checksumOffset_);
+  packet->ip.ip_id =
+      getDestAddrChecksum((uint16_t*)(&destinationIp), checksumOffset_);
 #else
   packet->ip.ip_len = htons(packetExpectedSize);
   packet->ip.ip_id =
-      htons(getChecksum((uint16_t*)(&destinationIp), checksumOffset_));
+      htons(getDestAddrChecksum((uint16_t*)(&destinationIp), checksumOffset_));
 #endif
 
   memset(&packet->udp, '\0', sizeof(packet->udp));
@@ -122,7 +123,7 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
 
 // Verify ipid(checksum of destination) with destination in quotation.
 #if defined(__APPLE__) || defined(__MACH__)
-  if (getChecksum(
+  if (getDestAddrChecksum(
           reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
           checksumOffset_) != residualUdpPacket->ip.ip_id) {
     // Checksum unmatched.
@@ -130,7 +131,7 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
     return;
   }
 #else
-  if (getChecksum(
+  if (getDestAddrChecksum(
           reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
           checksumOffset_) != ntohs(residualUdpPacket->ip.ip_id)) {
     // Checksum unmatched.
@@ -199,8 +200,8 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
 #endif
 }
 
-uint16_t UdpIdempotentProber::getChecksum(const uint16_t* ipAddress,
-                                     uint16_t offset) const {
+uint16_t UdpIdempotentProber::getDestAddrChecksum(const uint16_t* ipAddress,
+                                                  const uint16_t offset) const {
   uint32_t sum = 0;
   sum += ntohs(ipAddress[0]);
   sum += ntohs(ipAddress[1]);
