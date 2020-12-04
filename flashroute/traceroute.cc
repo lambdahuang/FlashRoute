@@ -23,6 +23,7 @@
 #include "flashroute/network.h"
 #include "flashroute/prober.h"
 #include "flashroute/udp_prober.h"
+#include "flashroute/udp_idempotent_prober.h"
 
 namespace flashroute {
 
@@ -168,14 +169,15 @@ void Tracerouter::startMetricMonitoring() {
   });
 }
 
-void Tracerouter::startScan(bool regenerateDestinationAfterPreprobing) {
+void Tracerouter::startScan(bool regenerateDestinationAfterPreprobing,
+                            ProberType proberType) {
   stopProbing_ = false;
   checksumMismatches_ = 0;
   distanceAbnormalities_ = 0;
   auto startTimestamp = std::chrono::steady_clock::now();
   startMetricMonitoring();
   if (preprobingMark_) {
-    startPreprobing();
+    startPreprobing(proberType);
     if (regenerateDestinationAfterPreprobing) {
       generateRandomAddressForEachDcb();
     } else {
@@ -187,7 +189,7 @@ void Tracerouter::startScan(bool regenerateDestinationAfterPreprobing) {
       }
     }
   }
-  if (!stopProbing_) startProbing();
+  if (!stopProbing_) startProbing(proberType);
   auto endTimestamp = std::chrono::steady_clock::now();
   stopProbing_ = true;
   stopMetricMonitoring();
@@ -363,7 +365,7 @@ int64_t Tracerouter::removeDcbElement(uint32_t x) {
   }
 }
 
-void Tracerouter::startPreprobing() {
+void Tracerouter::startPreprobing(ProberType proberType) {
   // Update status.
   probePhase_ = ProbePhase::PREPROBE;
   // Set up callback function.
@@ -381,9 +383,18 @@ void Tracerouter::startPreprobing() {
               probeSourcePort, probeDestinationPort);
       };
 
-  prober_ =
-      std::make_unique<UdpProber>(&callback, 0, kPreProbePhase, dstPort_,
-                                  defaultPayloadMessage_, encodeTimestamp_);
+  if (proberType == ProberType::UDP_PROBER) {
+    prober_ =
+        std::make_unique<UdpProber>(&callback, 0, kPreProbePhase, dstPort_,
+                                    defaultPayloadMessage_, encodeTimestamp_);
+  } else if (proberType == ProberType::UDP_IDEMPOTENT_PROBER) {
+    prober_ = std::make_unique<UdpIdempotentProber>(
+        &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_,
+        encodeTimestamp_);
+  } else {
+    LOG(FATAL) << "Error in creating prober.";
+  }
+
   // Set network manager
   networkManager_ =
       std::make_unique<NetworkManager>(prober_.get(), interface_, probingRate_);
@@ -414,11 +425,11 @@ void Tracerouter::startPreprobing() {
   probePhase_ = ProbePhase::NONE;
   sentPreprobes_ = networkManager_.get()->getSentPacketCount();
   receivedResponses_ = networkManager_.get()->getReceivedPacketCount();
-  checksumMismatches_ = prober_->checksumMismatches;
-  distanceAbnormalities_ = prober_->distanceAbnormalities;
+  checksumMismatches_ = prober_->getChecksummismatches();
+  distanceAbnormalities_ = prober_->getDistanceAbnormalities();
 }
 
-void Tracerouter::startProbing() {
+void Tracerouter::startProbing(ProberType proberType) {
   // Update status
   probePhase_ = ProbePhase::PROBE;
   // Set up callback function.
@@ -437,9 +448,18 @@ void Tracerouter::startProbing() {
               probeSourcePort, probeDestinationPort);
       };
 
-  prober_ =
-      std::make_unique<UdpProber>(&callback, 0, kMainProbePhase, dstPort_,
-                                  defaultPayloadMessage_, encodeTimestamp_);
+  if (proberType == ProberType::UDP_PROBER) {
+    prober_ =
+        std::make_unique<UdpProber>(&callback, 0, kMainProbePhase, dstPort_,
+                                    defaultPayloadMessage_, encodeTimestamp_);
+  } else if (proberType == ProberType::UDP_IDEMPOTENT_PROBER) {
+    prober_ = std::make_unique<UdpIdempotentProber>(
+        &callback, 0, kMainProbePhase, dstPort_, defaultPayloadMessage_,
+        encodeTimestamp_);
+  } else {
+    LOG(FATAL) << "Error in creating prober.";
+  }
+
   networkManager_ =
       std::make_unique<NetworkManager>(prober_.get(), interface_, probingRate_);
 
@@ -531,8 +551,8 @@ void Tracerouter::startProbing() {
                    timeDifference;
   sentProbes_ = networkManager_.get()->getSentPacketCount();
   receivedResponses_ += networkManager_.get()->getReceivedPacketCount();
-  checksumMismatches_ += prober_->checksumMismatches;
-  distanceAbnormalities_ += prober_->distanceAbnormalities;
+  checksumMismatches_ += prober_->getChecksummismatches();
+  distanceAbnormalities_ += prober_->getDistanceAbnormalities();
   probePhase_ = ProbePhase::NONE;
 }
 
@@ -622,7 +642,7 @@ void Tracerouter::calculateStatistic(uint64_t elapsedTime) {
                    receivedResponses_;
   LOG(INFO) << boost::format("Dropped responses: %|30t|%ld") %
                    (checksumMismatches_ + distanceAbnormalities_);
-  LOG(INFO) << boost::format("Checksum Mistatches: %|30t|%ld") %
+  LOG(INFO) << boost::format("Checksum Mismatches: %|30t|%ld") %
                    (checksumMismatches_);
   LOG(INFO) << boost::format("Distance Abnormalities: %|30t|%ld") %
                    (distanceAbnormalities_);

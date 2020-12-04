@@ -50,6 +50,11 @@ class Prober {
 
   virtual void parseResponse(uint8_t* buffer, size_t size,
                              SocketType socketType) = 0;
+
+  virtual void setChecksumOffset(int32_t checksumOffset) = 0;
+
+  virtual uint64_t getChecksummismatches() = 0;
+  virtual uint64_t getDistanceAbnormalities() = 0;
 };
 
 }  // namespace flashroute

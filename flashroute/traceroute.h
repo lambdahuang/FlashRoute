@@ -16,13 +16,15 @@
 #include "glog/logging.h"
 
 #include "flashroute/dcb.h"
-#include "flashroute/network.h"
-#include "flashroute/udp_prober.h"
 #include "flashroute/dump_result.h"
+#include "flashroute/network.h"
+#include "flashroute/prober.h"
 
 namespace flashroute {
 
 enum class ProbePhase { PREPROBE, PROBE, NONE };
+
+enum class ProberType { UDP_PROBER, UDP_IDEMPOTENT_PROBER };
 
 /**
  * Traceroute module contains the major logics and strategies of probing.
@@ -86,7 +88,8 @@ class Tracerouter {
 
   ~Tracerouter();
 
-  void startScan(bool regenerateDestinationAfterPreprobing);
+  void startScan(bool regenerateDestinationAfterPreprobing,
+                 ProberType proberType);
 
   void stopScan() { stopProbing_ = true; }
 
@@ -140,7 +143,7 @@ class Tracerouter {
 
   std::unique_ptr<boost::asio::thread_pool> threadPool_;
 
-  std::unique_ptr<UdpProber> prober_;
+  std::unique_ptr<Prober> prober_;
   std::unique_ptr<NetworkManager> networkManager_;
 
   // The scan granularity, which decides one address per /24, /25, or /26
@@ -237,9 +240,9 @@ class Tracerouter {
 
   void swapDcbElementSequence(uint32_t x, uint32_t y);
 
-  void startPreprobing();
+  void startPreprobing(ProberType proberType);
 
-  void startProbing();
+  void startProbing(ProberType proberType);
 
   void parseIcmpPreprobing(uint32_t destination, uint32_t responder,
                            uint8_t distance, bool fromDestination);

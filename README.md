@@ -144,6 +144,8 @@ sudo ./bazel-bin/flashroute/flashroute --interface eth0 --probing_rate 10000 --o
 
 `--granularity` Specify the granularity of the scan. For example, if this value is set to 24, FlashRoute will scan one address per /24 prefix. The range of this value is [1, 32]. By default, 24. Caveat: this value will affect the memory footprint and the network probes and time usage of a scan.
 
+`--prober_type` The type of prober. Options: udp, udp_idempotent.
+
 `--preprobing` Enable optimization to use preprobing measure hop distance first. By default, enabled.
 
 `--preprobing_ttl` Specify TTL for preprobing. By default, 32.

@@ -29,6 +29,8 @@ ABSL_FLAG(bool, sequential_scan, false, "Sequentially scan all targets.");
 
 ABSL_FLAG(std::string, dump_targets_file, "", "Dump targets to file.");
 
+ABSL_FLAG(std::string, prober_type, "udp",
+          "The prober used for the scan. Options: udp, udp idempotent");
 
 ABSL_FLAG(int16_t, split_ttl, 16, "Default split ttl.");
 ABSL_FLAG(
@@ -116,6 +118,10 @@ void signalHandler(int signalNumber) {
 
 void printFlags() {
   VLOG(1) << boost::format("Boost version: %|30t|%1%") % BOOST_LIB_VERSION;
+  VLOG(1) << boost::format("Prober Type: %|30t|%1%") %
+                 ((absl::GetFlag(FLAGS_prober_type).compare("udp") == 0)
+                      ? "udp"
+                      : "udp-idempotent");
   VLOG(1) << boost::format("Default Payload Message: %|30t|%1%") %
                    absl::GetFlag(FLAGS_default_payload_message);
   VLOG(1) << boost::format("Interface: %|30t|%1%") % finalInterface;
@@ -162,6 +168,16 @@ int main(int argc, char* argv[]) {
   } else if (absl::GetFlag(FLAGS_verbose)) {
     FLAGS_v = 1;
   }
+
+  ProberType proberType = ProberType::UDP_PROBER;
+  if (absl::GetFlag(FLAGS_prober_type).compare("udp") == 0) {
+    proberType = ProberType::UDP_PROBER;
+  } else if (absl::GetFlag(FLAGS_prober_type).compare("udp_idempotent") == 0) {
+    proberType = ProberType::UDP_IDEMPOTENT_PROBER;
+  } else {
+    LOG(FATAL) << "Unkown prober type.";
+  }
+
   // gflags::ParseCommandLineFlags(&argc, &argv, true);
   // Get propositional parameters.
   std::string target = std::string(argv[argc - 1]);
@@ -238,7 +254,7 @@ int main(int argc, char* argv[]) {
       return 0;
     }
 
-    traceRouter.startScan(!absl::GetFlag(FLAGS_hitlist).empty());
+    traceRouter.startScan(!absl::GetFlag(FLAGS_hitlist).empty(), proberType);
 
     // Terminate Tcpdump.
     if (!absl::GetFlag(FLAGS_tcpdump_output).empty()) {
@@ -332,8 +348,9 @@ int main(int argc, char* argv[]) {
     }
     LOG(INFO) << " =============================";
 
-    LOG(INFO) << "Checksum Mismatches: " << udpProber.checksumMismatches;
-    LOG(INFO) << "Distance Abnormalities: " << udpProber.distanceAbnormalities;
+    LOG(INFO) << "Checksum Mismatches: " << udpProber.getChecksummismatches();
+    LOG(INFO) << "Distance Abnormalities: "
+              << udpProber.getDistanceAbnormalities();
   }
   LOG(INFO) << "The program ends.";
 }

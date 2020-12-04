@@ -10,7 +10,7 @@
 #include <cstring>
 
 #include "glog/logging.h"
-#include "flashroute/udp_prober.h"
+#include "flashroute/udp_idempotent_prober.h"
 
 namespace flashroute {
 
@@ -18,8 +18,11 @@ const uint8_t kUdpProtocol = 17;  // Default UDP protocol id.
 
 // The maximum ttl we will explore.
 const uint8_t kMaxTtl = 32;
+// The default IPID. Don't set to 0 cause it would compel OS to give it a random
+// value.
+const uint16_t kDefaultIPID = 1234;
 
-UdpProber::UdpProber(PacketReceiverCallback* callback,
+UdpIdempotentProber::UdpIdempotentProber(PacketReceiverCallback* callback,
                      const int32_t checksumOffset, const uint8_t probePhaseCode,
                      const uint16_t destinationPort,
                      const std::string& payloadMessage,
@@ -34,13 +37,12 @@ UdpProber::UdpProber(PacketReceiverCallback* callback,
   distanceAbnormalities_ = 0;
 }
 
-size_t UdpProber::packProbe(const uint32_t destinationIp,
+size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
                             const uint32_t sourceIp, const uint8_t ttl,
                             uint8_t* packetBuffer) {
   struct PacketUdp* packet =
       reinterpret_cast<struct PacketUdp*>(packetBuffer);
 
-  uint16_t timestamp = getTimestamp();
   // Fabricate the IP header or we can use the
   // standard header structures but assign our own values.
   memset(&packet->ip, 0, sizeof(packet->ip));
@@ -50,28 +52,27 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
   packet->ip.ip_src = *((struct in_addr*)(&sourceIp));
   packet->ip.ip_p = kUdpProtocol;  // UDP protocol
   packet->ip.ip_ttl = ttl;
-  // ipid: 5-bit for encoding intiial TTL, 1 bit for encoding probeType, 10-bit
-  // for encoding timestamp.
-  // 0x3FF = 2^10 to extract first 10-bit of timestamp
-  uint16_t ipid = (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
-  int32_t packetExpectedSize = 128;
 
-  if (encodeTimestamp_) {
-    ipid = ipid | ((timestamp & 0x3FF) << 6);
-    // packet-size encode 6-bit timestamp
-    // (((timestamp >> 10) & 0x3F) << 6): the rest 6-bit of timestamp
-    packetExpectedSize = packetExpectedSize | (((timestamp >> 10) & 0x3F) << 1);
-  }
+  int32_t packetExpectedSize = 0;
+  uint8_t groupOfDestination = static_cast<uint8_t>((destinationIp % 7) + 1);
+
+  // packet-size encodes 3-bit destination group.
+  packetExpectedSize = (groupOfDestination & 0x7) << 6;
+  // packet-size encodes 6-bit: 5-bit TTL and 1 bit for encoding protoType.
+  packetExpectedSize =
+      packetExpectedSize | (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
+
   // In OSX, please use: packet->ip.ip_len = packetExpectedSize;
   // Otherwise, you will have an Errno-22.
 #if defined(__APPLE__) || defined(__MACH__)
   packet->ip.ip_len = packetExpectedSize;
-  packet->ip.ip_id = ipid;
+  packet->ip.ip_id =
+      getDestAddrChecksum((uint16_t*)(&destinationIp), checksumOffset_);
 #else
   packet->ip.ip_len = htons(packetExpectedSize);
-  packet->ip.ip_id = htons(ipid);
+  packet->ip.ip_id =
+      htons(getDestAddrChecksum((uint16_t*)(&destinationIp), checksumOffset_));
 #endif
-
 
   memset(&packet->udp, '\0', sizeof(packet->udp));
   memcpy(packet->payload, payloadMessage_.c_str(), payloadMessage_.size());
@@ -79,7 +80,7 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
 #ifdef __FAVOR_BSD
   packet->udp.uh_dport = destinationPort_;
   packet->udp.uh_sport =
-      getChecksum((uint16_t*)(&destinationIp), checksumOffset_);
+      getChecksum((uint16_t*)(packetBuffer), checksumOffset_);
   packet->udp.uh_ulen = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
@@ -91,8 +92,7 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
                   (uint16_t*)(packetBuffer + sizeof(struct ip)));
 #else
   packet->udp.dest = destinationPort_;
-  packet->udp.source =
-      getChecksum((uint16_t*)(&destinationIp), checksumOffset_);
+  packet->udp.source = getChecksum((uint16_t*)(packetBuffer), checksumOffset_);
   packet->udp.len = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
@@ -107,11 +107,11 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
   return packetExpectedSize;
 }
 
-void UdpProber::setChecksumOffset(int32_t checksumOffset) {
+void UdpIdempotentProber::setChecksumOffset(int32_t checksumOffset) {
   checksumOffset_ = checksumOffset;
 }
 
-void UdpProber::parseResponse(uint8_t* buffer, size_t size,
+void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
                               SocketType socketType) {
   if (socketType != SocketType::ICMP || size < 56) return;
   struct PacketIcmp* parsedPacket =
@@ -124,18 +124,19 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
   int16_t distance = 0;
   bool fromDestination = false;
 
-#ifdef __FAVOR_BSD
-  if (getChecksum(
+// Verify ipid(checksum of destination) with destination in quotation.
+#if defined(__APPLE__) || defined(__MACH__)
+  if (getDestAddrChecksum(
           reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
-          checksumOffset_) != residualUdpPacket->udp.uh_sport) {
+          checksumOffset_) != residualUdpPacket->ip.ip_id) {
     // Checksum unmatched.
-    checksumMismatches += 1;
+    checksumMismatches_ += 1;
     return;
   }
 #else
-  if (getChecksum(
+  if (getDestAddrChecksum(
           reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
-          checksumOffset_) != residualUdpPacket->udp.source) {
+          checksumOffset_) != ntohs(residualUdpPacket->ip.ip_id)) {
     // Checksum unmatched.
     checksumMismatches_ += 1;
     return;
@@ -156,16 +157,9 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
   uint16_t probeIpId = ntohs(residualUdpPacket->ip.ip_id);
 #endif
 
-  uint32_t sentTimestamp = ((probeIpId >> 6) & 0x3FF) |
-                           (((probeIpLen >> 1) & 0x3F) << 10);
-  uint8_t probePhase = (probeIpId >> 5) & 0x1;
-
-  int64_t receivedTimestamp = getTimestamp();
-  uint32_t rtt = static_cast<uint32_t>(receivedTimestamp - sentTimestamp +
-                                       kTimestampSlot) %
-                 kTimestampSlot;
-
-  int16_t initialTTL = static_cast<int16_t>(probeIpId & 0x1F);
+  uint8_t probePhase = (probeIpLen >> 5) & 0x1;
+  uint32_t rtt = 0;
+  int16_t initialTTL = static_cast<int16_t>(probeIpLen & 0x1F);
   if (initialTTL == 0) initialTTL = 32;
 
   if (parsedPacket->icmp.icmp_type == 3 &&
@@ -209,16 +203,8 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
 #endif
 }
 
-uint16_t UdpProber::getTimestamp() const {
-  int64_t millisecond = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::steady_clock::now().time_since_epoch())
-                            .count();
-  millisecond = millisecond % kTimestampSlot;
-  return static_cast<uint16_t>(millisecond);
-}
-
-uint16_t UdpProber::getChecksum(const uint16_t* ipAddress,
-                                     uint16_t offset) const {
+uint16_t UdpIdempotentProber::getDestAddrChecksum(const uint16_t* ipAddress,
+                                                  const uint16_t offset) const {
   uint32_t sum = 0;
   sum += ntohs(ipAddress[0]);
   sum += ntohs(ipAddress[1]);
@@ -232,7 +218,7 @@ uint16_t UdpProber::getChecksum(const uint16_t* ipAddress,
   return htons(((uint16_t)sum + offset));
 }
 
-uint16_t UdpProber::getChecksum(const uint8_t protocolValue,
+uint16_t UdpIdempotentProber::getChecksum(const uint8_t protocolValue,
                                      size_t packetLength,
                                      const uint16_t* sourceIpAddress,
                                      const uint16_t* destinationIpAddress,
@@ -272,13 +258,42 @@ uint16_t UdpProber::getChecksum(const uint8_t protocolValue,
   return htons(((uint16_t)sum));
 }
 
+uint16_t UdpIdempotentProber::getChecksum(uint16_t* buff,
+                                          uint16_t offset) const {
+  uint32_t sum = 0;
+
+  /*
+   * calculate the checksum for the tcp header and payload
+   * len_tcp represents number of 8-bit bytes,
+   * we are working with 16-bit words so divide len_tcp by 2.
+   */
+  for (uint32_t i = 0; i < 10; i++) {
+    if (i == 4) {
+      sum += buff[i] & 0xFF00;
+    } else if (i == 5 || i == 1) {
+      // do nothing
+    } else {
+      sum += buff[i];
+    }
+  }
+
+  // keep only the last 16 bits of the 32 bit calculated sum and add the
+  // carries
+  sum = (sum & 0xFFFF) + (sum >> 16);
+  // sum += (sum >> 16);
+
+  // Take the bitwise complement of sum
+  sum = ~sum;
+  return htons(((uint16_t)sum + offset));
+}
+
 // Get metrics information
 
-uint64_t UdpProber::getChecksummismatches() {
+uint64_t UdpIdempotentProber::getChecksummismatches() {
   return checksumMismatches_;
 }
 
-uint64_t UdpProber::getDistanceAbnormalities() {
+uint64_t UdpIdempotentProber::getDistanceAbnormalities() {
   return distanceAbnormalities_;
 }
 

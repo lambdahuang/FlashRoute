@@ -14,8 +14,8 @@
 
 namespace flashroute {
 
-const uint16_t kPacketBufferSize =
-    512;  // Default sending buffer size which will be used to generate packets.
+const uint16_t kPacketBufferSize = 2048;  // Default sending buffer size which
+                                          // will be used to generate packets.
 const uint16_t kReceivingBufferSize =
     2000;  // Default receiving buffer size which will be used to store received
            // packets.

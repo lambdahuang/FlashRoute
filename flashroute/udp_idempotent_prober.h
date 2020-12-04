@@ -8,9 +8,6 @@
 
 namespace flashroute {
 
-// 2^16 wrap-around interval for timestamp of UDP probe.
-const uint32_t kTimestampSlot = 65536;
-
 /**
  * UDP Prober handles packet construction and response parsing.
  *
@@ -41,10 +38,9 @@ const uint32_t kTimestampSlot = 65536;
  *
  */
 
-class UdpProber : public virtual Prober {
+class UdpIdempotentProber : public virtual Prober {
  public:
-
-  UdpProber(PacketReceiverCallback* callback, const int32_t checksumOffset,
+  UdpIdempotentProber(PacketReceiverCallback* callback, const int32_t checksumOffset,
             const uint8_t probePhaseCode, const uint16_t destinationPort,
             const std::string& payloadMessage, const bool encodeTimestamp);
 
@@ -60,15 +56,15 @@ class UdpProber : public virtual Prober {
   void setChecksumOffset(int32_t checksumOffset);
 
   // Put here for testing purpose.
-  uint16_t getChecksum(const uint16_t* ipaddress, uint16_t offset) const;
+  uint16_t getDestAddrChecksum(const uint16_t* ipaddress,
+                               const uint16_t offset) const;
 
   // Put here for testing purpose.
   uint16_t getChecksum(const uint8_t protocolValue, size_t packetLength,
                        const uint16_t* src_addr, const uint16_t* dest_addr,
                        uint16_t* buff) const;
 
-  // Put here for testing purpose.
-  uint16_t getTimestamp() const;
+  uint16_t getChecksum(uint16_t* buff, uint16_t offset) const;
 
   // Get metrics information
   uint64_t getChecksummismatches() override;
