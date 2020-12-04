@@ -53,11 +53,13 @@ size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
   packet->ip.ip_p = kUdpProtocol;  // UDP protocol
   packet->ip.ip_ttl = ttl;
 
-  int32_t packetExpectedSize = 128;
+  int32_t packetExpectedSize = 0;
+  uint8_t groupOfDestination = static_cast<uint8_t>((destinationIp % 7) + 1);
 
-  // packet-size encode 6-bit: 5-bit TTL and 1 bit for encoding protoType.
-  packetExpectedSize =
-      packetExpectedSize | (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
+  // packet-size encodes 3-bit destination group.
+  packetExpectedSize = (groupOfDestination & 0x7) << 6;
+  // packet-size encodes 6-bit: 5-bit TTL and 1 bit for encoding protoType.
+  packetExpectedSize = (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
 
   // In OSX, please use: packet->ip.ip_len = packetExpectedSize;
   // Otherwise, you will have an Errno-22.
