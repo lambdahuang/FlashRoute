@@ -59,7 +59,8 @@ size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
   // packet-size encodes 3-bit destination group.
   packetExpectedSize = (groupOfDestination & 0x7) << 6;
   // packet-size encodes 6-bit: 5-bit TTL and 1 bit for encoding protoType.
-  packetExpectedSize = (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
+  packetExpectedSize =
+      packetExpectedSize | (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
 
   // In OSX, please use: packet->ip.ip_len = packetExpectedSize;
   // Otherwise, you will have an Errno-22.
