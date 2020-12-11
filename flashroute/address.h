@@ -45,6 +45,22 @@ class IpAddress {
     return !equal_to(rhs);
   }
 
+  virtual bool operator>(const IpAddress& rhs) const {
+    return compare_to(rhs);
+  }
+
+  virtual bool operator>=(const IpAddress& rhs) const {
+    return compare_to(rhs) || equal_to(rhs);
+  }
+
+  virtual bool operator<(const IpAddress& rhs) const {
+    return !compare_to(rhs);
+  }
+
+  virtual bool operator<=(const IpAddress& rhs) const {
+    return !compare_to(rhs) || equal_to(rhs);
+  }
+
  protected:
   // compare with anohter IpAddress object return true if content is the same.
   virtual bool equal_to(const IpAddress& rhs) const = 0;

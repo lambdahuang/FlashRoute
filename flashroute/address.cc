@@ -39,6 +39,11 @@ namespace flashroute {
            dynamic_cast<Ipv4Address&>(const_cast<IpAddress&>(rhs)).address_;
   }
 
+  bool Ipv4Address::compare_to(const IpAddress& rhs) const {
+    Ipv4Address& cast = dynamic_cast<Ipv4Address&>(const_cast<IpAddress&>(rhs));
+    return address_ > rhs.getIpv4Address();
+  }
+
   IpAddress& Ipv4Address::set_to(const IpAddress& rhs) {
     this->address_ = rhs.getIpv4Address();
     return *this;
@@ -98,8 +103,13 @@ namespace flashroute {
 
   bool Ipv6Address::compare_to(const IpAddress& rhs) const {
     Ipv6Address& cast = dynamic_cast<Ipv6Address&>(const_cast<IpAddress&>(rhs));
-    return addressPrefix_ == cast.addressPrefix_ &&
-           addressSuffix_ == cast.addressSuffix_;
+    if (addressPrefix_ > cast.addressPrefix_)
+      return true;
+    else if (addressPrefix_ == cast.addressPrefix_ &&
+             addressSuffix_ > cast.getIpv6AddressSuffix())
+      return true;
+    else
+      return false;
   }
 
   IpAddress& Ipv6Address::set_to(const IpAddress& rhs) {
