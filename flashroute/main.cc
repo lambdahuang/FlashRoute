@@ -265,7 +265,7 @@ int main(int argc, char* argv[]) {
   } else {
     LOG(INFO) << "Split TTL is " << absl::GetFlag(FLAGS_split_ttl);
     std::unordered_map<uint8_t,
-                       std::tuple<std::unique_ptr<IpAddress>, uint32_t>>
+                       std::tuple<std::shared_ptr<IpAddress>, uint32_t>>
         results;
     uint32_t backwardHop = absl::GetFlag(FLAGS_split_ttl);
     bool preprobeUpdated = false;
@@ -294,7 +294,7 @@ int main(int argc, char* argv[]) {
               results.insert(
                   {distance,
                    std::make_tuple(
-                       std::unique_ptr<IpAddress>(responder.clone()), rtt)});
+                       std::shared_ptr<IpAddress>(responder.clone()), rtt)});
             }
           } else {
             LOG(INFO) << boost::format("%2% (%1%) rtt: %3% ms") %
@@ -305,7 +305,7 @@ int main(int argc, char* argv[]) {
                              rtt;
             results.insert(
                 {distance,
-                 std::make_tuple(std::unique_ptr<IpAddress>(responder.clone()),
+                 std::make_tuple(std::shared_ptr<IpAddress>(responder.clone()),
                                  rtt)});
             forwardHorizon = std::max(
                 forwardHorizon, static_cast<uint32_t>(
