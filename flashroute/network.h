@@ -10,15 +10,20 @@
 #include <string>
 #include <unordered_map>
 
+#include "flashroute/address.h"
 #include <boost/asio/thread_pool.hpp>
 #include "flashroute/bounded_buffer.h"
 #include "flashroute/prober.h"
 
 namespace flashroute {
 
-struct ProbeUnit {
-  uint32_t ip;
+class ProbeUnitIpv4 {
+ public:
+  Ipv4Address ip;
   uint8_t ttl;
+  ProbeUnitIpv4() : ip(0), ttl(0) {}
+  ProbeUnitIpv4(const Ipv4Address& _ip, const uint8_t _ttl)
+      : ip(_ip), ttl(_ttl) {}
 };
 
 /**
@@ -60,7 +65,8 @@ class NetworkManager {
                  const uint64_t sendingRate);
   // Scheduale to send a probe. Sending accords to the pre-determined sending
   // rate.
-  void schedualProbeRemoteHost(const uint32_t destinationIp, const uint8_t ttl);
+  void schedualProbeRemoteHost(const IpAddress& destinationIp,
+                               const uint8_t ttl);
 
   // Start capturing the packets.
   void startListening();
@@ -75,7 +81,7 @@ class NetworkManager {
 
  private:
   Prober* prober_;
-  uint32_t localIpAddress_;
+  std::unique_ptr<IpAddress> localIpAddress_;
   uint16_t srcPort_;
   uint16_t dstPort_;
 
@@ -94,7 +100,7 @@ class NetworkManager {
   std::mutex stopReceivingMutex_;
 
   // Sending buffer
-  std::unique_ptr<BoundedBuffer<ProbeUnit>> sendingBuffer_;
+  std::unique_ptr<BoundedBuffer<ProbeUnitIpv4>> sendingBuffer_;
 
   // Rate control
   double expectedRate_;
@@ -112,7 +118,7 @@ class NetworkManager {
   void runSendingThread();
 
   // Send the probe immediately.
-  void probeRemoteHost(const uint32_t destinationIp, const uint8_t ttl);
+  void probeRemoteHost(const IpAddress& destinationIp, const uint8_t ttl);
 
   void receiveIcmpPacket();
 

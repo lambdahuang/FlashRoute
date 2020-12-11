@@ -63,8 +63,9 @@ int64_t Blacklist::removeAddressBlock(Tracerouter* tracerouter,
 
   uint32_t prefixAddress = parseIpFromStringToInt(std::string(parts[0]));
 
-  uint32_t ipBlockStart = getFirstAddressOfBlock(prefixAddress, prefixLength);
-  uint32_t ipBlockEnd = getLastAddressOfBlock(prefixAddress, prefixLength);
+  Ipv4Address ipBlockStart =
+      getFirstAddressOfBlock(prefixAddress, prefixLength);
+  Ipv4Address ipBlockEnd = getLastAddressOfBlock(prefixAddress, prefixLength);
 
   // Convert the range of IP addresses to the corresponding range of block
   // ids.

@@ -4,11 +4,13 @@
 #include <memory>
 #include <mutex>
 
+#include "flashroute/address.h"
+
 namespace flashroute {
 
 class DestinationControlBlock {
  public:
-  uint32_t ipAddress;
+  std::unique_ptr<IpAddress> ipAddress;
   uint32_t nextElementOffset;
   uint32_t previousElementOffset;
   bool removed;
@@ -17,8 +19,9 @@ class DestinationControlBlock {
   // forward-probing into the stop set.
   uint8_t initialBackwardProbingTtl;
 
-  DestinationControlBlock(uint32_t ip, uint32_t nextElement,
-                          uint32_t previousElement, uint8_t initialTtl);
+  DestinationControlBlock(const IpAddress* ip, const uint32_t nextElement,
+                          const uint32_t previousElement,
+                          const uint8_t initialTtl);
 
   /**
    * set the split-TTL, if the given TTL is confirmed, the second variabble

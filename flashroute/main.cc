@@ -264,7 +264,8 @@ int main(int argc, char* argv[]) {
     traceRouterPtr.release();
   } else {
     LOG(INFO) << "Split TTL is " << absl::GetFlag(FLAGS_split_ttl);
-    std::unordered_map<uint8_t, std::tuple<uint32_t, uint32_t>>
+    std::unordered_map<uint8_t,
+                       std::tuple<std::unique_ptr<IpAddress>, uint32_t>>
         results;
     uint32_t backwardHop = absl::GetFlag(FLAGS_split_ttl);
     bool preprobeUpdated = false;
@@ -274,11 +275,11 @@ int main(int argc, char* argv[]) {
     PacketReceiverCallback response_handler =
         [&results, &destinationHop, &backwardHop, &preprobeUpdated,
          &forwardHorizon, &forwardHop](
-            uint32_t destination, uint32_t responder, uint8_t distance,
-            bool fromDestination, uint32_t rtt, uint8_t probePhase,
-            uint16_t replyIpid, uint8_t replyTtl, uint16_t replySize,
-            uint16_t probeSize, uint16_t probeIpid, uint16_t probeSourcePort,
-            uint16_t probeDestinationPort) {
+            const IpAddress& destination, const IpAddress& responder,
+            uint8_t distance, bool fromDestination, uint32_t rtt,
+            uint8_t probePhase, uint16_t replyIpid, uint8_t replyTtl,
+            uint16_t replySize, uint16_t probeSize, uint16_t probeIpid,
+            uint16_t probeSourcePort, uint16_t probeDestinationPort) {
           if (fromDestination) {
             if (!preprobeUpdated) {
               backwardHop = distance;
@@ -290,13 +291,22 @@ int main(int argc, char* argv[]) {
             } else {
               forwardHorizon = 0;
               destinationHop = distance;
-              results.insert({distance, std::make_tuple(responder, rtt)});
+              results.insert(
+                  {distance,
+                   std::make_tuple(
+                       std::unique_ptr<IpAddress>(responder.clone()), rtt)});
             }
           } else {
             LOG(INFO) << boost::format("%2% (%1%) rtt: %3% ms") %
                              static_cast<int32_t>(distance) %
-                             parseIpFromIntToString(responder) % rtt;
-            results.insert({distance, std::make_tuple(responder, rtt)});
+                             parseIpFromIntToString(
+                                 dynamic_cast<const Ipv4Address&>(responder)
+                                     .getIpv4Address()) %
+                             rtt;
+            results.insert(
+                {distance,
+                 std::make_tuple(std::unique_ptr<IpAddress>(responder.clone()),
+                                 rtt)});
             forwardHorizon = std::max(
                 forwardHorizon, static_cast<uint32_t>(
                                     distance + absl::GetFlag(FLAGS_gaplimit)));
@@ -308,24 +318,25 @@ int main(int argc, char* argv[]) {
                         absl::GetFlag(FLAGS_default_payload_message),
                         absl::GetFlag(FLAGS_encode_timestamp));
     NetworkManager networkManager(&udpProber, finalInterface, 2);
-    uint32_t remoteHost =
-        parseIpFromStringToInt(target);
+    auto remoteHost =
+        std::unique_ptr<IpAddress>(
+          parseIpFromStringToIpAddress(target));
     networkManager.startListening();
     LOG(INFO) << "Preprobe the target and wait 1 seconds...";
-    networkManager.schedualProbeRemoteHost(htonl(remoteHost),
+    networkManager.schedualProbeRemoteHost(*remoteHost,
                                            absl::GetFlag(FLAGS_preprobing_ttl));
     sleep(1);
     while (backwardHop > 0 || forwardHop <= forwardHorizon) {
       if (backwardHop > 0) {
         LOG(INFO) << boost::format("%1% --> %2% ttl: %3%") % localIpAddress %
                          target % backwardHop;
-        networkManager.schedualProbeRemoteHost(htonl(remoteHost), backwardHop);
+        networkManager.schedualProbeRemoteHost(*remoteHost, backwardHop);
         backwardHop--;
       }
       if (forwardHop <= forwardHorizon) {
         LOG(INFO) << boost::format("%1% --> %2% ttl: %3%") % localIpAddress %
                          target % (forwardHop);
-        networkManager.schedualProbeRemoteHost(htonl(remoteHost), forwardHop);
+        networkManager.schedualProbeRemoteHost(*remoteHost, forwardHop);
         forwardHop++;
       }
     }
@@ -342,7 +353,9 @@ int main(int argc, char* argv[]) {
         LOG(INFO) << boost::format("%1% %|5t|%2% %|5t|%3% ms") %
                          static_cast<int>(i) %
                          parseIpFromIntToString(
-                             std::get<0>(results.find(i)->second)) %
+                             (dynamic_cast<const Ipv4Address&>(
+                                  *std::get<0>(results.find(i)->second)))
+                                 .getIpv4Address()) %
                          std::get<1>(results.find(i)->second);
       }
     }

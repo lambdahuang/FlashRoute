@@ -219,14 +219,17 @@ void Tracerouter::goOverAllElement() {
   LOG(INFO) << "There are " << count << " elements.";
 }
 
-int64_t Tracerouter::getDcbByIpAddress(uint32_t ipAddress,
+int64_t Tracerouter::getDcbByIpAddress(const IpAddress& ipAddress,
                                        bool accurateLookup) {
-  if (ipAddress >= targetNetworkFirstAddress_ &&
-      ipAddress < targetNetworkLastAddress_) {
-    int64_t result =
-        (ipAddress - targetNetworkFirstAddress_) / blockFactor_ + 1;
+  if (ipAddress.getIpv4Address() >=
+          targetNetworkFirstAddress_.getIpv4Address() &&
+      ipAddress.getIpv4Address() < targetNetworkLastAddress_.getIpv4Address()) {
+    int64_t result = (ipAddress.getIpv4Address() -
+                      targetNetworkFirstAddress_.getIpv4Address()) /
+                         blockFactor_ +
+                     1;
     if (accurateLookup) {
-      if (targetList_[result].ipAddress == ipAddress) {
+      if (*targetList_[result].ipAddress == ipAddress) {
         return result;
       } else {
         return -1;
@@ -235,7 +238,8 @@ int64_t Tracerouter::getDcbByIpAddress(uint32_t ipAddress,
       return result;
     }
   } else {
-    if (ipAddress < targetNetworkFirstAddress_) {
+    if (ipAddress.getIpv4Address() <
+        targetNetworkFirstAddress_.getIpv4Address()) {
       return -1;
     } else {
       return targetList_.size() + 1;
@@ -261,24 +265,29 @@ void Tracerouter::initializeDcbVector(absl::string_view targetNetwork) {
       getFirstAddressOfBlock(targetBaseAddress, subnetPrefixLength);
   targetNetworkLastAddress_ =
       getLastAddressOfBlock(targetBaseAddress, subnetPrefixLength);
-  if (targetNetworkFirstAddress_ >= targetNetworkLastAddress_) {
+  if (targetNetworkFirstAddress_.getIpv4Address() >=
+      targetNetworkLastAddress_.getIpv4Address()) {
     LOG(FATAL) << boost::format("Ip address range is incorrect. [%1%, %2%]") %
-                      targetNetworkFirstAddress_ %
-                      targetNetworkLastAddress_;
+                      targetNetworkFirstAddress_.getIpv4Address() %
+                      targetNetworkLastAddress_.getIpv4Address();
   }
 
   LOG(INFO) << boost::format("The target network is from %1% to %2%.") %
-                   parseIpFromIntToString(targetNetworkFirstAddress_) %
-                   parseIpFromIntToString(targetNetworkLastAddress_);
+                   parseIpFromIntToString(
+                       targetNetworkFirstAddress_.getIpv4Address()) %
+                   parseIpFromIntToString(
+                       targetNetworkLastAddress_.getIpv4Address());
 
   // the range of addresses is inclusive. Therefore, size is right boundary -
   // left Boundary + 1 ip address.
-  targetNetworkSize_ = static_cast<int64_t>(targetNetworkLastAddress_) -
-                       static_cast<int64_t>(targetNetworkFirstAddress_) + 1;
+  targetNetworkSize_ =
+      static_cast<int64_t>(targetNetworkLastAddress_.getIpv4Address()) -
+      static_cast<int64_t>(targetNetworkFirstAddress_.getIpv4Address()) + 1;
   blockFactor_ = static_cast<uint32_t>(std::pow(2, 32 - granularity_));
   uint32_t dcbCount =
       static_cast<uint32_t>(targetNetworkSize_ / blockFactor_) + 1;
   targetList_.reserve(dcbCount);
+  LOG(INFO) << "haha";
 
   // set random seed.
   std::srand(seed_);
@@ -287,15 +296,18 @@ void Tracerouter::initializeDcbVector(absl::string_view targetNetwork) {
     int64_t previousElement = (dcbCount + i - 1) % dcbCount;
     if (i == 0) {
       // reserved element.
-      targetList_.push_back(
-          DestinationControlBlock(0, nextElement, previousElement, 8));
+      Ipv4Address tmp(0);
+      targetList_.push_back(DestinationControlBlock(
+          dynamic_cast<IpAddress*>(&tmp), nextElement, previousElement, 8));
     } else {
       // randomly generate IP addresse avoid the first and last ip address
       // in the block.
-      targetList_.push_back(DestinationControlBlock(
-          targetNetworkFirstAddress_ + ((i - 1) << (32 - granularity_)) +
-              (rand() % (blockFactor_ - 3)) + 2,
-          nextElement, previousElement, defaultSplitTTL_));
+      Ipv4Address tmp(targetNetworkFirstAddress_.getIpv4Address() +
+                      ((i - 1) << (32 - granularity_)) +
+                      (rand() % (blockFactor_ - 3)) + 2);
+      targetList_.push_back(
+          DestinationControlBlock(dynamic_cast<IpAddress*>(&tmp), nextElement,
+                                  previousElement, defaultSplitTTL_));
     }
   }
 
@@ -370,17 +382,19 @@ void Tracerouter::startPreprobing(ProberType proberType) {
   probePhase_ = ProbePhase::PREPROBE;
   // Set up callback function.
   PacketReceiverCallback callback =
-      [this](uint32_t destination, uint32_t responder, uint8_t distance,
-             bool fromDestination, uint32_t rtt, uint8_t probePhase,
-             uint16_t replyIpid, uint8_t replyTtl, uint16_t replySize,
-             uint16_t probeSize, uint16_t probeIpid, uint16_t probeSourcePort,
-             uint16_t probeDestinationPort) {
+      [this](const IpAddress& destination, const IpAddress& responder,
+             uint8_t distance, bool fromDestination, uint32_t rtt,
+             uint8_t probePhase, uint16_t replyIpid, uint8_t replyTtl,
+             uint16_t replySize, uint16_t probeSize, uint16_t probeIpid,
+             uint16_t probeSourcePort, uint16_t probeDestinationPort) {
         parseIcmpPreprobing(destination, responder, distance, fromDestination);
-        if (dumpEnable_)
-          resultDumper_->scheduleDumpData(
-              destination, responder, distance, fromDestination, rtt,
-              probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
-              probeSourcePort, probeDestinationPort);
+        // TODO(neohuang): we should update dumping logic in the future.
+
+        // if (dumpEnable_)
+          // resultDumper_->scheduleDumpData(
+          //     destination, responder, distance, fromDestination, rtt,
+          //     probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
+          //     probeSourcePort, probeDestinationPort);
       };
 
   if (proberType == ProberType::UDP_PROBER) {
@@ -405,7 +419,7 @@ void Tracerouter::startPreprobing(ProberType proberType) {
   uint32_t it = targetList_[0].nextElementOffset;
   LOG(INFO) << "Start preprobing.";
   do {
-    networkManager.schedualProbeRemoteHost(htonl(targetList_[it].ipAddress),
+    networkManager.schedualProbeRemoteHost(*targetList_[it].ipAddress,
                                            defaultPreprobingTTL_);
     it = targetList_[it].nextElementOffset;
   } while (it != 0 && !stopProbing_);
@@ -434,18 +448,19 @@ void Tracerouter::startProbing(ProberType proberType) {
   probePhase_ = ProbePhase::PROBE;
   // Set up callback function.
   PacketReceiverCallback callback =
-      [this](uint32_t destination, uint32_t responder, uint8_t distance,
-             bool fromDestination, uint32_t rtt, uint8_t probePhase,
-             uint16_t replyIpid, uint8_t replyTtl, uint16_t replySize,
-             uint16_t probeSize, uint16_t probeIpid, uint16_t probeSourcePort,
-             uint16_t probeDestinationPort) {
+      [this](const IpAddress& destination, const IpAddress& responder,
+             uint8_t distance, bool fromDestination, uint32_t rtt,
+             uint8_t probePhase, uint16_t replyIpid, uint8_t replyTtl,
+             uint16_t replySize, uint16_t probeSize, uint16_t probeIpid,
+             uint16_t probeSourcePort, uint16_t probeDestinationPort) {
         parseIcmpProbing(destination, responder, distance, fromDestination);
 
-        if (dumpEnable_)
-          resultDumper_->scheduleDumpData(
-              destination, responder, distance, fromDestination, rtt,
-              probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
-              probeSourcePort, probeDestinationPort);
+        // TODO(neohuang): we should update dumping logic in the future.
+        // if (dumpEnable_)
+          // resultDumper_->scheduleDumpData(
+          //     destination, responder, distance, fromDestination, rtt,
+          //     probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
+          //     probeSourcePort, probeDestinationPort);
       };
 
   if (proberType == ProberType::UDP_PROBER) {
@@ -530,12 +545,12 @@ void Tracerouter::startProbing(ProberType proberType) {
         if (forwardProbingMark_ && hasForwardTask) {
           // forward probing
           networkManager.schedualProbeRemoteHost(
-              htonl(targetList_[it].ipAddress), nextForwardTask);
+              *targetList_[it].ipAddress, nextForwardTask);
         }
         if (hasBackwardTask) {
           // backward probing
           networkManager.schedualProbeRemoteHost(
-              htonl(targetList_[it].ipAddress), nextBackwardTask);
+              *targetList_[it].ipAddress, nextBackwardTask);
         }
       }
       it = next;
@@ -556,7 +571,8 @@ void Tracerouter::startProbing(ProberType proberType) {
   probePhase_ = ProbePhase::NONE;
 }
 
-void Tracerouter::parseIcmpPreprobing(uint32_t destination, uint32_t responder,
+void Tracerouter::parseIcmpPreprobing(const IpAddress& destination,
+                                      const IpAddress& responder,
                                       uint8_t distance, bool fromDestination) {
   if (!fromDestination) return;
   // Convert the target ip address to the corresponding block index.
@@ -586,8 +602,9 @@ void Tracerouter::parseIcmpPreprobing(uint32_t destination, uint32_t responder,
   }
 }
 
-void Tracerouter::parseIcmpProbing(uint32_t destination, uint32_t responder,
-                                   uint8_t distance, bool fromDestination) {
+void Tracerouter::parseIcmpProbing(const IpAddress& destination,
+                                   const IpAddress& responder, uint8_t distance,
+                                   bool fromDestination) {
   // Convert the target ip address to the corresponding block index.
   int64_t blockIndex = getDcbByIpAddress(destination, true);
   if (blockIndex == -1 ||
@@ -599,10 +616,11 @@ void Tracerouter::parseIcmpProbing(uint32_t destination, uint32_t responder,
     if (targetList_[blockIndex].initialBackwardProbingTtl < distance) {
       // The response is from forward probing / the distance is error if
       // forward probing is not activated.
-      forwardProbingDiscoverySet_.insert(responder);
+      forwardProbingDiscoverySet_.insert(
+          responder.clone());
     } else {
       // The response is from backward probing.
-      if (backwardProbingStopSet_.find(responder) !=
+      if (backwardProbingStopSet_.find(&(const_cast<IpAddress&>(responder))) !=
           backwardProbingStopSet_.end()) {
         // We stop only for router interfaces discovered in backward
         // probing.
@@ -610,7 +628,7 @@ void Tracerouter::parseIcmpProbing(uint32_t destination, uint32_t responder,
           static_cast<uint64_t>(targetList_[blockIndex].stopBackwardProbing());
         }
       } else {
-        backwardProbingStopSet_.insert(responder);
+        backwardProbingStopSet_.insert(responder.clone());
       }
     }
     if (distance <= targetList_[blockIndex].getMaxProbedDistance()) {
@@ -669,7 +687,9 @@ void Tracerouter::dumpAllTargetsToFile(const std::string& filePath) {
   uint32_t tail = targetList_[it].previousElementOffset;
   do {
     if (it != 0 && targetList_[it].peekBackwardTask() != 0) {
-      paddr.s_addr = htonl(targetList_[it].ipAddress);
+      paddr.s_addr =
+          htonl(dynamic_cast<Ipv4Address*>(targetList_[it].ipAddress.get())
+                    ->getIpv4Address());
       dumpFile << inet_ntoa(paddr) << "\n";
     }
     it = targetList_[it].nextElementOffset;
@@ -678,10 +698,11 @@ void Tracerouter::dumpAllTargetsToFile(const std::string& filePath) {
   LOG(INFO) << "All targets are dumped. File path: " << filePath;
 }
 
-void Tracerouter::setDcbIpAddress(const uint32_t newIp) {
+void Tracerouter::setDcbIpAddress(const IpAddress& newIp) {
   int64_t it = getDcbByIpAddress(newIp, false);
   if (it >= 0 && it < static_cast<int64_t>(targetList_.size())) {
-    targetList_[it].ipAddress = newIp;
+    // TODO(neohuang): remove this function in the future.
+    *targetList_[it].ipAddress = newIp;
   }
 }
 
@@ -690,9 +711,11 @@ void Tracerouter::generateRandomAddressForEachDcb() {
   std::srand(seed_);
   for (int64_t i = 0; i < static_cast<int64_t>(targetList_.size()); i++) {
     if (i != 0) {
-      targetList_[i].ipAddress = targetNetworkFirstAddress_ +
-                                 ((i - 1) << (32 - granularity_)) +
-                                 rand() % 253 + 2;
+      // TODO(neohuang): replace this function in the future.
+      Ipv4Address tmp(static_cast<uint32_t>(
+          targetNetworkFirstAddress_.getIpv4Address() +
+          ((i - 1) << (32 - granularity_)) + rand() % 253 + 2));
+      *targetList_[i].ipAddress = dynamic_cast<IpAddress&>(tmp);
     }
   }
   VLOG(2) << boost::format("Randomize %1% entries.") % targetList_.size();

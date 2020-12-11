@@ -12,6 +12,8 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>  // udp header
 
+#include "flashroute/address.h"
+
 namespace flashroute {
 
 enum class SocketType { UDP, ICMP, TCP };
@@ -36,7 +38,7 @@ struct PacketTcp {
 } __attribute__((packed));
 
 using PacketReceiverCallback = std::function<void(
-    uint32_t destination, uint32_t responder, uint8_t distance,
+    const IpAddress& destination, const IpAddress& responder, uint8_t distance,
     bool fromDestination, uint32_t rtt, uint8_t probePhase, uint16_t replyIpid,
     uint8_t replyTtl, uint32_t replySize, uint32_t probeSize,
     uint16_t probeIpid, uint16_t probeSourcePort,
@@ -44,8 +46,8 @@ using PacketReceiverCallback = std::function<void(
 
 class Prober {
  public:
-  virtual size_t packProbe(const uint32_t destinationIp,
-                           const uint32_t sourceIp, const uint8_t ttl,
+  virtual size_t packProbe(const IpAddress& destinationIp,
+                           const IpAddress& sourceIp, const uint8_t ttl,
                            uint8_t* packetBuffer) = 0;
 
   virtual void parseResponse(uint8_t* buffer, size_t size,

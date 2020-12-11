@@ -14,7 +14,7 @@ namespace flashroute {
  * Example:
  *
  * PacketReceiverCallback callback =
- *    [](uint32_t destination, uint32_t responder,
+ *    [](const IpAddress& destination, const IpAddress& responder,
  *                    uint8_t distance, bool fromDestination) {
  *      // The tracerouting logic on response.
  *    };
@@ -40,12 +40,15 @@ namespace flashroute {
 
 class UdpIdempotentProber : public virtual Prober {
  public:
-  UdpIdempotentProber(PacketReceiverCallback* callback, const int32_t checksumOffset,
-            const uint8_t probePhaseCode, const uint16_t destinationPort,
-            const std::string& payloadMessage, const bool encodeTimestamp);
+  UdpIdempotentProber(PacketReceiverCallback* callback,
+                      const int32_t checksumOffset,
+                      const uint8_t probePhaseCode,
+                      const uint16_t destinationPort,
+                      const std::string& payloadMessage,
+                      const bool encodeTimestamp);
 
   // Construct probe.
-  size_t packProbe(const uint32_t destinationIp, const uint32_t sourceIp,
+  size_t packProbe(const IpAddress& destinationIp, const IpAddress& sourceIp,
                    const uint8_t ttl, uint8_t* packetBuffer) override;
 
   // Parse responses.

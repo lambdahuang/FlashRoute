@@ -15,6 +15,7 @@
 #include <boost/asio/thread_pool.hpp>
 #include "glog/logging.h"
 
+#include "flashroute/address.h"
 #include "flashroute/dcb.h"
 #include "flashroute/dump_result.h"
 #include "flashroute/network.h"
@@ -107,13 +108,13 @@ class Tracerouter {
   // remove element does not exist, return -2, if the removed element is removed
   // already, return -3.
   //
-  virtual int64_t removeDcbElement(uint32_t x);
+  int64_t removeDcbElement(uint32_t x);
 
   // Iterate through all targets in probing sequence and print the number of
   // targets to LOG.
   void goOverAllElement();
 
-  virtual int64_t getDcbByIpAddress(uint32_t ipAddress, bool accurateLookup);
+  int64_t getDcbByIpAddress(const IpAddress& ipAddress, bool accurateLookup);
 
   // Get the number of DCBs.
   int64_t getBlockCount() { return targetList_.size(); }
@@ -127,7 +128,7 @@ class Tracerouter {
   void dumpAllTargetsToFile(const std::string& filePath);
 
   // Set IP address for DCB.
-  void setDcbIpAddress(const uint32_t newIp);
+  void setDcbIpAddress(const IpAddress& newIp);
 
   // Randomize the destinations IP addresses.
   void generateRandomAddressForEachDcb();
@@ -179,8 +180,8 @@ class Tracerouter {
   // whole Ipv4 address space scanning. We accept targets is a range of Ip
   // addresses, which starts and ends at given points.
   // targetNetworkFirstAddress_ is the beginning of the range of ip addresses.
-  uint32_t targetNetworkFirstAddress_;
-  uint32_t targetNetworkLastAddress_;
+  Ipv4Address targetNetworkFirstAddress_;
+  Ipv4Address targetNetworkLastAddress_;
   // targetNetworkSize_ is the number of unicast ip addresses in the range.
   int64_t targetNetworkSize_;
   // Since we split the probing range into ip blocks, where each block
@@ -210,10 +211,14 @@ class Tracerouter {
   uint64_t distanceAbnormalities_;
 
   // Record all observed interfaces in backward probing.
-  std::unordered_set<uint32_t> backwardProbingStopSet_;
+  std::unordered_set<IpAddress*, IpAddressHash,
+                     IpAddressEquality>
+      backwardProbingStopSet_;
 
   // Record all observed interfaces in forward probing.
-  std::unordered_set<uint32_t> forwardProbingDiscoverySet_;
+  std::unordered_set<IpAddress*, IpAddressHash,
+                     IpAddressEquality>
+      forwardProbingDiscoverySet_;
 
   // Seed for randomization.
   uint32_t seed_;
@@ -244,11 +249,13 @@ class Tracerouter {
 
   void startProbing(ProberType proberType);
 
-  void parseIcmpPreprobing(uint32_t destination, uint32_t responder,
-                           uint8_t distance, bool fromDestination);
+  void parseIcmpPreprobing(const IpAddress& destination,
+                           const IpAddress& responder, uint8_t distance,
+                           bool fromDestination);
 
-  void parseIcmpProbing(uint32_t destination, uint32_t responder,
-                        uint8_t distance, bool fromDestination);
+  void parseIcmpProbing(const IpAddress& destination,
+                        const IpAddress& responder, uint8_t distance,
+                        bool fromDestination);
 
   void takeDcbSequenceSnapshot();
 

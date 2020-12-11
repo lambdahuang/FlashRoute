@@ -2,6 +2,7 @@
 
 #include "flashroute/hitlist.h"
 
+#include <memory>
 #include <fstream>
 #include <limits>
 #include <string>
@@ -30,9 +31,10 @@ void Hitlist::loadHitlist(const std::string& filePath,
       // The minimum length of IP addresses is greater/equal than 7 (1.1.1.1)
       if (subs.size() != 3 || subs[subs.size() - 1].size() < 7) continue;
       int32_t confidence = std::stoi(subs[subs.size()-2]);
-      uint32_t ip = parseIpFromStringToInt(subs[subs.size()-1]);
+      auto ip = std::unique_ptr<IpAddress>(
+          parseIpFromStringToIpAddress(subs[subs.size() - 1]));
       if (confidence > 0) {
-        tracerouter->setDcbIpAddress(ip);
+        tracerouter->setDcbIpAddress(*ip);
         count++;
       }
     }

@@ -8,6 +8,8 @@
 #include <boost/process.hpp>
 #include "absl/strings/string_view.h"
 
+#include "flashroute/address.h"
+
 namespace flashroute {
 
 class CommandExecutor {
@@ -23,6 +25,9 @@ class CommandExecutor {
 // Translate string IP to integer IP.
 uint32_t parseIpFromStringToInt(const std::string& stringIp);
 
+// Translate string IP to IpAddress. (Currently only support Ipv4)
+IpAddress* parseIpFromStringToIpAddress(const std::string& stringIp);
+
 // Convert decimal IP to string.
 std::string parseIpFromIntToString(const uint32_t ip);
 
@@ -31,11 +36,11 @@ std::string parseIpFromIntToString(const uint32_t ip);
 std::string getAddressByInterface(const std::string& interface);
 
 // Get first address of a IP block.
-uint32_t getFirstAddressOfBlock(const uint32_t address,
+Ipv4Address getFirstAddressOfBlock(const uint32_t address,
                                  const int32_t prefixLength);
 
 // Get last address of a IP block.
-uint32_t getLastAddressOfBlock(const uint32_t address,
+Ipv4Address getLastAddressOfBlock(const uint32_t address,
                                 const int32_t prefixLength);
 
 bool isNetwork(const std::string& input);

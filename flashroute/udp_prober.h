@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 
+#include "flashroute/address.h"
 #include "flashroute/prober.h"
 
 namespace flashroute {
@@ -17,7 +18,7 @@ const uint32_t kTimestampSlot = 65536;
  * Example:
  *
  * PacketReceiverCallback callback =
- *    [](uint32_t destination, uint32_t responder,
+ *    [](const IpAddress& destination, const IpAddress& responder,
  *                    uint8_t distance, bool fromDestination) {
  *      // The tracerouting logic on response.
  *    };
@@ -43,13 +44,12 @@ const uint32_t kTimestampSlot = 65536;
 
 class UdpProber : public virtual Prober {
  public:
-
   UdpProber(PacketReceiverCallback* callback, const int32_t checksumOffset,
             const uint8_t probePhaseCode, const uint16_t destinationPort,
             const std::string& payloadMessage, const bool encodeTimestamp);
 
   // Construct probe.
-  size_t packProbe(const uint32_t destinationIp, const uint32_t sourceIp,
+  size_t packProbe(const IpAddress& destinationIp, const IpAddress& sourceIp,
                    const uint8_t ttl, uint8_t* packetBuffer) override;
 
   // Parse responses.

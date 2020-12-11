@@ -2,6 +2,7 @@
 
 #include "flashroute/targets.h"
 
+#include <memory>
 #include <fstream>
 #include <unordered_set>
 
@@ -23,10 +24,10 @@ void Targets::loadTargetsFromFile(const std::string& filePath,
   std::unordered_set<uint32_t> addressBlocks;
   for (std::string line; getline(in, line);) {
     if (!line.empty()) {
-      uint32_t ip = parseIpFromStringToInt(line);
+      auto ip = std::unique_ptr<IpAddress>(parseIpFromStringToIpAddress(line));
       // Set ip address
-      tracerouter->setDcbIpAddress(ip);
-      addressBlocks.insert((ip>>8));
+      tracerouter->setDcbIpAddress(*ip);
+      addressBlocks.insert((ip->getIpv4Address()>>8));
       count++;
     }
   }
@@ -37,7 +38,7 @@ void Targets::loadTargetsFromFile(const std::string& filePath,
   count = 0;
   for (uint32_t i = 0; i < totalTargets; i ++) {
     if (addressBlocks.find(i) == addressBlocks.end()) {
-      uint32_t pseudoIp = (i << 8) + 5;
+      Ipv4Address pseudoIp((i << 8) + 5);
       int64_t blocklIndex = tracerouter->getDcbByIpAddress(pseudoIp, false);
       if (blocklIndex >= 0 && blocklIndex < tracerouter->getBlockCount()) {
         // Remove the destinations that are not in taget set.

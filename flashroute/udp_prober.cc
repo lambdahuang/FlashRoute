@@ -10,6 +10,7 @@
 #include <cstring>
 
 #include "glog/logging.h"
+#include "flashroute/address.h"
 #include "flashroute/udp_prober.h"
 
 namespace flashroute {
@@ -34,9 +35,14 @@ UdpProber::UdpProber(PacketReceiverCallback* callback,
   distanceAbnormalities_ = 0;
 }
 
-size_t UdpProber::packProbe(const uint32_t destinationIp,
-                            const uint32_t sourceIp, const uint8_t ttl,
+size_t UdpProber::packProbe(const IpAddress& destinationIp,
+                            const IpAddress& sourceIp, const uint8_t ttl,
                             uint8_t* packetBuffer) {
+  uint32_t destinationIpDecimal =
+      htonl((dynamic_cast<const Ipv4Address&>(destinationIp)).getIpv4Address());
+  uint32_t sourceIpDecimal =
+      htonl((dynamic_cast<const Ipv4Address&>(sourceIp)).getIpv4Address());
+
   struct PacketUdp* packet =
       reinterpret_cast<struct PacketUdp*>(packetBuffer);
 
@@ -46,8 +52,9 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
   memset(&packet->ip, 0, sizeof(packet->ip));
   packet->ip.ip_v = 4;
   packet->ip.ip_hl = sizeof(packet->ip) >> 2;
-  packet->ip.ip_dst = *((struct in_addr*)(&destinationIp));
-  packet->ip.ip_src = *((struct in_addr*)(&sourceIp));
+  packet->ip.ip_dst =
+      *(reinterpret_cast<struct in_addr*>(&destinationIpDecimal));
+  packet->ip.ip_src = *(reinterpret_cast<struct in_addr*>(&sourceIpDecimal));
   packet->ip.ip_p = kUdpProtocol;  // UDP protocol
   packet->ip.ip_ttl = ttl;
   // ipid: 5-bit for encoding intiial TTL, 1 bit for encoding probeType, 10-bit
@@ -78,30 +85,32 @@ size_t UdpProber::packProbe(const uint32_t destinationIp,
 
 #ifdef __FAVOR_BSD
   packet->udp.uh_dport = destinationPort_;
-  packet->udp.uh_sport =
-      getChecksum((uint16_t*)(&destinationIp), checksumOffset_);
+  packet->udp.uh_sport = getChecksum(
+      reinterpret_cast<uint16_t*>(&destinationIpDecimal), checksumOffset_);
   packet->udp.uh_ulen = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
   // the correct checksum during transmission
   // packet->udp.uh_sum = 0;
-  packet->udp.uh_sum =
-      getChecksum(kUdpProtocol, packetExpectedSize - sizeof(packet->ip),
-                  (uint16_t*)(&sourceIp), (uint16_t*)(&destinationIp),
-                  (uint16_t*)(packetBuffer + sizeof(struct ip)));
+  packet->udp.uh_sum = getChecksum(
+      kUdpProtocol, packetExpectedSize - sizeof(packet->ip),
+      reinterpret_cast<uint16_t*>(&sourceIpDecimal),
+      reinterpret_cast<uint16_t*>(&destinationIpDecimal),
+      reinterpret_cast<uint16_t*>(packetBuffer + sizeof(struct ip)));
 #else
   packet->udp.dest = destinationPort_;
-  packet->udp.source =
-      getChecksum((uint16_t*)(&destinationIp), checksumOffset_);
+  packet->udp.source = getChecksum(
+      reinterpret_cast<uint16_t*>(&destinationIpDecimal), checksumOffset_);
   packet->udp.len = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
   // the correct checksum during transmission
   // packet->udp.uh_sum = 0;
-  packet->udp.check =
-      getChecksum(kUdpProtocol, packetExpectedSize - sizeof(packet->ip),
-                  (uint16_t*)(&sourceIp), (uint16_t*)(&destinationIp),
-                  (uint16_t*)(packetBuffer + sizeof(struct ip)));
+  packet->udp.check = getChecksum(
+      kUdpProtocol, packetExpectedSize - sizeof(packet->ip),
+      reinterpret_cast<uint16_t*>(&sourceIpDecimal),
+      reinterpret_cast<uint16_t*>(&destinationIpDecimal),
+      reinterpret_cast<uint16_t*>(packetBuffer + sizeof(struct ip)));
 #endif
 
   return packetExpectedSize;
@@ -194,14 +203,17 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
     distanceAbnormalities_ += 1;
     return;
   }
+
+  Ipv4Address ipv4Destination(destination);
+  Ipv4Address ipv4Responder(responder);
 #ifdef __FAVOR_BSD
-  (*callback_)(destination, responder, static_cast<uint8_t>(distance),
+  (*callback_)(ipv4Destination, ipv4Responder, static_cast<uint8_t>(distance),
                fromDestination, rtt, probePhase, replyIpId,
                parsedPacket->ip.ip_ttl, replyIpLen, probeIpLen, probeIpId,
                ntohs(residualUdpPacket->udp.uh_sport),
                ntohs(residualUdpPacket->udp.uh_dport));
 #else
-  (*callback_)(destination, responder, static_cast<uint8_t>(distance),
+  (*callback_)(ipv4Destination, ipv4Responder, static_cast<uint8_t>(distance),
                fromDestination, rtt, probePhase, replyIpId,
                parsedPacket->ip.ip_ttl, replyIpLen, probeIpLen, probeIpId,
                ntohs(residualUdpPacket->udp.source),

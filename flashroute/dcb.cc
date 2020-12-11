@@ -1,16 +1,17 @@
+/* Copyright (C) 2019 Neo Huang - All Rights Reserved */
 #include <memory>
 #include <mutex>
+#include <utility>
 
 #include "flashroute/dcb.h"
 
 namespace flashroute {
 
-DestinationControlBlock::DestinationControlBlock(uint32_t ip,
-                                                 uint32_t nextElement,
-                                                 uint32_t previousElement,
-                                                 uint8_t initialTtl)
-    : ipAddress(ip),
-      nextElementOffset(nextElement),
+DestinationControlBlock::DestinationControlBlock(const IpAddress* ip,
+                                                 const uint32_t nextElement,
+                                                 const uint32_t previousElement,
+                                                 const uint8_t initialTtl)
+    : nextElementOffset(nextElement),
       previousElementOffset(previousElement),
       removed(false),
       initialBackwardProbingTtl(initialTtl),
@@ -19,6 +20,7 @@ DestinationControlBlock::DestinationControlBlock(uint32_t ip,
       accurateDistanceMark_(false),
       nextForwardHop_(initialTtl + 1),
       forwardHorizon_(initialTtl) {
+  ipAddress.reset(ip->clone());
   testAndSet = std::make_unique<std::atomic_flag>();
   (*testAndSet).clear();
 }

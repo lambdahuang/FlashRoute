@@ -24,15 +24,15 @@ const uint32_t kThreadPoolSize = 3;  // Default thread pool size.
 NetworkManager::NetworkManager(Prober* prober, const std::string& interface,
                                const uint64_t sendingRate)
     : prober_(prober),
-      localIpAddress_(0),
       stopReceiving_(false),
       expectedRate_(static_cast<double>(sendingRate)),
       sentPackets_(0),
       receivedPackets_(0) {
   createRawSocket();
+
   if (!interface.empty()) {
-    localIpAddress_ =
-        htonl(parseIpFromStringToInt(getAddressByInterface(interface)));
+    localIpAddress_ = std::unique_ptr<IpAddress>(
+        parseIpFromStringToIpAddress(getAddressByInterface(interface)));
   } else {
     LOG(FATAL) << "Network Module: Local address is not configured.";
   }
@@ -41,7 +41,7 @@ NetworkManager::NetworkManager(Prober* prober, const std::string& interface,
 
   // Initialize sending buffer
   sendingBuffer_ =
-      std::make_unique<BoundedBuffer<ProbeUnit>>(expectedRate_);
+      std::make_unique<BoundedBuffer<ProbeUnitIpv4>>(expectedRate_);
 
   // Initialize sending thread. Sending thread is to drain the sending buffer
   // and put the packet on wire.
@@ -54,20 +54,24 @@ NetworkManager::NetworkManager(Prober* prober, const std::string& interface,
   }
 }
 
-void NetworkManager::probeRemoteHost(const uint32_t destinationIp,
+void NetworkManager::probeRemoteHost(const IpAddress& destinationIp,
                                      const uint8_t ttl) {
   static uint8_t buffer[kPacketBufferSize];
   size_t packetSize =
-      prober_->packProbe(destinationIp, localIpAddress_, ttl, buffer);
+      prober_->packProbe(destinationIp, *localIpAddress_, ttl, buffer);
 
   sendRawPacket(buffer, packetSize);
 }
 
-void NetworkManager::schedualProbeRemoteHost(const uint32_t destinationIp,
+void NetworkManager::schedualProbeRemoteHost(const IpAddress& destinationIp,
                                              const uint8_t ttl) {
   if (expectedRate_ >= 1) {
-    ProbeUnit tmp = {destinationIp, ttl};
-    sendingBuffer_->pushFront(tmp);
+    if (destinationIp.isIpv4()) {
+      ProbeUnitIpv4 tmp(dynamic_cast<const Ipv4Address&>(destinationIp), ttl);
+      sendingBuffer_->pushFront(tmp);
+    } else {
+      // TODO(neohuang): handle IPv6.
+    }
   } else {
     // if we disable rate limit.
     probeRemoteHost(destinationIp, ttl);
@@ -144,7 +148,8 @@ void NetworkManager::runSendingThread() {
     VLOG(2) << "Network module: sending thread disabled.";
   }
   VLOG(2) << "Network module: Sending thread initialized.";
-  ProbeUnit tmp;
+  ProbeUnitIpv4 tmp;
+
   uint64_t sentProbes = 0;
   auto lastSeenTimestamp = std::chrono::steady_clock::now();
   while (!isStopReceiving()) {

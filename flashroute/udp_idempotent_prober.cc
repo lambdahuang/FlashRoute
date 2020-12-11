@@ -37,9 +37,15 @@ UdpIdempotentProber::UdpIdempotentProber(PacketReceiverCallback* callback,
   distanceAbnormalities_ = 0;
 }
 
-size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
-                            const uint32_t sourceIp, const uint8_t ttl,
-                            uint8_t* packetBuffer) {
+size_t UdpIdempotentProber::packProbe(const IpAddress& destinationIp,
+                                      const IpAddress& sourceIp,
+                                      const uint8_t ttl,
+                                      uint8_t* packetBuffer) {
+  uint32_t destinationIpDecimal =
+      htonl((dynamic_cast<const Ipv4Address&>(destinationIp)).getIpv4Address());
+  uint32_t sourceIpDecimal =
+      htonl((dynamic_cast<const Ipv4Address&>(sourceIp)).getIpv4Address());
+
   struct PacketUdp* packet =
       reinterpret_cast<struct PacketUdp*>(packetBuffer);
 
@@ -48,13 +54,15 @@ size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
   memset(&packet->ip, 0, sizeof(packet->ip));
   packet->ip.ip_v = 4;
   packet->ip.ip_hl = sizeof(packet->ip) >> 2;
-  packet->ip.ip_dst = *((struct in_addr*)(&destinationIp));
-  packet->ip.ip_src = *((struct in_addr*)(&sourceIp));
+  packet->ip.ip_dst =
+      *(reinterpret_cast<struct in_addr*>(&destinationIpDecimal));
+  packet->ip.ip_src = *(reinterpret_cast<struct in_addr*>(&sourceIpDecimal));
   packet->ip.ip_p = kUdpProtocol;  // UDP protocol
   packet->ip.ip_ttl = ttl;
 
   int32_t packetExpectedSize = 0;
-  uint8_t groupOfDestination = static_cast<uint8_t>((destinationIp % 7) + 1);
+  uint8_t groupOfDestination =
+      static_cast<uint8_t>((destinationIpDecimal % 7) + 1);
 
   // packet-size encodes 3-bit destination group.
   packetExpectedSize = (groupOfDestination & 0x7) << 6;
@@ -66,12 +74,12 @@ size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
   // Otherwise, you will have an Errno-22.
 #if defined(__APPLE__) || defined(__MACH__)
   packet->ip.ip_len = packetExpectedSize;
-  packet->ip.ip_id =
-      getDestAddrChecksum((uint16_t*)(&destinationIp), checksumOffset_);
+  packet->ip.ip_id = getDestAddrChecksum(
+      reinterpret_cast<uint16_t*>(&destinationIpDecimal), checksumOffset_);
 #else
   packet->ip.ip_len = htons(packetExpectedSize);
-  packet->ip.ip_id =
-      htons(getDestAddrChecksum((uint16_t*)(&destinationIp), checksumOffset_));
+  packet->ip.ip_id = htons(getDestAddrChecksum(
+      reinterpret_cast<uint16_t*>(&destinationIpDecimal), checksumOffset_));
 #endif
 
   memset(&packet->udp, '\0', sizeof(packet->udp));
@@ -80,28 +88,31 @@ size_t UdpIdempotentProber::packProbe(const uint32_t destinationIp,
 #ifdef __FAVOR_BSD
   packet->udp.uh_dport = destinationPort_;
   packet->udp.uh_sport =
-      getChecksum((uint16_t*)(packetBuffer), checksumOffset_);
+      getChecksum(reinterpret_cast<uint16_t*>(packetBuffer), checksumOffset_);
   packet->udp.uh_ulen = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
   // the correct checksum during transmission
   // packet->udp.uh_sum = 0;
-  packet->udp.uh_sum =
-      getChecksum(kUdpProtocol, packetExpectedSize - sizeof(packet->ip),
-                  (uint16_t*)(&sourceIp), (uint16_t*)(&destinationIp),
-                  (uint16_t*)(packetBuffer + sizeof(struct ip)));
+  packet->udp.uh_sum = getChecksum(
+      kUdpProtocol, packetExpectedSize - sizeof(packet->ip),
+      reinterpret_cast<uint16_t*>(&sourceIpDecimal),
+      reinterpret_cast<uint16_t*>(&destinationIpDecimal),
+      reinterpret_cast<uint16_t*>(packetBuffer + sizeof(struct ip)));
 #else
   packet->udp.dest = destinationPort_;
-  packet->udp.source = getChecksum((uint16_t*)(packetBuffer), checksumOffset_);
+  packet->udp.source =
+      getChecksum(reinterpret_cast<uint16_t*>(packetBuffer), checksumOffset_);
   packet->udp.len = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
   // the correct checksum during transmission
   // packet->udp.uh_sum = 0;
-  packet->udp.check =
-      getChecksum(kUdpProtocol, packetExpectedSize - sizeof(packet->ip),
-                  (uint16_t*)(&sourceIp), (uint16_t*)(&destinationIp),
-                  (uint16_t*)(packetBuffer + sizeof(struct ip)));
+  packet->udp.check = getChecksum(
+      kUdpProtocol, packetExpectedSize - sizeof(packet->ip),
+      reinterpret_cast<uint16_t*>(&sourceIpDecimal),
+      reinterpret_cast<uint16_t*>(&destinationIpDecimal),
+      reinterpret_cast<uint16_t*>(packetBuffer + sizeof(struct ip)));
 #endif
 
   return packetExpectedSize;
@@ -188,14 +199,18 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
     distanceAbnormalities_ += 1;
     return;
   }
+
+  Ipv4Address ipv4Destination(destination);
+  Ipv4Address ipv4Responder(responder);
+
 #ifdef __FAVOR_BSD
-  (*callback_)(destination, responder, static_cast<uint8_t>(distance),
+  (*callback_)(ipv4Destination, ipv4Responder, static_cast<uint8_t>(distance),
                fromDestination, rtt, probePhase, replyIpId,
                parsedPacket->ip.ip_ttl, replyIpLen, probeIpLen, probeIpId,
                ntohs(residualUdpPacket->udp.uh_sport),
                ntohs(residualUdpPacket->udp.uh_dport));
 #else
-  (*callback_)(destination, responder, static_cast<uint8_t>(distance),
+  (*callback_)(ipv4Destination, ipv4Responder, static_cast<uint8_t>(distance),
                fromDestination, rtt, probePhase, replyIpId,
                parsedPacket->ip.ip_ttl, replyIpLen, probeIpLen, probeIpId,
                ntohs(residualUdpPacket->udp.source),

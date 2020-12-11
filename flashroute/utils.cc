@@ -15,6 +15,7 @@
 #include "absl/strings/str_split.h"
 #include <boost/process.hpp>
 
+#include "flashroute/address.h"
 namespace flashroute {
 
 const uint32_t kThreadPoolSize = 1;
@@ -37,6 +38,10 @@ void CommandExecutor::stop() {
 
 uint32_t parseIpFromStringToInt(const std::string& stringIp) {
   return ntohl(inet_addr(stringIp.c_str()));
+}
+
+IpAddress* parseIpFromStringToIpAddress(const std::string& stringIp) {
+  return new Ipv4Address(ntohl(inet_addr(stringIp.c_str())));
 }
 
 std::string parseIpFromIntToString(const uint32_t ip) {
@@ -75,7 +80,7 @@ std::string getAddressByInterface(const std::string& interface) {
   return ip;
 }
 
-uint32_t getFirstAddressOfBlock(const uint32_t address,
+Ipv4Address getFirstAddressOfBlock(const uint32_t address,
                                  const int32_t prefixLength) {
   if (prefixLength > 32 || prefixLength < 0) {
     LOG(FATAL) << "network prefix length is incorrect!!!";
@@ -84,10 +89,10 @@ uint32_t getFirstAddressOfBlock(const uint32_t address,
   for (int32_t i = 0; i < 32 - prefixLength; i++) {
     result = result & (~static_cast<uint32_t>(1UL << i));
   }
-  return static_cast<uint32_t>(result);
+  return Ipv4Address(static_cast<uint32_t>(result));
 }
 
-uint32_t getLastAddressOfBlock(const uint32_t address,
+Ipv4Address getLastAddressOfBlock(const uint32_t address,
                                 const int32_t prefixLength) {
   if (prefixLength > 32 || prefixLength < 0) {
     LOG(FATAL) << "network prefix length is incorrect!!!";
@@ -96,7 +101,7 @@ uint32_t getLastAddressOfBlock(const uint32_t address,
   for (int32_t i = 0; i < 32 - prefixLength; i++) {
     result = result | (1UL << i);
   }
-  return static_cast<uint32_t>(result);
+  return Ipv4Address(static_cast<uint32_t>(result));
 }
 
 bool isNetwork(const std::string& input) {

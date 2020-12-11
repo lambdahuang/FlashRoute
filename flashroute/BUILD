@@ -28,6 +28,7 @@ cc_library(
     srcs = ["network.cc"],
     copts = ["-std=c++14"],
     deps = [
+        ":address",
         ":prober",
         ":bounded_buffer",
         ":utils",
@@ -49,6 +50,7 @@ cc_library(
     ],
     copts = ["-std=c++14"],
     deps = [
+        ":address",
         ":utils",
         ":network",
         ":prober",
@@ -61,11 +63,23 @@ cc_library(
 )
 
 cc_library(
+    name = "address",
+    hdrs = [
+        "address.h",
+    ],
+    srcs = [
+        "address.cc",
+    ],
+    copts = ["-std=c++14"],
+)
+
+cc_library(
     name = "utils",
     hdrs = ["utils.h"],
     srcs = ["utils.cc"],
     copts = ["-std=c++14"],
     deps = [
+        ":address",
         "@boost//:process",
         "@com_google_absl//absl/strings",
         "//external:glog",
@@ -149,6 +163,7 @@ cc_library(
         "udp_idempotent_prober.cc"],
     copts = ["-std=c++14"],
     deps = [
+        ":address",
         ":utils",
         "//external:glog",
     ],
