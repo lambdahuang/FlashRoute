@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "flashroute/address.h"
 #include "flashroute/dcb.h"
 
 
@@ -65,7 +66,9 @@ class DcbManager {
   uint32_t granularity_;
   uint32_t seed_;
 
-  std::unordered_map<IpAddress*, std::unique_ptr<DestinationControlBlock>> map_;
+  std::unordered_map<IpAddress*, std::unique_ptr<DestinationControlBlock>,
+                     IpAddressHash, IpAddressEquality>
+      map_;
 
   DestinationControlBlock* currentDcb_;
   DestinationControlBlock* lastAddedDcb_;

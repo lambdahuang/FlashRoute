@@ -84,7 +84,8 @@ DcbManager Targets::generateTargetsFromNetwork(
   uint32_t targetNetworkSize =
       static_cast<int64_t>(targetNetworkLastAddress_.getIpv4Address()) -
       static_cast<int64_t>(targetNetworkFirstAddress_.getIpv4Address()) + 1;
-  uint8_t blockFactor_ = static_cast<uint32_t>(std::pow(2, 32 - granularity));
+
+  uint32_t blockFactor_ = static_cast<uint32_t>(std::pow(2, 32 - granularity));
   uint32_t dcbCount = static_cast<uint32_t>(targetNetworkSize / blockFactor_);
 
   // set random seed.

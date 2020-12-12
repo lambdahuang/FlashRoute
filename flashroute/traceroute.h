@@ -88,7 +88,7 @@ class Tracerouter {
 
   ~Tracerouter();
 
-  void startScan(ProberType proberType);
+  void startScan(ProberType proberType, bool randomizeAddressAfterPreprobing);
 
   void stopScan() { stopProbing_ = true; }
 

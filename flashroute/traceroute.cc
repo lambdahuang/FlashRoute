@@ -6,7 +6,6 @@
 #include <limits>
 #include <string>
 #include <thread>
-#include <unordered_set>
 #include <iostream>
 #include <fstream>
 #include <utility>
@@ -240,7 +239,7 @@ void Tracerouter::startPreprobing(ProberType proberType) {
   LOG(INFO) << "Start preprobing.";
   uint64_t dcbCount = dcbManager_->liveDcbSize();
   for (uint64_t i = 0; i < dcbCount; i ++) {
-    networkManager.schedualProbeRemoteHost(*dcbManager_->next()->ipAddress,
+    networkManager.schedualProbeRemoteHost(*(dcbManager_->next()->ipAddress),
                                            defaultPreprobingTTL_);
   }
   std::this_thread::sleep_for(

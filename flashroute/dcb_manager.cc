@@ -9,10 +9,18 @@ namespace flashroute {
 // the first inserted address.
 DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
                        const uint32_t seed)
-    : scanRound(0), liveDcbCount_(0), granularity_(granularity), seed_(seed) {
+    : scanRound(0),
+      liveDcbCount_(0),
+      granularity_(granularity),
+      seed_(seed),
+      currentDcb_(NULL),
+      lastAddedDcb_(NULL),
+      firstAddedDcb_(NULL),
+      specialDcb_(NULL) {
   map_.reserve(reservedSpace);
   // insert the special dcb.
   specialDcb_ = addDcb(Ipv4Address(0), 0);
+  currentDcb_ = specialDcb_;
   // reset live Dcb count to 0
   liveDcbCount_ = 0;
 }

@@ -257,7 +257,7 @@ int main(int argc, char* argv[]) {
       return 0;
     }
 
-    traceRouter.startScan(proberType);
+    traceRouter.startScan(proberType, false);
 
     // Terminate Tcpdump.
     if (!absl::GetFlag(FLAGS_tcpdump_output).empty()) {
