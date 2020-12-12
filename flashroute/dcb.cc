@@ -7,12 +7,11 @@
 
 namespace flashroute {
 
-DestinationControlBlock::DestinationControlBlock(const IpAddress* ip,
-                                                 const uint32_t nextElement,
-                                                 const uint32_t previousElement,
-                                                 const uint8_t initialTtl)
-    : nextElementOffset(nextElement),
-      previousElementOffset(previousElement),
+DestinationControlBlock::DestinationControlBlock(
+    const IpAddress* ip, DestinationControlBlock* _nextElement,
+    DestinationControlBlock* _previousElement, const uint8_t initialTtl)
+    : nextElement(_nextElement),
+      previousElement(_previousElement),
       removed(false),
       initialBackwardProbingTtl(initialTtl),
       nextBackwardHop_(initialTtl),

@@ -1,5 +1,7 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
 
+#include <cmath>
+
 #include "flashroute/address.h"
 
 
@@ -34,13 +36,18 @@ namespace flashroute {
     return address_ >> (32-length);
   }
 
+  void Ipv4Address::randomizeAddress(uint8_t length) {
+    uint32_t blockFactor_ = static_cast<uint32_t>(std::pow(2, 32 - length));
+    address_ =
+        (address_ >> (32 - length)) << (32 - length) | (rand() % blockFactor_);
+  }
+
   bool Ipv4Address::equal_to(const IpAddress& rhs) const {
     return address_ ==
            dynamic_cast<Ipv4Address&>(const_cast<IpAddress&>(rhs)).address_;
   }
 
   bool Ipv4Address::compare_to(const IpAddress& rhs) const {
-    Ipv4Address& cast = dynamic_cast<Ipv4Address&>(const_cast<IpAddress&>(rhs));
     return address_ > rhs.getIpv4Address();
   }
 
@@ -95,18 +102,30 @@ namespace flashroute {
     }
   }
 
+  void Ipv6Address::randomizeAddress(uint8_t length) {
+    if (length >= 64) {
+      uint64_t blockFactor_ = static_cast<uint64_t>(std::pow(2, 128 - length));
+      addressSuffix_ = (addressSuffix_ >> (128 - length)) << (128 - length) |
+                       (rand() % blockFactor_);
+    } else {
+      addressSuffix_ = (rand() % static_cast<uint64_t>(std::pow(2, 64)));
+      addressPrefix_ =
+          (addressSuffix_ >> (64 - length)) << (64 - length) |
+          (rand() % static_cast<uint64_t>(std::pow(2, (64 - length))));
+    }
+  }
+
   bool Ipv6Address::equal_to(const IpAddress& rhs) const {
-    Ipv6Address& cast = dynamic_cast<Ipv6Address&>(const_cast<IpAddress&>(rhs));
-    return addressPrefix_ == cast.addressPrefix_ &&
-           addressSuffix_ == cast.addressSuffix_;
+    Ipv6Address& temp = dynamic_cast<Ipv6Address&>(const_cast<IpAddress&>(rhs));
+    return addressPrefix_ == temp.addressPrefix_ &&
+           addressSuffix_ == temp.addressSuffix_;
   }
 
   bool Ipv6Address::compare_to(const IpAddress& rhs) const {
-    Ipv6Address& cast = dynamic_cast<Ipv6Address&>(const_cast<IpAddress&>(rhs));
-    if (addressPrefix_ > cast.addressPrefix_)
+    if (addressPrefix_ > rhs.getIpv6AddressPrefix())
       return true;
-    else if (addressPrefix_ == cast.addressPrefix_ &&
-             addressSuffix_ > cast.getIpv6AddressSuffix())
+    else if (addressPrefix_ == rhs.getIpv6AddressPrefix() &&
+             addressSuffix_ > rhs.getIpv6AddressSuffix())
       return true;
     else
       return false;

@@ -11,16 +11,17 @@ namespace flashroute {
 class DestinationControlBlock {
  public:
   std::unique_ptr<IpAddress> ipAddress;
-  uint32_t nextElementOffset;
-  uint32_t previousElementOffset;
+  DestinationControlBlock* nextElement;
+  DestinationControlBlock* previousElement;
   bool removed;
   // the initial TTL when we start backward probing. This value will be used to
   // prevent the traceroute to put router interfaces discovered in
   // forward-probing into the stop set.
   uint8_t initialBackwardProbingTtl;
 
-  DestinationControlBlock(const IpAddress* ip, const uint32_t nextElement,
-                          const uint32_t previousElement,
+  DestinationControlBlock(const IpAddress* ip,
+                          DestinationControlBlock* _nextElement,
+                          DestinationControlBlock* _previousElement,
                           const uint8_t initialTtl);
 
   /**

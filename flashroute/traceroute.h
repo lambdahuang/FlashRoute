@@ -17,6 +17,7 @@
 
 #include "flashroute/address.h"
 #include "flashroute/dcb.h"
+#include "flashroute/dcb_manager.h"
 #include "flashroute/dump_result.h"
 #include "flashroute/network.h"
 #include "flashroute/prober.h"
@@ -74,82 +75,36 @@ class Tracerouter {
  public:
   // Define the constructor for mock testing.
   Tracerouter() {}
-  Tracerouter(const absl::string_view targetNetwork,
-              const uint8_t defaultSplitTTL, const uint8_t defaultPreprobingTTL,
-              const bool forwardProbing, const uint8_t forwardProbingGapLimit,
+  Tracerouter(DcbManager* dcbManager, const uint8_t defaultSplitTTL,
+              const uint8_t defaultPreprobingTTL, const bool forwardProbing,
+              const uint8_t forwardProbingGapLimit,
               const bool redundancyRemoval, const bool preprobing,
               const bool preprobingPrediction,
               const int32_t predictionProximitySpan, const int32_t scanCount,
-              const uint32_t seed, const std::string& interface,
-              const uint16_t srcPort, const uint16_t dstPort,
-              const std::string& defaultPayloadMessage,
-              const int64_t probingRate, const std::string& resultFilepath,
-              const bool encodeTimestamp,
+              const std::string& interface, const uint16_t srcPort,
+              const uint16_t dstPort, const std::string& defaultPayloadMessage,
+              const int64_t probingRate, const bool encodeTimestamp,
               const uint8_t granularity);
 
   ~Tracerouter();
 
-  void startScan(bool regenerateDestinationAfterPreprobing,
-                 ProberType proberType);
+  void startScan(ProberType proberType);
 
   void stopScan() { stopProbing_ = true; }
 
-  void startMetricMonitoring();
-
-  void stopMetricMonitoring();
-
-  // Randomizing the probing sequence helps avoid overprobing some router
-  // interfaces in a short period of time, which may trigger the ICMP-rate
-  // limit.
-  void shuffleDcbSequence(uint32_t seed);
-
-  // Remove the element and return the offset pointing to the next element. if
-  // the removed element is the last element, function will return -1, if the
-  // remove element does not exist, return -2, if the removed element is removed
-  // already, return -3.
-  //
-  int64_t removeDcbElement(uint32_t x);
-
-  // Iterate through all targets in probing sequence and print the number of
-  // targets to LOG.
-  void goOverAllElement();
-
-  int64_t getDcbByIpAddress(const IpAddress& ipAddress, bool accurateLookup);
-
-  // Get the number of DCBs.
-  int64_t getBlockCount() { return targetList_.size(); }
-
-  void calculateStatistic(uint64_t elapsedTime);
-
-  // Load a list of targets that are likely responsive to preprobing.
-  void loadTargetsFromFile(absl::string_view filePath);
-
-  // Experiment feature. Dump all targets to a file.
-  void dumpAllTargetsToFile(const std::string& filePath);
-
-  // Set IP address for DCB.
-  void setDcbIpAddress(const IpAddress& newIp);
-
-  // Randomize the destinations IP addresses.
-  void generateRandomAddressForEachDcb();
-
  private:
+  DcbManager* dcbManager_;
   // Control probing to stop
   bool stopProbing_;
   // Record the current probe phase which will be used for logging
   ProbePhase probePhase_;
 
-  bool dumpEnable_;
   std::unique_ptr<ResultDumper> resultDumper_;
 
   std::unique_ptr<boost::asio::thread_pool> threadPool_;
 
   std::unique_ptr<Prober> prober_;
   std::unique_ptr<NetworkManager> networkManager_;
-
-  // The scan granularity, which decides one address per /24, /25, or /26
-  // prefix.
-  uint8_t granularity_;
 
   // The default max ttl which is also the starting hop-distance of probing.
   uint8_t defaultSplitTTL_;
@@ -175,27 +130,6 @@ class Tracerouter {
   int32_t preprobingPredictionProximitySpan_;
 
   int32_t scanCount_;
-
-  // The targets is not always from 0 to 2^32-1, which is the preset for the
-  // whole Ipv4 address space scanning. We accept targets is a range of Ip
-  // addresses, which starts and ends at given points.
-  // targetNetworkFirstAddress_ is the beginning of the range of ip addresses.
-  Ipv4Address targetNetworkFirstAddress_;
-  Ipv4Address targetNetworkLastAddress_;
-  // targetNetworkSize_ is the number of unicast ip addresses in the range.
-  int64_t targetNetworkSize_;
-  // Since we split the probing range into ip blocks, where each block
-  // contains the same number blockFactor_ of uni-cast ip addresses.
-  // For example, if we proble /24 prefixed ip addresses, the blockFactor_ is
-  // 2^8 = 256, which means each block contains 256 ip addresses.
-  int64_t blockFactor_;
-  // blockInitialCount_ is the number of blocks created in initialization.
-  // Since we need to remove the blacklist ip addresses later, we use
-  // blockInitialCount_ to represent the number of blocks created in the
-  // memory, different from blockRemainingCount_, which represents the number
-  // of the blocks remained unfinished.
-  uint32_t blockRemainingCount_;
-  std::vector<DestinationControlBlock> targetList_;
 
   // Metrics
   uint64_t sentPreprobes_;
@@ -241,10 +175,6 @@ class Tracerouter {
   // The variable to encode timestamp.
   bool encodeTimestamp_;
 
-  void initializeDcbVector(absl::string_view targetNetwork);
-
-  void swapDcbElementSequence(uint32_t x, uint32_t y);
-
   void startPreprobing(ProberType proberType);
 
   void startProbing(ProberType proberType);
@@ -257,9 +187,11 @@ class Tracerouter {
                         const IpAddress& responder, uint8_t distance,
                         bool fromDestination);
 
-  void takeDcbSequenceSnapshot();
+  void startMetricMonitoring();
 
-  void recoverDcbSequenceSnapshot();
+  void stopMetricMonitoring();
+
+  void calculateStatistic(uint64_t elapsedTime);
 };
 
 }  // namespace flashroute

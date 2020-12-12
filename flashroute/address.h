@@ -24,6 +24,10 @@ class IpAddress {
   // return the prefix of the address.
   virtual uint64_t getPrefix(uint8_t length) const = 0;
 
+  // randomize the suffix of address but keep prefix unchanged. Length is the
+  // length of the unchanged prefix.
+  virtual void randomizeAddress(uint8_t length) = 0;
+
   // return a boolean value telling whether this is a ipv4 address (only for
   // IpAddress).
   virtual bool isIpv4() const = 0;
@@ -68,7 +72,6 @@ class IpAddress {
 
   // set the current address based on the content of another IpAddress object.
   virtual IpAddress& set_to(const IpAddress& rhs) = 0;
-
 };
 
 class Ipv4Address : public IpAddress {
@@ -83,6 +86,7 @@ class Ipv4Address : public IpAddress {
   uint64_t getIpv6AddressPrefix() const override;
   uint64_t getIpv6AddressSuffix() const override;
   uint64_t getPrefix(uint8_t length) const override;
+  void randomizeAddress(uint8_t length) override;
   bool isIpv4() const override;
 
   size_t hash() const override;
@@ -114,6 +118,7 @@ class Ipv6Address : public IpAddress {
   uint64_t getIpv6AddressPrefix() const override;
   uint64_t getIpv6AddressSuffix() const override;
   uint64_t getPrefix(uint8_t length) const override;
+  void randomizeAddress(uint8_t length) override;
   bool isIpv4() const override;
 
   size_t hash() const override;

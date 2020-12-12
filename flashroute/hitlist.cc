@@ -34,7 +34,7 @@ void Hitlist::loadHitlist(const std::string& filePath,
       auto ip = std::unique_ptr<IpAddress>(
           parseIpFromStringToIpAddress(subs[subs.size() - 1]));
       if (confidence > 0) {
-        tracerouter->setDcbIpAddress(*ip);
+        // tracerouter->setDcbIpAddress(*ip);
         count++;
       }
     }

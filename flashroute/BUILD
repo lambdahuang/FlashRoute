@@ -39,18 +39,50 @@ cc_library(
 )
 
 cc_library(
-    name = "traceroute",
+    name = "dcb_manager",
     hdrs = [
-        "traceroute.h",
+        "dcb_manager.h"
+    ],
+    srcs = [
+        "dcb_manager.cc"
+    ],
+    copts = ["-std=c++14"],
+    deps = [
+        ":address",
+        ":dcb",
+        ":utils",
+    ],
+)
+
+cc_library(
+    name = "dcb",
+    hdrs = [
         "dcb.h"
     ],
     srcs = [
-        "traceroute.cc",
         "dcb.cc"
     ],
     copts = ["-std=c++14"],
     deps = [
         ":address",
+        ":utils",
+    ],
+)
+
+
+cc_library(
+    name = "traceroute",
+    hdrs = [
+        "traceroute.h",
+    ],
+    srcs = [
+        "traceroute.cc",
+    ],
+    copts = ["-std=c++14"],
+    deps = [
+        ":address",
+        ":dcb",
+        ":dcb_manager",
         ":utils",
         ":network",
         ":prober",
@@ -118,8 +150,11 @@ cc_library(
     srcs = ["targets.cc"],
     copts = ["-std=c++14"],
     deps = [
+        ":address",
+        ":dcb_manager",
         ":utils",
-        ":traceroute",
+        "//external:glog",
+        "@boost//:format",
     ],
 )
 #include "absl/strings/str_cat.h"
@@ -129,6 +164,7 @@ cc_binary(
     srcs = ["main.cc"],
     copts = ["-std=c++14"],
     deps = [
+        ":dcb_manager",
         ":prober",
         ":blacklist",
         "hitlist",

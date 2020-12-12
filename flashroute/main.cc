@@ -14,13 +14,13 @@
 #include "absl/strings/str_cat.h"
 
 #include "flashroute/blacklist.h"
-#include "flashroute/network.h"
-#include "flashroute/traceroute.h"
-#include "flashroute/utils.h"
+#include "flashroute/dcb_manager.h"
 #include "flashroute/hitlist.h"
+#include "flashroute/network.h"
 #include "flashroute/targets.h"
+#include "flashroute/traceroute.h"
 #include "flashroute/udp_prober.h"
-
+#include "flashroute/utils.h"
 
 ABSL_FLAG(bool, recommended_mode, false,
           "Use recommended configuration.");
@@ -211,17 +211,23 @@ int main(int argc, char* argv[]) {
     uint32_t seed = absl::GetFlag(FLAGS_seed);
     if (seed == 0) seed = static_cast<std::uint32_t>(now);
 
+
+    Targets targetLoader(absl::GetFlag(FLAGS_split_ttl), seed);
+    // Load targets.
+    DcbManager dcbManager = targetLoader.generateTargetsFromNetwork(
+        target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
+
     traceRouterPtr = std::make_unique<Tracerouter>(
-        target, absl::GetFlag(FLAGS_split_ttl),
+        &dcbManager, absl::GetFlag(FLAGS_split_ttl),
         absl::GetFlag(FLAGS_preprobing_ttl),
         absl::GetFlag(FLAGS_forward_probing), absl::GetFlag(FLAGS_gaplimit),
         absl::GetFlag(FLAGS_remove_redundancy), absl::GetFlag(FLAGS_preprobing),
         absl::GetFlag(FLAGS_distance_prediction),
         absl::GetFlag(FLAGS_proximity_span), absl::GetFlag(FLAGS_scan_count),
-        seed, finalInterface, absl::GetFlag(FLAGS_src_port),
+        finalInterface, absl::GetFlag(FLAGS_src_port),
         absl::GetFlag(FLAGS_dst_port),
         absl::GetFlag(FLAGS_default_payload_message),
-        absl::GetFlag(FLAGS_probing_rate), absl::GetFlag(FLAGS_output),
+        absl::GetFlag(FLAGS_probing_rate),
         absl::GetFlag(FLAGS_encode_timestamp),
         static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
 
@@ -240,21 +246,18 @@ int main(int argc, char* argv[]) {
       Hitlist::loadHitlist(absl::GetFlag(FLAGS_hitlist), &traceRouter);
     }
 
-    // Load targets.
-    Targets::loadTargetsFromFile(absl::GetFlag(FLAGS_targets), &traceRouter);
-
     // Sequential or random sequence of scan.
     if (!absl::GetFlag(FLAGS_sequential_scan)) {
-      traceRouter.shuffleDcbSequence(seed);
+      dcbManager.shuffleOrder();
     }
 
     // Dump targets to a file.
     if (!absl::GetFlag(FLAGS_dump_targets_file).empty()) {
-      traceRouter.dumpAllTargetsToFile(absl::GetFlag(FLAGS_dump_targets_file));
+      // traceRouter.dumpAllTargetsToFile(absl::GetFlag(FLAGS_dump_targets_file));
       return 0;
     }
 
-    traceRouter.startScan(!absl::GetFlag(FLAGS_hitlist).empty(), proberType);
+    traceRouter.startScan(proberType);
 
     // Terminate Tcpdump.
     if (!absl::GetFlag(FLAGS_tcpdump_output).empty()) {

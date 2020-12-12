@@ -69,17 +69,17 @@ int64_t Blacklist::removeAddressBlock(Tracerouter* tracerouter,
 
   // Convert the range of IP addresses to the corresponding range of block
   // ids.
-  int64_t dcbStartIndex = tracerouter->getDcbByIpAddress(ipBlockStart, false);
-  int64_t dcbEndIndex = tracerouter->getDcbByIpAddress(ipBlockEnd, false);
+  // int64_t dcbStartIndex = tracerouter->getDcbByIpAddress(ipBlockStart, false);
+  // int64_t dcbEndIndex = tracerouter->getDcbByIpAddress(ipBlockEnd, false);
 
   int64_t removedElementCount = 0;
   // For /24 block probing, each block contains 2^8 = 256 ip
-  for (int64_t tmp = dcbStartIndex; tmp <= dcbEndIndex; tmp += 1) {
-    if (tracerouter->removeDcbElement(tmp) > -2) {
-      // Remove block successfully.
-      removedElementCount++;
-    }
-  }
+  // for (int64_t tmp = dcbStartIndex; tmp <= dcbEndIndex; tmp += 1) {
+  //   if (tracerouter->removeDcbElement(tmp) > -2) {
+  //     // Remove block successfully.
+  //     removedElementCount++;
+  //   }
+  // }
   return removedElementCount;
 }
 

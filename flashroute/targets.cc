@@ -2,53 +2,104 @@
 
 #include "flashroute/targets.h"
 
-#include <memory>
 #include <fstream>
+#include <memory>
 #include <unordered_set>
+#include <vector>
 
+#include "absl/strings/numbers.h"
+#include "absl/strings/str_split.h"
+#include "absl/strings/string_view.h"
+#include <boost/format.hpp>
+#include "glog/logging.h"
+
+#include "flashroute/dcb_manager.h"
 #include "flashroute/utils.h"
-#include "flashroute/traceroute.h"
 
 namespace flashroute {
 
-void Targets::loadTargetsFromFile(const std::string& filePath,
-                          Tracerouter* tracerouter) {
+Targets::Targets(const uint8_t defaultSplitTtl, const uint32_t seed)
+    : defaultSplitTtl_(defaultSplitTtl), seed_(seed) {}
+
+DcbManager Targets::loadTargetsFromFile(absl::string_view filePath) const {
+  DcbManager dcbManager(1000, 0, seed_);
   if (filePath.empty()) {
     VLOG(2) << "Targets disabled.";
-    return;
+    return dcbManager;
   }
 
   VLOG(2) << "Load targets from file: " << filePath;
-  std::ifstream in(filePath);
+  auto filePathStr = std::string(filePath);
+  std::ifstream in(filePathStr);
   int64_t count = 0;
   std::unordered_set<uint32_t> addressBlocks;
-  for (std::string line; getline(in, line);) {
+  for (std::string line; std::getline(in, line);) {
     if (!line.empty()) {
       auto ip = std::unique_ptr<IpAddress>(parseIpFromStringToIpAddress(line));
       // Set ip address
-      tracerouter->setDcbIpAddress(*ip);
-      addressBlocks.insert((ip->getIpv4Address()>>8));
+      dcbManager.addDcb(*ip, defaultSplitTtl_);
       count++;
     }
   }
   in.close();
   VLOG(2) << "Load " << count << " addresses from file.";
 
-  uint32_t totalTargets = 1 << 24;
-  count = 0;
-  for (uint32_t i = 0; i < totalTargets; i ++) {
-    if (addressBlocks.find(i) == addressBlocks.end()) {
-      Ipv4Address pseudoIp((i << 8) + 5);
-      int64_t blocklIndex = tracerouter->getDcbByIpAddress(pseudoIp, false);
-      if (blocklIndex >= 0 && blocklIndex < tracerouter->getBlockCount()) {
-        // Remove the destinations that are not in taget set.
-        tracerouter->removeDcbElement(blocklIndex);
-        count++;
-      }
-    }
+  return dcbManager;
+}
+
+DcbManager Targets::generateTargetsFromNetwork(
+    absl::string_view targetNetwork, const uint8_t granularity) const {
+  DcbManager dcbManager(1000, 0, seed_);
+
+  std::vector<absl::string_view> parts = absl::StrSplit(targetNetwork, "/");
+  if (parts.size() != 2) {
+    LOG(FATAL) << "Target network format is incorrect!!! " << targetNetwork;
   }
-  VLOG(2) << "Remove " << count << " addresses.";
-  return;
+
+  uint32_t subnetPrefixLength = 0;
+
+  if (!absl::SimpleAtoi(parts[1], &subnetPrefixLength)) {
+    LOG(FATAL) << "Failed to parse the target network.";
+  }
+
+  uint32_t targetBaseAddress = parseIpFromStringToInt(std::string(parts[0]));
+
+  Ipv4Address targetNetworkFirstAddress_ =
+      getFirstAddressOfBlock(targetBaseAddress, subnetPrefixLength);
+  Ipv4Address targetNetworkLastAddress_ =
+      getLastAddressOfBlock(targetBaseAddress, subnetPrefixLength);
+
+  if (targetNetworkFirstAddress_ >= targetNetworkLastAddress_) {
+    LOG(FATAL) << boost::format("Ip address range is incorrect. [%1%, %2%]") %
+                      targetNetworkFirstAddress_.getIpv4Address() %
+                      targetNetworkLastAddress_.getIpv4Address();
+  }
+
+  LOG(INFO) << boost::format("The target network is from %1% to %2%.") %
+                   parseIpFromIntToString(
+                       targetNetworkFirstAddress_.getIpv4Address()) %
+                   parseIpFromIntToString(
+                       targetNetworkLastAddress_.getIpv4Address());
+
+  uint32_t targetNetworkSize =
+      static_cast<int64_t>(targetNetworkLastAddress_.getIpv4Address()) -
+      static_cast<int64_t>(targetNetworkFirstAddress_.getIpv4Address()) + 1;
+  uint8_t blockFactor_ = static_cast<uint32_t>(std::pow(2, 32 - granularity));
+  uint32_t dcbCount = static_cast<uint32_t>(targetNetworkSize / blockFactor_);
+
+  // set random seed.
+  std::srand(seed_);
+  for (int64_t i = 0; i < dcbCount; i++) {
+    // randomly generate IP addresse avoid the first and last ip address
+    // in the block.
+    Ipv4Address tmp(targetNetworkFirstAddress_.getIpv4Address() +
+                    ((i) << (32 - granularity)) +
+                    (rand() % (blockFactor_ - 3)) + 2);
+    dcbManager.addDcb(tmp, defaultSplitTtl_);
+  }
+  VLOG(2) << boost::format("Created %1% entries (1 reserved dcb).") % dcbCount;
+
+  return dcbManager;
 }
 
 }  // namespace flashroute
