@@ -66,8 +66,8 @@ class DcbManager {
   uint32_t granularity_;
   uint32_t seed_;
 
-  std::unordered_map<IpAddress*, std::unique_ptr<DestinationControlBlock>,
-                     IpAddressHash, IpAddressEquality>
+  std::unordered_map<IpAddress*, DestinationControlBlock*, IpAddressHash,
+                     IpAddressEquality>
       map_;
 
   DestinationControlBlock* currentDcb_;

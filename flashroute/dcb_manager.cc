@@ -60,7 +60,7 @@ void DcbManager::shuffleOrder() {
   {
     uint64_t i = 0;
     for (auto it = map_.begin(); it != map_.end(); it++) {
-      tmpArray[i++] = it->second.get();
+      tmpArray[i++] = it->second;
     }
   }
 
@@ -81,7 +81,7 @@ DestinationControlBlock* DcbManager::getDcbByAddress(
     const IpAddress& addr) const {
   auto result = map_.find(&(const_cast<IpAddress&>(addr)));
   if (result != map_.end()) {
-    return result->second.get();
+    return result->second;
   }
   return NULL;
 }
@@ -102,7 +102,7 @@ DestinationControlBlock* DcbManager::addDcb(const IpAddress& addr,
 
   DestinationControlBlock* tmp =
       new DestinationControlBlock(&addr, NULL, NULL, initialTtl);
-  map_.insert({addr.clone(), std::unique_ptr<DestinationControlBlock>(tmp)});
+  map_.insert({addr.clone(), tmp});
 
   if (lastAddedDcb_ == NULL && firstAddedDcb_ == NULL) {
     lastAddedDcb_ = tmp;
@@ -147,8 +147,10 @@ void DcbManager::deleteDcb(const IpAddress& addr) {
   }
 
   IpAddress* tmpKey  = result->first;
+  DestinationControlBlock* tmpValue  = result->second;
   map_.erase(result);
   free(tmpKey);
+  free(tmpValue);
   liveDcbCount_--;
   return;
 }
