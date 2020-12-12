@@ -36,6 +36,21 @@ FlashRoute may help you if
 
 [4] Luckie, M. (2010). Scamper. 239. https://doi.org/10.1145/1879141.1879171
 
+## Cite This Tool
+
+```
+Huang, Yuchen, Michael Rabinovich, and Rami Al-Dalky. "FlashRoute: Efficient Traceroute on a Massive Scale." Proceedings of the ACM Internet Measurement Conference. 2020.
+```
+
+```
+@inproceedings{huang2020flashroute,
+  title={FlashRoute: Efficient Traceroute on a Massive Scale},
+  author={Huang, Yuchen and Rabinovich, Michael and Al-Dalky, Rami},
+  booktitle={Proceedings of the ACM Internet Measurement Conference},
+  pages={443--455},
+  year={2020}
+}
+```
 
 # Installation
 
