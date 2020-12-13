@@ -198,7 +198,7 @@ int main(int argc, char* argv[]) {
 
   printFlags();
   std::signal(SIGINT, signalHandler);
-  if (targetIsNetwork) {
+  if (!absl::GetFlag(FLAGS_targets).empty() || targetIsNetwork) {
     commandExecutor = std::make_unique<CommandExecutor>();
     // Launch tcpdump to collect data.
     if (!absl::GetFlag(FLAGS_tcpdump_output).empty()) {
@@ -222,12 +222,19 @@ int main(int argc, char* argv[]) {
     LOG(INFO) << "Load " << blacklist.size() << " blacklist rules.";
 
     Targets targetLoader(absl::GetFlag(FLAGS_split_ttl), seed, &blacklist);
+
+    DcbManager* dcbManager;
     // Load targets.
-    DcbManager dcbManager = targetLoader.generateTargetsFromNetwork(
-        target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
+    if (!absl::GetFlag(FLAGS_targets).empty()) {
+      dcbManager =
+          targetLoader.loadTargetsFromFile(absl::GetFlag(FLAGS_targets));
+    } else {
+      dcbManager = targetLoader.generateTargetsFromNetwork(
+          target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
+    }
 
     traceRouterPtr = std::make_unique<Tracerouter>(
-        &dcbManager, absl::GetFlag(FLAGS_split_ttl),
+        dcbManager, absl::GetFlag(FLAGS_split_ttl),
         absl::GetFlag(FLAGS_preprobing_ttl),
         absl::GetFlag(FLAGS_forward_probing), absl::GetFlag(FLAGS_gaplimit),
         absl::GetFlag(FLAGS_remove_redundancy), absl::GetFlag(FLAGS_preprobing),
@@ -249,7 +256,7 @@ int main(int argc, char* argv[]) {
 
     // Sequential or random sequence of scan.
     if (!absl::GetFlag(FLAGS_sequential_scan)) {
-      dcbManager.shuffleOrder();
+      dcbManager->shuffleOrder();
     }
 
     // Dump targets to a file.

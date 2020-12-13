@@ -164,6 +164,8 @@ void Tracerouter::startScan(ProberType proberType,
   checksumMismatches_ = 0;
   distanceAbnormalities_ = 0;
   auto startTimestamp = std::chrono::steady_clock::now();
+  VLOG(2) << "There are " << dcbManager_->size() << " targets to probe.";
+
   startMetricMonitoring();
   if (preprobingMark_) {
     startPreprobing(proberType);

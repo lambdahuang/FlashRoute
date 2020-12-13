@@ -23,8 +23,8 @@ Targets::Targets(const uint8_t defaultSplitTtl, const uint32_t seed,
                  Blacklist* blacklist)
     : blacklist_(blacklist), defaultSplitTtl_(defaultSplitTtl), seed_(seed) {}
 
-DcbManager Targets::loadTargetsFromFile(absl::string_view filePath) const {
-  DcbManager dcbManager(1000, 0, seed_);
+DcbManager* Targets::loadTargetsFromFile(absl::string_view filePath) const {
+  DcbManager* dcbManager = new DcbManager(1000, 0, seed_);
   if (filePath.empty()) {
     VLOG(2) << "Targets disabled.";
     return dcbManager;
@@ -40,7 +40,7 @@ DcbManager Targets::loadTargetsFromFile(absl::string_view filePath) const {
       auto ip = std::unique_ptr<IpAddress>(parseIpFromStringToIpAddress(line));
       // Set ip address
       if (blacklist_ != NULL && !blacklist_->contains(*ip)) {
-        dcbManager.addDcb(*ip, defaultSplitTtl_);
+        dcbManager->addDcb(*ip, defaultSplitTtl_);
       }
       count++;
     }
@@ -51,9 +51,9 @@ DcbManager Targets::loadTargetsFromFile(absl::string_view filePath) const {
   return dcbManager;
 }
 
-DcbManager Targets::generateTargetsFromNetwork(
+DcbManager* Targets::generateTargetsFromNetwork(
     absl::string_view targetNetwork, const uint8_t granularity) const {
-  DcbManager dcbManager(1000, 0, seed_);
+  DcbManager* dcbManager = new DcbManager(1000, 0, seed_);
 
   std::vector<absl::string_view> parts = absl::StrSplit(targetNetwork, "/");
   if (parts.size() != 2) {
@@ -101,7 +101,7 @@ DcbManager Targets::generateTargetsFromNetwork(
                     ((i) << (32 - granularity)) +
                     (rand() % (blockFactor_ - 3)) + 2);
     if (blacklist_ != NULL && !blacklist_->contains(tmp)) {
-      dcbManager.addDcb(tmp, defaultSplitTtl_);
+      dcbManager->addDcb(tmp, defaultSplitTtl_);
     }
   }
   VLOG(2) << boost::format("Created %1% entries (1 reserved dcb).") % dcbCount;
