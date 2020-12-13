@@ -22,6 +22,10 @@ class CommandExecutor {
   std::unique_ptr<boost::process::child> child_process_;
 };
 
+// Translate string network to IpNetowrk. (Currently only support Ipv4)
+IpNetwork* parseNetworkFromStringToNetworkAddress(
+    absl::string_view stringNetwork);
+
 // Translate string IP to integer IP.
 uint32_t parseIpFromStringToInt(const std::string& stringIp);
 

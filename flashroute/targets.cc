@@ -13,13 +13,15 @@
 #include <boost/format.hpp>
 #include "glog/logging.h"
 
+#include "flashroute/blacklist.h"
 #include "flashroute/dcb_manager.h"
 #include "flashroute/utils.h"
 
 namespace flashroute {
 
-Targets::Targets(const uint8_t defaultSplitTtl, const uint32_t seed)
-    : defaultSplitTtl_(defaultSplitTtl), seed_(seed) {}
+Targets::Targets(const uint8_t defaultSplitTtl, const uint32_t seed,
+                 Blacklist* blacklist)
+    : blacklist_(blacklist), defaultSplitTtl_(defaultSplitTtl), seed_(seed) {}
 
 DcbManager Targets::loadTargetsFromFile(absl::string_view filePath) const {
   DcbManager dcbManager(1000, 0, seed_);
@@ -37,7 +39,9 @@ DcbManager Targets::loadTargetsFromFile(absl::string_view filePath) const {
     if (!line.empty()) {
       auto ip = std::unique_ptr<IpAddress>(parseIpFromStringToIpAddress(line));
       // Set ip address
-      dcbManager.addDcb(*ip, defaultSplitTtl_);
+      if (blacklist_ != NULL && !blacklist_->contains(*ip)) {
+        dcbManager.addDcb(*ip, defaultSplitTtl_);
+      }
       count++;
     }
   }
@@ -96,7 +100,9 @@ DcbManager Targets::generateTargetsFromNetwork(
     Ipv4Address tmp(targetNetworkFirstAddress_.getIpv4Address() +
                     ((i) << (32 - granularity)) +
                     (rand() % (blockFactor_ - 3)) + 2);
-    dcbManager.addDcb(tmp, defaultSplitTtl_);
+    if (blacklist_ != NULL && !blacklist_->contains(tmp)) {
+      dcbManager.addDcb(tmp, defaultSplitTtl_);
+    }
   }
   VLOG(2) << boost::format("Created %1% entries (1 reserved dcb).") % dcbCount;
 

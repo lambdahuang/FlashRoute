@@ -1,6 +1,7 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
 
 #include <cmath>
+#include <memory>
 
 #include "flashroute/address.h"
 
@@ -145,5 +146,48 @@ namespace flashroute {
     return (addressPrefix_ ^ addressSuffix_) % __SIZE_MAX__;
   }
 
+  // Ipv network implementation
+
+  IpNetwork::IpNetwork(const IpAddress& addr, const uint32_t prefix) {
+    addr_ = std::unique_ptr<IpAddress>(addr.clone());
+    prefix_ = prefix;
+  }
+
+  IpNetwork::IpNetwork(const IpNetwork& copy) {
+    this->addr_.reset(copy.addr_->clone());
+    this->prefix_ = copy.prefix_;
+  }
+
+  bool IpNetwork::contains(const IpAddress& addr) const {
+    if (addr.isIpv4()) {
+      if ((addr_->getIpv4Address() >> (32 - prefix_)) ==
+          (addr.getIpv4Address() >> (32 - prefix_)))
+        return true;
+      else
+        return false;
+    } else {
+      if (prefix_ <= 64) {
+        if ((addr_->getIpv6AddressPrefix() >> (64 - prefix_)) ==
+            (addr.getIpv6AddressPrefix() >> (64 - prefix_)))
+          return true;
+        else
+          return false;
+      } else {
+        if (addr_->getIpv6AddressPrefix() == addr.getIpv6AddressPrefix()) {
+          if ((addr_->getIpv6AddressSuffix() >> (128 - prefix_)) ==
+              (addr.getIpv6AddressSuffix() >> (128 - prefix_)))
+            return true;
+          else
+            return false;
+        } else {
+          return false;
+        }
+      }
+    }
+  }
+
+  IpNetwork* IpNetwork::clone() const {
+    return new  IpNetwork(*this);
+  }
 
 }  // namespace flashroute

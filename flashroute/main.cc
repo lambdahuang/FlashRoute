@@ -211,8 +211,16 @@ int main(int argc, char* argv[]) {
     uint32_t seed = absl::GetFlag(FLAGS_seed);
     if (seed == 0) seed = static_cast<std::uint32_t>(now);
 
+    // Remove exclusion/blacklist list.
+    Blacklist blacklist;
 
-    Targets targetLoader(absl::GetFlag(FLAGS_split_ttl), seed);
+    blacklist.loadRulesFromFile(absl::GetFlag(FLAGS_blacklist));
+
+    // Remove reserved addresses.
+    if (absl::GetFlag(FLAGS_remove_reserved_addresses))
+      blacklist.loadRulesFromReservedAddress();
+
+    Targets targetLoader(absl::GetFlag(FLAGS_split_ttl), seed, &blacklist);
     // Load targets.
     DcbManager dcbManager = targetLoader.generateTargetsFromNetwork(
         target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
@@ -232,14 +240,6 @@ int main(int argc, char* argv[]) {
         static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
 
     Tracerouter& traceRouter = *traceRouterPtr.get();
-
-    // Remove exclusion/blacklist list.
-    Blacklist::removeAddressFromFile(absl::GetFlag(FLAGS_blacklist),
-                                     &traceRouter);
-
-    // Remove reserved addresses.
-    if (absl::GetFlag(FLAGS_remove_reserved_addresses))
-      Blacklist::removeReservedAddress(&traceRouter);
 
     // Load hitlist.
     if (!absl::GetFlag(FLAGS_hitlist).empty()) {

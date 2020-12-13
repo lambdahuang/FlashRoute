@@ -3,6 +3,7 @@
 #pragma once
 
 #include <iostream>
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -151,5 +152,19 @@ struct IpAddressEquality {
   }
 };
 
+class IpNetwork {
+ public:
+  IpNetwork(const IpAddress& addr, const uint32_t prefix);
+
+  // copy constructor
+  IpNetwork(const IpNetwork& copy);
+
+  bool contains(const IpAddress& addr) const;
+  IpNetwork* clone() const;
+
+ private:
+  std::unique_ptr<IpAddress> addr_;
+  uint32_t prefix_;
+};
 
 }  // namespace flashroute

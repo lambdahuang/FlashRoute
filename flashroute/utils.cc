@@ -11,9 +11,10 @@
 #include <net/if.h>
 #include <ifaddrs.h>
 
+#include <boost/process.hpp>
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
-#include <boost/process.hpp>
+#include "absl/strings/string_view.h"
 
 #include "flashroute/address.h"
 namespace flashroute {
@@ -34,6 +35,29 @@ void CommandExecutor::stop() {
     child_process_->terminate();
   }
   LOG(INFO) << "Child process teminated.";
+}
+
+IpNetwork* parseNetworkFromStringToNetworkAddress(
+    absl::string_view stringNetwork) {
+  std::vector<absl::string_view> parts = absl::StrSplit(stringNetwork, "/");
+  IpAddress* baseAddr = parseIpFromStringToIpAddress(std::string(parts[0]));
+  uint32_t subnetPrefixLength = 0;
+  if (parts.size() == 2) {
+    if (!absl::SimpleAtoi(parts[1], &subnetPrefixLength)) {
+      return NULL;
+    }
+  } else if (parts.size() == 2) {
+    if (baseAddr->isIpv4())
+      subnetPrefixLength = 32;
+    else
+      subnetPrefixLength = 128;
+  } else {
+    return NULL;
+  }
+
+  IpNetwork* ret = new IpNetwork(*baseAddr, subnetPrefixLength);
+  free(baseAddr);
+  return ret;
 }
 
 uint32_t parseIpFromStringToInt(const std::string& stringIp) {

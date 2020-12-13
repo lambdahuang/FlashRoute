@@ -1,9 +1,10 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
 #pragma once
 
+#include <vector>
 #include <string>
 
-#include "flashroute/traceroute.h"
+#include "flashroute/address.h"
 
 namespace flashroute {
 
@@ -24,24 +25,19 @@ namespace flashroute {
 
 class Blacklist {
  public:
-  static void removeAddressFromFile(const std::string& filePath,
-                                       Tracerouter* tracerouter);
+  ~Blacklist();
+  void loadRulesFromFile(const std::string& filePath);
 
-  // Remove the public reserved ip address
-  static void removeReservedAddress(Tracerouter* tracerouter);
+  void loadRulesFromReservedAddress();
 
-  // Given an individual ip adress or a subnet address, the function will remove
-  // all ip blocks in this range represented by the mask.
-  //
-  // Example:
-  // Remove a range of ip addresses.
-  // removeIpRange(traceRouter, "123.123.123.123/24");
-  // Remove an individual ip address.
-  // removeIpRange(traceRouter, "123.123.123.123");
-  static int64_t removeAddressBlock(Tracerouter* tracerouter,
-                                   const std::string& ipBlock);
+  void insert(IpNetwork* network);
+
+  bool contains(const IpAddress& addr);
 
  private:
+  std::vector<IpNetwork*> rules_;
+
+  void insertByString(const std::string& addr);
 };
 
 }  // namespace flashroute
