@@ -17,7 +17,12 @@ DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
       lastAddedDcb_(NULL),
       firstAddedDcb_(NULL),
       specialDcb_(NULL) {
-  map_.reserve(reservedSpace);
+  map_ =
+      std::unique_ptr<std::unordered_map<IpAddress*, DestinationControlBlock*,
+                                         IpAddressHash, IpAddressEquality>>(
+          new std::unordered_map<IpAddress*, DestinationControlBlock*,
+                                 IpAddressHash, IpAddressEquality>());
+  map_->reserve(reservedSpace);
   // insert the special dcb.
   specialDcb_ = addDcb(Ipv4Address(0), 0);
   currentDcb_ = specialDcb_;
@@ -51,27 +56,27 @@ void DcbManager::shuffleOrder() {
   // we can put everything in an temp array first and shuffle the order from the
   // array.
 
-  if (map_.size() > RAND_MAX) {
+  if (map_->size() > RAND_MAX) {
     LOG(FATAL) << "Randomization failed: the sequence range is larger than "
                   "the range of randomization function";
   }
 
-  DestinationControlBlock* tmpArray[map_.size()];
+  DestinationControlBlock* tmpArray[map_->size()];
   {
     uint64_t i = 0;
-    for (auto it = map_.begin(); it != map_.end(); it++) {
+    for (auto it = map_->begin(); it != map_->end(); it++) {
       tmpArray[i++] = it->second;
     }
   }
 
   srand(seed_);
-  for (uint64_t i = 0; i < map_.size(); i++) {
-    swapDcbElementSequence(*(tmpArray + i), *(tmpArray + rand() % map_.size()));
+  for (uint64_t i = 0; i < map_->size(); i++) {
+    swapDcbElementSequence(*(tmpArray + i), *(tmpArray + rand() % map_->size()));
   }
 }
 
 void DcbManager::randomizeAddress() {
-  for (uint64_t i = 0; i < map_.size() - 1; i++) {
+  for (uint64_t i = 0; i < map_->size() - 1; i++) {
     DestinationControlBlock* dcb = this->next();
     dcb->ipAddress->randomizeAddress(granularity_);
   }
@@ -79,8 +84,8 @@ void DcbManager::randomizeAddress() {
 
 DestinationControlBlock* DcbManager::getDcbByAddress(
     const IpAddress& addr) const {
-  auto result = map_.find(&(const_cast<IpAddress&>(addr)));
-  if (result != map_.end()) {
+  auto result = map_->find(&(const_cast<IpAddress&>(addr)));
+  if (result != map_->end()) {
     return result->second;
   }
   return NULL;
@@ -89,20 +94,20 @@ DestinationControlBlock* DcbManager::getDcbByAddress(
 DestinationControlBlock* DcbManager::addDcb(const IpAddress& addr,
                                             const uint8_t initialTtl) {
   // if granularity is not set, update granularity based on the dcb.
-  if (map_.size() != 0 && granularity_ == 0) {
+  if (map_->size() != 0 && granularity_ == 0) {
     if (addr.isIpv4())
       granularity_ = 32;
     else
       granularity_ = 128;
   }
 
-  if (map_.find(&(const_cast<IpAddress&>(addr))) != map_.end()) {
+  if (map_->find(&(const_cast<IpAddress&>(addr))) != map_->end()) {
     return NULL;
   }
 
   DestinationControlBlock* tmp =
       new DestinationControlBlock(&addr, NULL, NULL, initialTtl);
-  map_.insert({addr.clone(), tmp});
+  map_->insert({addr.clone(), tmp});
 
   if (lastAddedDcb_ == NULL && firstAddedDcb_ == NULL) {
     lastAddedDcb_ = tmp;
@@ -128,8 +133,8 @@ void DcbManager::removeDcbFromIteration(DestinationControlBlock* dcb) {
 }
 
 void DcbManager::removeDcbFromIteration(const IpAddress& addr) {
-  auto result = map_.find(&(const_cast<IpAddress&>(addr)));
-  if (result == map_.end()) {
+  auto result = map_->find(&(const_cast<IpAddress&>(addr)));
+  if (result == map_->end()) {
     return;
   }
   DestinationControlBlock* previous = result->second->previousElement;
@@ -141,14 +146,14 @@ void DcbManager::removeDcbFromIteration(const IpAddress& addr) {
 
 // remove DCB permanently. This is for blacklist.
 void DcbManager::deleteDcb(const IpAddress& addr) {
-  auto result = map_.find(&(const_cast<IpAddress&>(addr)));
-  if (result == map_.end()) {
+  auto result = map_->find(&(const_cast<IpAddress&>(addr)));
+  if (result == map_->end()) {
     return;
   }
 
   IpAddress* tmpKey  = result->first;
   DestinationControlBlock* tmpValue  = result->second;
-  map_.erase(result);
+  map_->erase(result);
   free(tmpKey);
   free(tmpValue);
   liveDcbCount_--;
@@ -164,7 +169,7 @@ void DcbManager::reset() {
 }
 
 uint64_t DcbManager::size() {
-  return map_.size() - 1;
+  return map_->size() - 1;
 }
 
 uint64_t DcbManager::liveDcbSize() {
