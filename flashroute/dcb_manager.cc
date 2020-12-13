@@ -1,6 +1,8 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
 #include "flashroute/dcb_manager.h"
 
+#include <vector>
+
 #include "glog/logging.h"
 
 namespace flashroute {
@@ -61,17 +63,16 @@ void DcbManager::shuffleOrder() {
                   "the range of randomization function";
   }
 
-  DestinationControlBlock* tmpArray[map_->size()];
+  std::vector<DestinationControlBlock*> tmpArray;
   {
-    uint64_t i = 0;
     for (auto it = map_->begin(); it != map_->end(); it++) {
-      tmpArray[i++] = it->second;
+      tmpArray.push_back(it->second);
     }
   }
 
   srand(seed_);
   for (uint64_t i = 0; i < map_->size(); i++) {
-    swapDcbElementSequence(*(tmpArray + i), *(tmpArray + rand() % map_->size()));
+    swapDcbElementSequence(tmpArray[i], tmpArray[rand() % map_->size()]);
   }
 }
 
