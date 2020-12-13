@@ -219,6 +219,7 @@ int main(int argc, char* argv[]) {
     // Remove reserved addresses.
     if (absl::GetFlag(FLAGS_remove_reserved_addresses))
       blacklist.loadRulesFromReservedAddress();
+    LOG(INFO) << "Load " << blacklist.size() << " blacklist rules.";
 
     Targets targetLoader(absl::GetFlag(FLAGS_split_ttl), seed, &blacklist);
     // Load targets.

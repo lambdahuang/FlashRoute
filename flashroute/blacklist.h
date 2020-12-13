@@ -34,6 +34,8 @@ class Blacklist {
 
   bool contains(const IpAddress& addr);
 
+  size_t size();
+
  private:
   std::vector<IpNetwork*> rules_;
 

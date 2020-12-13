@@ -64,6 +64,8 @@ void Blacklist::loadRulesFromReservedAddress() {
   }
 }
 
+size_t Blacklist::size() { return rules_.size(); }
+
 void Blacklist::insertByString(const std::string& sAddr) {
     IpNetwork* parsedNetwork = parseNetworkFromStringToNetworkAddress(sAddr);
     if (parsedNetwork != NULL) {
