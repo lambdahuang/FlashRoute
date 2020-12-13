@@ -413,6 +413,7 @@ void Tracerouter::parseIcmpProbing(const IpAddress& destination,
   // Convert the target ip address to the corresponding block index.
   DestinationControlBlock* dcb = dcbManager_->getDcbByAddress(destination);
   if (dcb == NULL) {
+    droppedResponses_++;
     return;
   }
   if (!fromDestination) {
@@ -462,7 +463,10 @@ void Tracerouter::calculateStatistic(uint64_t elapsedTime) {
   LOG(INFO) << boost::format("Received packets: %|30t|%ld") %
                    receivedResponses_;
   LOG(INFO) << boost::format("Dropped responses: %|30t|%ld") %
-                   (checksumMismatches_ + distanceAbnormalities_);
+                   (checksumMismatches_ + distanceAbnormalities_ +
+                    droppedResponses_);
+  LOG(INFO) << boost::format("Other dropped: %|30t|%ld") %
+                   (droppedResponses_);
   LOG(INFO) << boost::format("Checksum Mismatches: %|30t|%ld") %
                    (checksumMismatches_);
   LOG(INFO) << boost::format("Distance Abnormalities: %|30t|%ld") %
