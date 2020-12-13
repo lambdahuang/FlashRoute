@@ -46,7 +46,7 @@ IpNetwork* parseNetworkFromStringToNetworkAddress(
     if (!absl::SimpleAtoi(parts[1], &subnetPrefixLength)) {
       return NULL;
     }
-  } else if (parts.size() == 2) {
+  } else if (parts.size() == 1) {
     if (baseAddr->isIpv4())
       subnetPrefixLength = 32;
     else

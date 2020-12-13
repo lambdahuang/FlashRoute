@@ -46,12 +46,10 @@ void Blacklist::loadRulesFromFile(const std::string& filePath) {
   if (!in) {
     LOG(ERROR) << "Failed to load blacklist.";
   }
-  int64_t count = 0;
   for (std::string line; getline(in, line);) {
     insertByString(line);
   }
   in.close();
-  LOG(INFO) << count << " blacklist addresses have been removed.";
 }
 
 void Blacklist::loadRulesFromReservedAddress() {
@@ -68,8 +66,10 @@ void Blacklist::loadRulesFromReservedAddress() {
 
 void Blacklist::insertByString(const std::string& sAddr) {
     IpNetwork* parsedNetwork = parseNetworkFromStringToNetworkAddress(sAddr);
-    insert(parsedNetwork);
-    free(parsedNetwork);
+    if (parsedNetwork != NULL) {
+      insert(parsedNetwork);
+      free(parsedNetwork);
+    }
 }
 
 }  // namespace flashroute
