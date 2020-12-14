@@ -94,7 +94,7 @@ DcbManager* Targets::generateTargetsFromNetwork(
 
   // set random seed.
   std::srand(seed_);
-  for (int64_t i = 0; i < dcbCount; i++) {
+  for (uint64_t i = 0; i < dcbCount; i++) {
     // randomly generate IP addresse avoid the first and last ip address
     // in the block.
     Ipv4Address tmp(targetNetworkFirstAddress_.getIpv4Address() +

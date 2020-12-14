@@ -65,7 +65,30 @@ uint32_t parseIpFromStringToInt(const std::string& stringIp) {
 }
 
 IpAddress* parseIpFromStringToIpAddress(const std::string& stringIp) {
-  return new Ipv4Address(ntohl(inet_addr(stringIp.c_str())));
+  if (absl::StrContains(absl::string_view(stringIp), ":")) {
+    // IPv6
+    struct in6_addr result;
+    if (inet_pton(AF_INET6, stringIp.c_str(), &result) == 1) {
+      // successfully parsed string into "result"
+      uint64_t prefix = 0;
+      uint64_t suffix = 0;
+      prefix = static_cast<uint64_t>(ntohl(result.__in6_u.__u6_addr32[3]))
+                   << 32 |
+               static_cast<uint64_t>(ntohl(result.__in6_u.__u6_addr32[2]));
+      suffix = static_cast<uint64_t>(ntohl(result.__in6_u.__u6_addr32[1]))
+                   << 32 |
+               static_cast<uint64_t>(ntohl(result.__in6_u.__u6_addr32[0]));
+      absl::uint128 addr_ = static_cast<absl::uint128>(prefix) << 64 |
+                            static_cast<absl::uint128>(suffix) << 64;
+      return new Ipv6Address(addr_);
+    } else {
+      return NULL;
+    }
+
+  } else {
+    // IPv4
+    return new Ipv4Address(ntohl(inet_addr(stringIp.c_str())));
+  }
 }
 
 std::string parseIpFromIntToString(const uint32_t ip) {

@@ -103,6 +103,9 @@ cc_library(
     srcs = [
         "address.cc",
     ],
+    deps = [
+        "@com_google_absl//absl/random",
+    ],
     copts = ["-std=c++14"],
 )
 
@@ -222,6 +225,7 @@ cc_library(
     srcs = ["dump_result.cc"],
     copts = ["-std=c++14"],
     deps = [
+        ":address",
         ":utils",
         ":bounded_buffer",
         "//external:glog",

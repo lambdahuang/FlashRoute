@@ -7,6 +7,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "absl/numeric/int128.h"
+
 namespace flashroute {
 
 class IpAddress {
@@ -17,13 +19,10 @@ class IpAddress {
   virtual uint32_t getIpv4Address() const = 0;
 
   // return the first 64 bits of ipv6 decimal address if there is one.
-  virtual uint64_t getIpv6AddressPrefix() const = 0;
-
-  // return the last 64 bits of ipv6 decimal address if there is one.
-  virtual uint64_t getIpv6AddressSuffix() const = 0;
+  virtual absl::uint128 getIpv6Address() const = 0;
 
   // return the prefix of the address.
-  virtual uint64_t getPrefix(uint8_t length) const = 0;
+  virtual absl::uint128 getPrefix(uint8_t length) const = 0;
 
   // randomize the suffix of address but keep prefix unchanged. Length is the
   // length of the unchanged prefix.
@@ -84,9 +83,8 @@ class Ipv4Address : public IpAddress {
   virtual Ipv4Address* clone() const;
 
   uint32_t getIpv4Address() const override;
-  uint64_t getIpv6AddressPrefix() const override;
-  uint64_t getIpv6AddressSuffix() const override;
-  uint64_t getPrefix(uint8_t length) const override;
+  absl::uint128 getIpv6Address() const override;
+  absl::uint128 getPrefix(uint8_t length) const override;
   void randomizeAddress(uint8_t length) override;
   bool isIpv4() const override;
 
@@ -110,23 +108,21 @@ class Ipv4Address : public IpAddress {
 class Ipv6Address : public IpAddress {
  public:
   Ipv6Address();
-  Ipv6Address(uint64_t prefix, uint64_t suffix);
+  explicit Ipv6Address(absl::uint128 address);
   Ipv6Address(const Ipv6Address& copy);
   // vitrual constructor (copy)
   virtual Ipv6Address* clone() const;
 
   uint32_t getIpv4Address() const override;
-  uint64_t getIpv6AddressPrefix() const override;
-  uint64_t getIpv6AddressSuffix() const override;
-  uint64_t getPrefix(uint8_t length) const override;
+  absl::uint128 getIpv6Address() const override;
+  absl::uint128 getPrefix(uint8_t length) const override;
   void randomizeAddress(uint8_t length) override;
   bool isIpv4() const override;
 
   size_t hash() const override;
 
   Ipv6Address& operator=(const Ipv6Address& rhs) {
-    this->addressPrefix_ = rhs.getIpv6AddressPrefix();
-    this->addressSuffix_ = rhs.getIpv6AddressSuffix();
+    this->address_ = rhs.getIpv6Address();
     return *this;
   }
 
@@ -137,8 +133,7 @@ class Ipv6Address : public IpAddress {
   IpAddress& set_to(const IpAddress& rhs) override;
 
  private:
-  uint64_t addressPrefix_;
-  uint64_t addressSuffix_;
+  absl::uint128 address_;
 };
 
 // customize hash and equality function for IpAddress object

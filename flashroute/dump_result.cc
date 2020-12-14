@@ -1,7 +1,10 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
 
-#include "flashroute/dump_result.h"
 #include "glog/logging.h"
+#include "absl/numeric/int128.h"
+
+#include "flashroute/address.h"
+#include "flashroute/dump_result.h"
 
 namespace flashroute {
 
@@ -35,16 +38,24 @@ ResultDumper::~ResultDumper() {
   VLOG(2) << "ResultDumper: ResultDumper recycled.";
 }
 
-void ResultDumper::scheduleDumpData(uint32_t destination, uint32_t responder,
-                                    uint8_t distance, bool fromDestination,
-                                    uint32_t rtt, uint8_t probePhase,
-                                    uint16_t replyIpid, uint8_t replyTtl,
-                                    uint16_t replySize, uint16_t probeSize,
-                                    uint16_t probeIpid,
-                                    uint16_t probeSourcePort,
-                                    uint16_t probeDestinationPort) {
+void ResultDumper::scheduleDumpData(
+    const IpAddress& destination, const IpAddress& responder, uint8_t distance,
+    bool fromDestination, uint32_t rtt, uint8_t probePhase, uint16_t replyIpid,
+    uint8_t replyTtl, uint16_t replySize, uint16_t probeSize,
+    uint16_t probeIpid, uint16_t probeSourcePort,
+    uint16_t probeDestinationPort) {
   if (!stopDumping_) {
-    dumpingBuffer_->pushFront({destination, responder, distance,
+    absl::uint128 destinationAddr = 0;
+    absl::uint128 responderAddr = 0;
+    if (destination.isIpv4()) {
+      destinationAddr = destination.getIpv4Address();
+      responderAddr = responder.getIpv4Address();
+    } else {
+      destinationAddr = destination.getIpv6Address();
+      responderAddr = responder.getIpv4Address();
+    }
+
+    dumpingBuffer_->pushFront({destinationAddr, responderAddr, distance,
                                static_cast<uint8_t>(fromDestination ? 1 : 0),
                                rtt, probePhase, replyIpid, replyTtl, replySize,
                                probeSize, probeIpid, probeSourcePort,
@@ -73,23 +84,23 @@ void ResultDumper::runDumpingThread() {
 
 size_t ResultDumper::binaryDumping(uint8_t* buffer, const size_t maxSize,
                                    const DataElement& dataElement) {
-  if (maxSize < 28) return 0;
-  *reinterpret_cast<uint32_t*>(buffer + 0) = dataElement.destination;
-  *reinterpret_cast<uint32_t*>(buffer + 4) = dataElement.responder;
+  if (maxSize < 52) return 0;
+  *reinterpret_cast<absl::uint128*>(buffer + 0) = dataElement.destination;
+  *reinterpret_cast<absl::uint128*>(buffer + 16) = dataElement.responder;
 
-  *reinterpret_cast<uint8_t*>(buffer + 8) = dataElement.distance;
-  *reinterpret_cast<uint8_t*>(buffer + 9) = dataElement.fromDestination;
-  *reinterpret_cast<uint32_t*>(buffer + 10) = dataElement.rtt;
-  *reinterpret_cast<uint8_t*>(buffer + 14) = dataElement.probePhase;
+  *reinterpret_cast<uint8_t*>(buffer + 32) = dataElement.distance;
+  *reinterpret_cast<uint8_t*>(buffer + 33) = dataElement.fromDestination;
+  *reinterpret_cast<uint32_t*>(buffer + 34) = dataElement.rtt;
+  *reinterpret_cast<uint8_t*>(buffer + 38) = dataElement.probePhase;
 
-  *reinterpret_cast<uint16_t*>(buffer + 15) = dataElement.replyIpid;
-  *reinterpret_cast<uint8_t*>(buffer + 17) = dataElement.replyTtl;
-  *reinterpret_cast<uint16_t*>(buffer + 18) = dataElement.replySize;
-  *reinterpret_cast<uint16_t*>(buffer + 20) = dataElement.probeSize;
-  *reinterpret_cast<uint16_t*>(buffer + 22) = dataElement.probeIpid;
-  *reinterpret_cast<uint16_t*>(buffer + 24) = dataElement.probeSourcePort;
-  *reinterpret_cast<uint16_t*>(buffer + 26) = dataElement.probeDestinationPort;
-  return 28;
+  *reinterpret_cast<uint16_t*>(buffer + 39) = dataElement.replyIpid;
+  *reinterpret_cast<uint8_t*>(buffer + 41) = dataElement.replyTtl;
+  *reinterpret_cast<uint16_t*>(buffer + 42) = dataElement.replySize;
+  *reinterpret_cast<uint16_t*>(buffer + 44) = dataElement.probeSize;
+  *reinterpret_cast<uint16_t*>(buffer + 46) = dataElement.probeIpid;
+  *reinterpret_cast<uint16_t*>(buffer + 48) = dataElement.probeSourcePort;
+  *reinterpret_cast<uint16_t*>(buffer + 50) = dataElement.probeDestinationPort;
+  return 52;
 }
 
 }  // namespace flashroute
