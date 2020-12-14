@@ -32,7 +32,8 @@ enum class ProberType { UDP_PROBER, UDP_IDEMPOTENT_PROBER };
  * Traceroute module contains the major logics and strategies of probing.
  * Examples:
  * Tracerouter tracerouter(
- *    "123.123.123.123/24",       // Target network
+ *    dcbManager,                 // an instance of DcbManager
+ *    networkManager,             // an instance of NetworkManager
  *    16,                         // Split TTL
  *    32,                         // Preprobing TTL
  *    true,                       // Forward probing switch.
@@ -47,18 +48,13 @@ enum class ProberType { UDP_PROBER, UDP_IDEMPOTENT_PROBER };
  *    3,                          // Set the seed for guiding random processes,
  *                                // for example, destination generation or
  *                                // probing sequence randomization. 
- *    "eth0",                     // Specify the interface for scan.
  *    53,                         // Set the expected source port (can be
  *                                // overrided by algorithm).
  *    53,                         // Set the expected destination port.
  *    "test",                     // Message to encode into the payload of each
  *                                // probe.   
- *    10000,                      // Set probing rate. 
- *    "./output.dat",             // Set the output filepath.
- *    true,                       // Control whether to encode timestamp to each
+ *    true)                       // Control whether to encode timestamp to each
  *                                // probe. (Test function).
- *    24                          // Granularity of scan. (One address per /24
- *                                // prefix)
  * );
  * 
  * // startScan accepts two parameters:
@@ -75,16 +71,15 @@ class Tracerouter {
  public:
   // Define the constructor for mock testing.
   Tracerouter() {}
-  Tracerouter(DcbManager* dcbManager, const uint8_t defaultSplitTTL,
-              const uint8_t defaultPreprobingTTL, const bool forwardProbing,
-              const uint8_t forwardProbingGapLimit,
+  Tracerouter(DcbManager* dcbManager, NetworkManager* networkManager,
+              const uint8_t defaultSplitTTL, const uint8_t defaultPreprobingTTL,
+              const bool forwardProbing, const uint8_t forwardProbingGapLimit,
               const bool redundancyRemoval, const bool preprobing,
               const bool preprobingPrediction,
               const int32_t predictionProximitySpan, const int32_t scanCount,
-              const std::string& interface, const uint16_t srcPort,
-              const uint16_t dstPort, const std::string& defaultPayloadMessage,
-              const int64_t probingRate, const bool encodeTimestamp,
-              const uint8_t granularity);
+              const uint16_t srcPort, const uint16_t dstPort,
+              const std::string& defaultPayloadMessage,
+              const bool encodeTimestamp);
 
   ~Tracerouter();
 
@@ -104,7 +99,7 @@ class Tracerouter {
   std::unique_ptr<boost::asio::thread_pool> threadPool_;
 
   std::unique_ptr<Prober> prober_;
-  std::unique_ptr<NetworkManager> networkManager_;
+  NetworkManager* networkManager_;
 
   // The default max ttl which is also the starting hop-distance of probing.
   uint8_t defaultSplitTTL_;
@@ -160,14 +155,11 @@ class Tracerouter {
   // Network
   // Source port number will be override if packet encoding needs to use source
   // port to store information.
-  std::string interface_;
 
   uint16_t srcPort_;
   uint16_t dstPort_;
 
   std::string defaultPayloadMessage_;
-
-  int64_t probingRate_;
 
   // The traversing sequence of Dcbs.
   std::vector<std::pair<uint32_t, uint32_t>> dcbLinkSnapshot_;

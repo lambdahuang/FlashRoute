@@ -48,21 +48,18 @@ const uint8_t kMaxTtl = 32;
 // to control how long we need to wait for those inflight response.
 const uint32_t kHaltTimeAfterPreprobingSequenceMs = 3000;
 
-Tracerouter::Tracerouter(DcbManager* dcbManager, const uint8_t defaultSplitTTL,
-                         const uint8_t defaultPreprobingTTL,
-                         const bool forwardProbing,
-                         const uint8_t forwardProbingGapLimit,
-                         const bool redundancyRemoval, const bool preprobing,
-                         const bool preprobingPrediction,
-                         const int32_t predictionProximitySpan,
-                         const int32_t scanCount, const std::string& interface,
-                         const uint16_t srcPort, const uint16_t dstPort,
-                         const std::string& defaultPayloadMessage,
-                         const int64_t probingRate, const bool encodeTimestamp,
-                         const uint8_t granularity)
+Tracerouter::Tracerouter(
+    DcbManager* dcbManager, NetworkManager* networkManager,
+    const uint8_t defaultSplitTTL, const uint8_t defaultPreprobingTTL,
+    const bool forwardProbing, const uint8_t forwardProbingGapLimit,
+    const bool redundancyRemoval, const bool preprobing,
+    const bool preprobingPrediction, const int32_t predictionProximitySpan,
+    const int32_t scanCount, const uint16_t srcPort, const uint16_t dstPort,
+    const std::string& defaultPayloadMessage, const bool encodeTimestamp)
     : dcbManager_(dcbManager),
       stopProbing_(false),
       probePhase_(ProbePhase::NONE),
+      networkManager_(networkManager),
       defaultSplitTTL_(defaultSplitTTL),
       defaultPreprobingTTL_(defaultPreprobingTTL),
       forwardProbingMark_(forwardProbing),
@@ -78,11 +75,9 @@ Tracerouter::Tracerouter(DcbManager* dcbManager, const uint8_t defaultSplitTTL,
       receivedResponses_(0),
       stopMonitoringMark_(false),
       probingIterationRounds_(0),
-      interface_(interface),
       srcPort_(srcPort),
       dstPort_(dstPort),
       defaultPayloadMessage_(defaultPayloadMessage),
-      probingRate_(probingRate),
       encodeTimestamp_(encodeTimestamp) {
   // Thread pool for handling different purposes.
   threadPool_ = std::make_unique<boost::asio::thread_pool>(kThreadPoolSize);
@@ -111,7 +106,7 @@ void Tracerouter::startMetricMonitoring() {
     uint64_t lastSeenReceivedPackets = 0;
 
     while (!stopMonitoringMark_ && !stopProbing_) {
-      if (networkManager_.get() != nullptr) {
+      if (networkManager_ != nullptr) {
         uint64_t shadowSentPacket = networkManager_->getSentPacketCount();
         uint64_t shadowReceivedPacket =
             networkManager_->getReceivedPacketCount();
@@ -232,22 +227,20 @@ void Tracerouter::startPreprobing(ProberType proberType) {
   }
 
   // Set network manager
-  networkManager_ =
-      std::make_unique<NetworkManager>(prober_.get(), interface_, probingRate_);
-  NetworkManager& networkManager = *(networkManager_.get());
-  networkManager.startListening();
+  networkManager_->resetProber(prober_.get());
+  networkManager_->startListening();
 
   auto startTimestamp = std::chrono::steady_clock::now();
   LOG(INFO) << "Start preprobing.";
   uint64_t dcbCount = dcbManager_->liveDcbSize();
   for (uint64_t i = 0; i < dcbCount; i ++) {
-    networkManager.schedualProbeRemoteHost(*(dcbManager_->next()->ipAddress),
+    networkManager_->schedualProbeRemoteHost(*(dcbManager_->next()->ipAddress),
                                            defaultPreprobingTTL_);
   }
   std::this_thread::sleep_for(
       std::chrono::milliseconds(kHaltTimeAfterPreprobingSequenceMs));
 
-  networkManager.stopListening();
+  networkManager_->stopListening();
 
   int64_t timeDifference =
       std::chrono::duration_cast<std::chrono::seconds>(
@@ -258,8 +251,8 @@ void Tracerouter::startPreprobing(ProberType proberType) {
 
   // Update status
   probePhase_ = ProbePhase::NONE;
-  sentPreprobes_ = networkManager_.get()->getSentPacketCount();
-  receivedResponses_ = networkManager_.get()->getReceivedPacketCount();
+  sentPreprobes_ = networkManager_->getSentPacketCount();
+  receivedResponses_ = networkManager_->getReceivedPacketCount();
   checksumMismatches_ = prober_->getChecksummismatches();
   distanceAbnormalities_ = prober_->getDistanceAbnormalities();
 }
@@ -296,11 +289,8 @@ void Tracerouter::startProbing(ProberType proberType) {
     LOG(FATAL) << "Error in creating prober.";
   }
 
-  networkManager_ =
-      std::make_unique<NetworkManager>(prober_.get(), interface_, probingRate_);
-
-  NetworkManager& networkManager = *(networkManager_.get());
-  networkManager.startListening();
+  networkManager_->resetProber(prober_.get());
+  networkManager_->startListening();
   auto startTimestamp = std::chrono::steady_clock::now();
   auto lastRoundTimestamp = std::chrono::steady_clock::now();
 
@@ -352,27 +342,27 @@ void Tracerouter::startProbing(ProberType proberType) {
       } else {
         if (forwardProbingMark_ && hasForwardTask) {
           // forward probing
-          networkManager.schedualProbeRemoteHost(
+          networkManager_->schedualProbeRemoteHost(
               *dcb.ipAddress, nextForwardTask);
         }
         if (hasBackwardTask) {
           // backward probing
-          networkManager.schedualProbeRemoteHost(
+          networkManager_->schedualProbeRemoteHost(
               *dcb.ipAddress, nextBackwardTask);
         }
       }
     } while (!stopProbing_ && dcbManager_->hasNext());
     LOG(INFO) << "Scan finished.";
   }
-  networkManager.stopListening();
+  networkManager_->stopListening();
   int64_t timeDifference =
       std::chrono::duration_cast<std::chrono::seconds>(
           std::chrono::steady_clock::now() - startTimestamp)
           .count();
   LOG(INFO) << boost::format("Main probing finished (Took %d seconds).") %
                    timeDifference;
-  sentProbes_ = networkManager_.get()->getSentPacketCount();
-  receivedResponses_ += networkManager_.get()->getReceivedPacketCount();
+  sentProbes_ = networkManager_->getSentPacketCount();
+  receivedResponses_ += networkManager_->getReceivedPacketCount();
   checksumMismatches_ += prober_->getChecksummismatches();
   distanceAbnormalities_ += prober_->getDistanceAbnormalities();
   probePhase_ = ProbePhase::NONE;

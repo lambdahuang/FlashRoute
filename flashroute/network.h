@@ -79,6 +79,8 @@ class NetworkManager {
 
   uint64_t getReceivedPacketCount();
 
+  void resetProber(Prober* prober);
+
  private:
   Prober* prober_;
   std::unique_ptr<IpAddress> localIpAddress_;

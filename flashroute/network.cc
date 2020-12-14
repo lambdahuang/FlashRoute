@@ -54,6 +54,10 @@ NetworkManager::NetworkManager(Prober* prober, const std::string& interface,
   }
 }
 
+void NetworkManager::resetProber(Prober* prober) {
+  prober_ = prober;
+}
+
 void NetworkManager::probeRemoteHost(const IpAddress& destinationIp,
                                      const uint8_t ttl) {
   static uint8_t buffer[kPacketBufferSize];

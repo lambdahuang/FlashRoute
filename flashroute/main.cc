@@ -233,19 +233,18 @@ int main(int argc, char* argv[]) {
           target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
     }
 
+    NetworkManager networkManager(NULL, finalInterface,
+                                  absl::GetFlag(FLAGS_probing_rate));
     traceRouterPtr = std::make_unique<Tracerouter>(
-        dcbManager, absl::GetFlag(FLAGS_split_ttl),
+        dcbManager, &networkManager, absl::GetFlag(FLAGS_split_ttl),
         absl::GetFlag(FLAGS_preprobing_ttl),
         absl::GetFlag(FLAGS_forward_probing), absl::GetFlag(FLAGS_gaplimit),
         absl::GetFlag(FLAGS_remove_redundancy), absl::GetFlag(FLAGS_preprobing),
         absl::GetFlag(FLAGS_distance_prediction),
         absl::GetFlag(FLAGS_proximity_span), absl::GetFlag(FLAGS_scan_count),
-        finalInterface, absl::GetFlag(FLAGS_src_port),
-        absl::GetFlag(FLAGS_dst_port),
+        absl::GetFlag(FLAGS_src_port), absl::GetFlag(FLAGS_dst_port),
         absl::GetFlag(FLAGS_default_payload_message),
-        absl::GetFlag(FLAGS_probing_rate),
-        absl::GetFlag(FLAGS_encode_timestamp),
-        static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
+        absl::GetFlag(FLAGS_encode_timestamp));
 
     Tracerouter& traceRouter = *traceRouterPtr.get();
 
