@@ -35,6 +35,7 @@ UdpIdempotentProber::UdpIdempotentProber(PacketReceiverCallback* callback,
   encodeTimestamp_ = encodeTimestamp;
   checksumMismatches_ = 0;
   distanceAbnormalities_ = 0;
+  VLOG(2) << "UdpIdempotentProber is initialized";
 }
 
 size_t UdpIdempotentProber::packProbe(const IpAddress& destinationIp,

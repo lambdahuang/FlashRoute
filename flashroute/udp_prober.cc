@@ -33,6 +33,7 @@ UdpProber::UdpProber(PacketReceiverCallback* callback,
   encodeTimestamp_ = encodeTimestamp;
   checksumMismatches_ = 0;
   distanceAbnormalities_ = 0;
+  VLOG(2) << "UdpProber is initialized";
 }
 
 size_t UdpProber::packProbe(const IpAddress& destinationIp,
