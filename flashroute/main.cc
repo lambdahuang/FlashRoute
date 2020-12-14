@@ -223,6 +223,11 @@ int main(int argc, char* argv[]) {
 
     Targets targetLoader(absl::GetFlag(FLAGS_split_ttl), seed, &blacklist);
 
+    ResultDumper* resultDumper = nullptr;
+    if (!absl::GetFlag(FLAGS_output).empty()) {
+      resultDumper = new ResultDumper(absl::GetFlag(FLAGS_output));
+    }
+
     DcbManager* dcbManager;
     // Load targets.
     if (!absl::GetFlag(FLAGS_targets).empty()) {
@@ -236,8 +241,8 @@ int main(int argc, char* argv[]) {
     NetworkManager networkManager(NULL, finalInterface,
                                   absl::GetFlag(FLAGS_probing_rate));
     traceRouterPtr = std::make_unique<Tracerouter>(
-        dcbManager, &networkManager, absl::GetFlag(FLAGS_split_ttl),
-        absl::GetFlag(FLAGS_preprobing_ttl),
+        dcbManager, &networkManager, resultDumper,
+        absl::GetFlag(FLAGS_split_ttl), absl::GetFlag(FLAGS_preprobing_ttl),
         absl::GetFlag(FLAGS_forward_probing), absl::GetFlag(FLAGS_gaplimit),
         absl::GetFlag(FLAGS_remove_redundancy), absl::GetFlag(FLAGS_preprobing),
         absl::GetFlag(FLAGS_distance_prediction),
@@ -270,6 +275,10 @@ int main(int argc, char* argv[]) {
     if (!absl::GetFlag(FLAGS_tcpdump_output).empty()) {
       commandExecutor->stop();
     }
+
+    if (resultDumper != nullptr) delete resultDumper;
+    if (dcbManager != nullptr) delete dcbManager;
+
     printFlags();
     traceRouterPtr.release();
   } else {
@@ -371,9 +380,11 @@ int main(int argc, char* argv[]) {
     }
     LOG(INFO) << " =============================";
 
-    LOG(INFO) << "Checksum Mismatches: " << udpProber.getChecksummismatches();
+    LOG(INFO) << "Checksum Mismatches: " << udpProber.getChecksumMismatches();
     LOG(INFO) << "Distance Abnormalities: "
               << udpProber.getDistanceAbnormalities();
+    LOG(INFO) << "Other Mismatches: "
+              << udpProber.getOtherMismatches();
   }
   LOG(INFO) << "The program ends.";
 }

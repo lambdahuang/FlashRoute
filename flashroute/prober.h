@@ -55,8 +55,9 @@ class Prober {
 
   virtual void setChecksumOffset(int32_t checksumOffset) = 0;
 
-  virtual uint64_t getChecksummismatches() = 0;
+  virtual uint64_t getChecksumMismatches() = 0;
   virtual uint64_t getDistanceAbnormalities() = 0;
+  virtual uint64_t getOtherMismatches() = 0;
 };
 
 }  // namespace flashroute

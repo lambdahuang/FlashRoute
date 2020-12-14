@@ -71,8 +71,9 @@ class UdpProber : public virtual Prober {
   uint16_t getTimestamp() const;
 
   // Get metrics information
-  uint64_t getChecksummismatches() override;
+  uint64_t getChecksumMismatches() override;
   uint64_t getDistanceAbnormalities() override;
+  uint64_t getOtherMismatches() override;
 
  private:
   PacketReceiverCallback* callback_;
@@ -85,6 +86,7 @@ class UdpProber : public virtual Prober {
   // Metrics
   uint64_t checksumMismatches_;
   uint64_t distanceAbnormalities_;
+  uint64_t otherMismatches_;
 };
 
 }  // namespace flashroute

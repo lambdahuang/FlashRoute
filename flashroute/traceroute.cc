@@ -50,15 +50,17 @@ const uint32_t kHaltTimeAfterPreprobingSequenceMs = 3000;
 
 Tracerouter::Tracerouter(
     DcbManager* dcbManager, NetworkManager* networkManager,
-    const uint8_t defaultSplitTTL, const uint8_t defaultPreprobingTTL,
-    const bool forwardProbing, const uint8_t forwardProbingGapLimit,
-    const bool redundancyRemoval, const bool preprobing,
-    const bool preprobingPrediction, const int32_t predictionProximitySpan,
-    const int32_t scanCount, const uint16_t srcPort, const uint16_t dstPort,
+    ResultDumper* resultDumper, const uint8_t defaultSplitTTL,
+    const uint8_t defaultPreprobingTTL, const bool forwardProbing,
+    const uint8_t forwardProbingGapLimit, const bool redundancyRemoval,
+    const bool preprobing, const bool preprobingPrediction,
+    const int32_t predictionProximitySpan, const int32_t scanCount,
+    const uint16_t srcPort, const uint16_t dstPort,
     const std::string& defaultPayloadMessage, const bool encodeTimestamp)
     : dcbManager_(dcbManager),
       stopProbing_(false),
       probePhase_(ProbePhase::NONE),
+      resultDumper_(resultDumper),
       networkManager_(networkManager),
       defaultSplitTTL_(defaultSplitTTL),
       defaultPreprobingTTL_(defaultPreprobingTTL),
@@ -88,7 +90,6 @@ Tracerouter::Tracerouter(
 }
 
 Tracerouter::~Tracerouter() {
-  resultDumper_.release();
   stopMonitoringMark_ = true;
   if (threadPool_.get() != nullptr) {
     threadPool_->join();
@@ -204,14 +205,14 @@ void Tracerouter::startPreprobing(ProberType proberType) {
              uint8_t probePhase, uint16_t replyIpid, uint8_t replyTtl,
              uint16_t replySize, uint16_t probeSize, uint16_t probeIpid,
              uint16_t probeSourcePort, uint16_t probeDestinationPort) {
-        parseIcmpPreprobing(destination, responder, distance, fromDestination);
-        // TODO(neohuang): we should update dumping logic in the future.
-
-        // if (dumpEnable_)
-          // resultDumper_->scheduleDumpData(
-          //     destination, responder, distance, fromDestination, rtt,
-          //     probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
-          //     probeSourcePort, probeDestinationPort);
+        if (parseIcmpPreprobing(destination, responder, distance,
+                                fromDestination) &&
+            resultDumper_ != nullptr) {
+          resultDumper_->scheduleDumpData(
+              destination, responder, distance, fromDestination, rtt,
+              probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
+              probeSourcePort, probeDestinationPort);
+        }
       };
 
   if (proberType == ProberType::UDP_PROBER) {
@@ -249,12 +250,7 @@ void Tracerouter::startPreprobing(ProberType proberType) {
   LOG(INFO) << boost::format("Preprobing finished (Took %d seconds).") %
                    timeDifference;
 
-  // Update status
-  probePhase_ = ProbePhase::NONE;
   sentPreprobes_ = networkManager_->getSentPacketCount();
-  receivedResponses_ = networkManager_->getReceivedPacketCount();
-  checksumMismatches_ = prober_->getChecksummismatches();
-  distanceAbnormalities_ = prober_->getDistanceAbnormalities();
 }
 
 void Tracerouter::startProbing(ProberType proberType) {
@@ -267,14 +263,14 @@ void Tracerouter::startProbing(ProberType proberType) {
              uint8_t probePhase, uint16_t replyIpid, uint8_t replyTtl,
              uint16_t replySize, uint16_t probeSize, uint16_t probeIpid,
              uint16_t probeSourcePort, uint16_t probeDestinationPort) {
-        parseIcmpProbing(destination, responder, distance, fromDestination);
-
-        // TODO(neohuang): we should update dumping logic in the future.
-        // if (dumpEnable_)
-          // resultDumper_->scheduleDumpData(
-          //     destination, responder, distance, fromDestination, rtt,
-          //     probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
-          //     probeSourcePort, probeDestinationPort);
+        if (parseIcmpProbing(destination, responder, distance,
+                             fromDestination) &&
+            resultDumper_ != nullptr) {
+          resultDumper_->scheduleDumpData(
+              destination, responder, distance, fromDestination, rtt,
+              probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
+              probeSourcePort, probeDestinationPort);
+        }
       };
 
   if (proberType == ProberType::UDP_PROBER) {
@@ -361,21 +357,29 @@ void Tracerouter::startProbing(ProberType proberType) {
           .count();
   LOG(INFO) << boost::format("Main probing finished (Took %d seconds).") %
                    timeDifference;
-  sentProbes_ = networkManager_->getSentPacketCount();
-  receivedResponses_ += networkManager_->getReceivedPacketCount();
-  checksumMismatches_ += prober_->getChecksummismatches();
-  distanceAbnormalities_ += prober_->getDistanceAbnormalities();
+
+  // Update status
   probePhase_ = ProbePhase::NONE;
+  sentProbes_ = networkManager_->getSentPacketCount();
+  receivedResponses_ = networkManager_->getReceivedPacketCount();
+  checksumMismatches_ = prober_->getChecksumMismatches();
+  distanceAbnormalities_ = prober_->getDistanceAbnormalities();
+  // Dropped responses for other reasons.
+  droppedResponses_ += prober_->getOtherMismatches();
 }
 
-void Tracerouter::parseIcmpPreprobing(const IpAddress& destination,
+bool Tracerouter::parseIcmpPreprobing(const IpAddress& destination,
                                       const IpAddress& responder,
                                       uint8_t distance, bool fromDestination) {
-  if (!fromDestination) return;
+  if (!fromDestination) {
+    droppedResponses_++;
+    return false;
+  }
 
   DestinationControlBlock* dcb = dcbManager_->getDcbByAddress(destination);
-  if (dcb == NULL) {
-    return;
+  if (dcb == nullptr) {
+    droppedResponses_++;
+    return false;
   }
 
   // The preprobe should update the max ttl always shorter than the ttl of
@@ -396,16 +400,17 @@ void Tracerouter::parseIcmpPreprobing(const IpAddress& destination,
     //   }
     // }
   }
+  return true;
 }
 
-void Tracerouter::parseIcmpProbing(const IpAddress& destination,
+bool Tracerouter::parseIcmpProbing(const IpAddress& destination,
                                    const IpAddress& responder, uint8_t distance,
                                    bool fromDestination) {
   // Convert the target ip address to the corresponding block index.
   DestinationControlBlock* dcb = dcbManager_->getDcbByAddress(destination);
-  if (dcb == NULL) {
+  if (dcb == nullptr) {
     droppedResponses_++;
-    return;
+    return false;
   }
   if (!fromDestination) {
     // Time Exceeded
@@ -437,6 +442,7 @@ void Tracerouter::parseIcmpProbing(const IpAddress& destination,
   } else {
     dcb->stopForwardProbing();
   }
+  return true;
 }
 
 void Tracerouter::calculateStatistic(uint64_t elapsedTime) {
@@ -453,7 +459,7 @@ void Tracerouter::calculateStatistic(uint64_t elapsedTime) {
                    (sentProbes_ + sentPreprobes_);
   LOG(INFO) << boost::format("Received packets: %|30t|%ld") %
                    receivedResponses_;
-  LOG(INFO) << boost::format("Dropped responses: %|30t|%ld") %
+  LOG(INFO) << boost::format("Total Dropped responses: %|30t|%ld") %
                    (checksumMismatches_ + distanceAbnormalities_ +
                     droppedResponses_);
   LOG(INFO) << boost::format("Other dropped: %|30t|%ld") %

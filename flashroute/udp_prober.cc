@@ -33,6 +33,7 @@ UdpProber::UdpProber(PacketReceiverCallback* callback,
   encodeTimestamp_ = encodeTimestamp;
   checksumMismatches_ = 0;
   distanceAbnormalities_ = 0;
+  otherMismatches_ = 0;
   VLOG(2) << "UdpProber is initialized";
 }
 
@@ -197,6 +198,7 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
     distance = initialTTL;
   } else {
     // Other packets.
+    otherMismatches_++;
     return;
   }
 
@@ -287,12 +289,16 @@ uint16_t UdpProber::getChecksum(const uint8_t protocolValue,
 
 // Get metrics information
 
-uint64_t UdpProber::getChecksummismatches() {
+uint64_t UdpProber::getChecksumMismatches() {
   return checksumMismatches_;
 }
 
 uint64_t UdpProber::getDistanceAbnormalities() {
   return distanceAbnormalities_;
+}
+
+uint64_t UdpProber::getOtherMismatches() {
+  return otherMismatches_;
 }
 
 }  // namespace flashroute

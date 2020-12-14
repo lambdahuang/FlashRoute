@@ -72,8 +72,9 @@ class Tracerouter {
   // Define the constructor for mock testing.
   Tracerouter() {}
   Tracerouter(DcbManager* dcbManager, NetworkManager* networkManager,
-              const uint8_t defaultSplitTTL, const uint8_t defaultPreprobingTTL,
-              const bool forwardProbing, const uint8_t forwardProbingGapLimit,
+              ResultDumper* resultDumper, const uint8_t defaultSplitTTL,
+              const uint8_t defaultPreprobingTTL, const bool forwardProbing,
+              const uint8_t forwardProbingGapLimit,
               const bool redundancyRemoval, const bool preprobing,
               const bool preprobingPrediction,
               const int32_t predictionProximitySpan, const int32_t scanCount,
@@ -94,7 +95,7 @@ class Tracerouter {
   // Record the current probe phase which will be used for logging
   ProbePhase probePhase_;
 
-  std::unique_ptr<ResultDumper> resultDumper_;
+  ResultDumper* resultDumper_;
 
   std::unique_ptr<boost::asio::thread_pool> threadPool_;
 
@@ -171,11 +172,11 @@ class Tracerouter {
 
   void startProbing(ProberType proberType);
 
-  void parseIcmpPreprobing(const IpAddress& destination,
+  bool parseIcmpPreprobing(const IpAddress& destination,
                            const IpAddress& responder, uint8_t distance,
                            bool fromDestination);
 
-  void parseIcmpProbing(const IpAddress& destination,
+  bool parseIcmpProbing(const IpAddress& destination,
                         const IpAddress& responder, uint8_t distance,
                         bool fromDestination);
 

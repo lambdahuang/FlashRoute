@@ -79,7 +79,7 @@ IpAddress* parseIpFromStringToIpAddress(const std::string& stringIp) {
                    << 32 |
                static_cast<uint64_t>(ntohl(result.__in6_u.__u6_addr32[0]));
       absl::uint128 addr_ = static_cast<absl::uint128>(prefix) << 64 |
-                            static_cast<absl::uint128>(suffix) << 64;
+                            static_cast<absl::uint128>(suffix);
       return new Ipv6Address(addr_);
     } else {
       return NULL;

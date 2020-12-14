@@ -39,7 +39,7 @@ DcbManager* Targets::loadTargetsFromFile(absl::string_view filePath) const {
     if (!line.empty()) {
       auto ip = std::unique_ptr<IpAddress>(parseIpFromStringToIpAddress(line));
       // Set ip address
-      if (blacklist_ != NULL && !blacklist_->contains(*ip)) {
+      if (blacklist_ != nullptr && !blacklist_->contains(*ip)) {
         dcbManager->addDcb(*ip, defaultSplitTtl_);
       }
       count++;
@@ -100,7 +100,7 @@ DcbManager* Targets::generateTargetsFromNetwork(
     Ipv4Address tmp(targetNetworkFirstAddress_.getIpv4Address() +
                     ((i) << (32 - granularity)) +
                     (rand() % (blockFactor_ - 3)) + 2);
-    if (blacklist_ != NULL && !blacklist_->contains(tmp)) {
+    if (blacklist_ != nullptr && !blacklist_->contains(tmp)) {
       dcbManager->addDcb(tmp, defaultSplitTtl_);
     }
   }

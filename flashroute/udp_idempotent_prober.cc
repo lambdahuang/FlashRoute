@@ -35,6 +35,7 @@ UdpIdempotentProber::UdpIdempotentProber(PacketReceiverCallback* callback,
   encodeTimestamp_ = encodeTimestamp;
   checksumMismatches_ = 0;
   distanceAbnormalities_ = 0;
+  otherMismatches_ = 0;
   VLOG(2) << "UdpIdempotentProber is initialized";
 }
 
@@ -305,12 +306,16 @@ uint16_t UdpIdempotentProber::getChecksum(uint16_t* buff,
 
 // Get metrics information
 
-uint64_t UdpIdempotentProber::getChecksummismatches() {
+uint64_t UdpIdempotentProber::getChecksumMismatches() {
   return checksumMismatches_;
 }
 
 uint64_t UdpIdempotentProber::getDistanceAbnormalities() {
   return distanceAbnormalities_;
+}
+
+uint64_t UdpIdempotentProber::getOtherMismatches() {
+  return otherMismatches_;
 }
 
 }  // namespace flashroute

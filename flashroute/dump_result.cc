@@ -14,7 +14,7 @@ const uint32_t kDumpingIntervalMs = 100;      // Sleep interval.
 const uint32_t kDumpingBufferSize = 100000;
 
 ResultDumper::ResultDumper(const std::string& resultFilepath)
-    : resultFilepath_(resultFilepath), stopDumping_(false) {
+    : resultFilepath_(resultFilepath), stopDumping_(false), dumpedCount_(0) {
   resultFilepath_ = resultFilepath;
   threadPool_ = std::make_unique<boost::asio::thread_pool>(kThreadPoolSize);
   dumpingBuffer_ =
@@ -23,6 +23,8 @@ ResultDumper::ResultDumper(const std::string& resultFilepath)
   if (resultFilepath_.size() == 0) {
     stopDumping_ = true;
     VLOG(2) << "ResultDumper: ResultDumper disabled.";
+  } else {
+    VLOG(2) << "ResultDumper: ResultDumper enabled.";
   }
   std::ofstream dumpFile;
   dumpFile.open(resultFilepath_, std::ofstream::binary);
@@ -35,7 +37,8 @@ ResultDumper::ResultDumper(const std::string& resultFilepath)
 ResultDumper::~ResultDumper() {
   stopDumping_ = true;
   threadPool_->join();
-  VLOG(2) << "ResultDumper: ResultDumper recycled.";
+  VLOG(2) << "ResultDumper: ResultDumper recycled. " << dumpedCount_
+          << " responses have been dumped.";
 }
 
 void ResultDumper::scheduleDumpData(
@@ -75,6 +78,7 @@ void ResultDumper::runDumpingThread() {
       dumpingBuffer_->popBack(&tmp);
       size_t dumpedSize = binaryDumping(buffer, kDumpingTmpBufferSize, tmp);
       dumpFile.write(reinterpret_cast<char*>(buffer), dumpedSize);
+      dumpedCount_++;
     }
     dumpFile.close();
     std::this_thread::sleep_for(std::chrono::milliseconds(kDumpingIntervalMs));
