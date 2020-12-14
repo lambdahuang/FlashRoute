@@ -63,6 +63,9 @@ class NetworkManager {
  public:
   NetworkManager(Prober* prober, const std::string& interface,
                  const uint64_t sendingRate);
+
+  ~NetworkManager();
+
   // Scheduale to send a probe. Sending accords to the pre-determined sending
   // rate.
   void schedualProbeRemoteHost(const IpAddress& destinationIp,

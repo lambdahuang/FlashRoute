@@ -19,7 +19,7 @@ const uint16_t kPacketBufferSize = 2048;  // Default sending buffer size which
 const uint16_t kReceivingBufferSize =
     2000;  // Default receiving buffer size which will be used to store received
            // packets.
-const uint32_t kThreadPoolSize = 3;  // Default thread pool size.
+const uint32_t kThreadPoolSize = 4;  // Default thread pool size.
 
 NetworkManager::NetworkManager(Prober* prober, const std::string& interface,
                                const uint64_t sendingRate)
@@ -37,21 +37,20 @@ NetworkManager::NetworkManager(Prober* prober, const std::string& interface,
     LOG(FATAL) << "Network Module: Local address is not configured.";
   }
 
-  threadPool_ = std::make_unique<boost::asio::thread_pool>(kThreadPoolSize);
 
   // Initialize sending buffer
   sendingBuffer_ =
       std::make_unique<BoundedBuffer<ProbeUnitIpv4>>(expectedRate_);
-
-  // Initialize sending thread. Sending thread is to drain the sending buffer
-  // and put the packet on wire.
-  boost::asio::post(*threadPool_.get(), [this]() { runSendingThread(); });
 
   if (expectedRate_ < 1) {
     VLOG(2) << "Network Module: Sendg rate limit is disabled since expected "
                "rate is "
             << expectedRate_;
   }
+}
+
+NetworkManager::~NetworkManager() {
+  close(sendingSocket_);
 }
 
 void NetworkManager::resetProber(Prober* prober) {
@@ -83,21 +82,29 @@ void NetworkManager::schedualProbeRemoteHost(const IpAddress& destinationIp,
 }
 
 void NetworkManager::startListening() {
+  stopReceiving_ = false;
   createIcmpSocket();
+
+  threadPool_.reset(new boost::asio::thread_pool(kThreadPoolSize));
+  // Initialize sending thread. Sending thread is to drain the sending buffer
+  // and put the packet on wire.
+  boost::asio::post(*threadPool_.get(), [this]() { runSendingThread(); });
+
   boost::asio::post(*threadPool_.get(), [this]() { receiveIcmpPacket(); });
+
   VLOG(2) << "Network Module: Start capturing incoming ICMP packets.";
 }
 
 void NetworkManager::stopListening() {
   if (mainReceivingSocket_ != 0) {
     shutdown(mainReceivingSocket_, SHUT_RDWR);
+    {
+      std::lock_guard<std::mutex> guard(stopReceivingMutex_);
+      stopReceiving_ = true;
+    }
+    threadPool_->join();
     close(mainReceivingSocket_);
   }
-  {
-    std::lock_guard<std::mutex> guard(stopReceivingMutex_);
-    stopReceiving_ = true;
-  }
-  threadPool_->join();
   VLOG(2) << "Network Module: All working threads are recycled.";
 }
 
