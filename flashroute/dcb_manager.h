@@ -25,6 +25,9 @@ class DcbManager {
   // get next address.
   DestinationControlBlock* next();
 
+  // peek the next address.
+  DestinationControlBlock* peek() const;
+
   // reset iterator position.
   void resetIterator();
 

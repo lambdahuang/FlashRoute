@@ -40,6 +40,7 @@ bool DcbManager::hasNext() {
 }
 
 DestinationControlBlock* DcbManager::next() {
+  if (liveDcbCount_ == 0) return nullptr;
   currentDcb_ = currentDcb_->nextElement;
   // jump special dcb
   if (currentDcb_ == specialDcb_) {
@@ -47,6 +48,16 @@ DestinationControlBlock* DcbManager::next() {
     scanRound++;
   }
   return currentDcb_;
+}
+
+DestinationControlBlock* DcbManager::peek() const {
+  if (liveDcbCount_ == 0) return nullptr;
+  DestinationControlBlock* tmp = currentDcb_->nextElement;
+  // jump special dcb
+  if (tmp == specialDcb_) {
+    tmp = currentDcb_->nextElement;
+  }
+  return tmp;
 }
 
 void DcbManager::resetIterator() {
