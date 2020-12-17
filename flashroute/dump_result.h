@@ -17,18 +17,10 @@ namespace flashroute {
 struct DataElement {
   absl::uint128 destination;
   absl::uint128 responder;
-  uint8_t distance;
-  uint8_t fromDestination;
   uint32_t rtt;
-  uint8_t probePhase;
-  // Packet meta data.
-  uint16_t replyIpid;
-  uint8_t replyTtl;
-  uint16_t replySize;
-  uint16_t probeSize;
-  uint16_t probeIpid;
-  uint16_t probeSourcePort;
-  uint16_t probeDestinationPort;
+  uint8_t fromDestination;
+  uint8_t distance;
+  uint8_t ipv4;
 };
 
 
@@ -39,11 +31,8 @@ class ResultDumper {
 
   void scheduleDumpData(const IpAddress& destination,
                         const IpAddress& responder, uint8_t distance,
-                        bool fromDestination, uint32_t rtt, uint8_t probePhase,
-                        uint16_t replyIpid, uint8_t replyTtl,
-                        uint16_t replySize, uint16_t probeSize,
-                        uint16_t probeIpid, uint16_t probeSourcePort,
-                        uint16_t probeDestinationPort);
+                        uint32_t rtt, bool fromDestination, bool ipv4,
+                        void* buffer, size_t size);
 
  private:
   // File path to dump the result.

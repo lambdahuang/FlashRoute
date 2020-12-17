@@ -162,7 +162,6 @@ cc_library(
         "@boost//:format",
     ],
 )
-#include "absl/strings/str_cat.h"
 
 cc_binary(
     name = "flashroute",
@@ -198,9 +197,11 @@ cc_library(
     hdrs = [
         "prober.h",
         "udp_prober.h",
+        "udp_prober_v6.h",
         "udp_idempotent_prober.h"],
     srcs = [
         "udp_prober.cc",
+        "udp_prober_v6.cc",
         "udp_idempotent_prober.cc"],
     copts = ["-std=c++14"],
     deps = [

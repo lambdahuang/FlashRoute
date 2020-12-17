@@ -4,6 +4,8 @@
 
 #include <sys/socket.h>
 
+#include <linux/if_ether.h>   // ETH_P_IP = 0x0800, ETH_P_IPV6 = 0x86DD
+#include <linux/if_packet.h>  // struct sockaddr_ll (see man 7 packet)
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -23,6 +25,15 @@ class ProbeUnitIpv4 {
   uint8_t ttl;
   ProbeUnitIpv4() : ip(0), ttl(0) {}
   ProbeUnitIpv4(const Ipv4Address& _ip, const uint8_t _ttl)
+      : ip(_ip), ttl(_ttl) {}
+};
+
+class ProbeUnitIpv6 {
+ public:
+  Ipv6Address ip;
+  uint8_t ttl;
+  ProbeUnitIpv6() : ip(0), ttl(0) {}
+  ProbeUnitIpv6(const Ipv6Address& _ip, const uint8_t _ttl)
       : ip(_ip), ttl(_ttl) {}
 };
 
@@ -62,7 +73,7 @@ class ProbeUnitIpv4 {
 class NetworkManager {
  public:
   NetworkManager(Prober* prober, const std::string& interface,
-                 const uint64_t sendingRate);
+                 const uint64_t sendingRate, const bool ipv4);
 
   ~NetworkManager();
 
@@ -87,16 +98,17 @@ class NetworkManager {
  private:
   Prober* prober_;
   std::unique_ptr<IpAddress> localIpAddress_;
-  uint16_t srcPort_;
-  uint16_t dstPort_;
+
+  bool ipv4_;
 
   // The socket to receive Icmp packets
   int mainReceivingSocket_;
-
-  // Message embedded in each probe
-  std::string packetPayloadMessage_;
-
   int sendingSocket_;
+
+  // Ethernet for Ipv6
+  std::string interface_;
+  sockaddr_ll device_;
+  uint8_t destMacAddress_[6];
 
   // Thread pool
   std::unique_ptr<boost::asio::thread_pool> threadPool_;
@@ -106,6 +118,7 @@ class NetworkManager {
 
   // Sending buffer
   std::unique_ptr<BoundedBuffer<ProbeUnitIpv4>> sendingBuffer_;
+  std::unique_ptr<BoundedBuffer<ProbeUnitIpv6>> sendingBuffer6_;
 
   // Rate control
   double expectedRate_;

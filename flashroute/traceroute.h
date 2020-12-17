@@ -84,7 +84,8 @@ class Tracerouter {
 
   ~Tracerouter();
 
-  void startScan(ProberType proberType, bool randomizeAddressAfterPreprobing);
+  void startScan(ProberType proberType, bool ipv4,
+                 bool randomizeAddressAfterPreprobing);
 
   void stopScan() { stopProbing_ = true; }
 
@@ -168,9 +169,9 @@ class Tracerouter {
   // The variable to encode timestamp.
   bool encodeTimestamp_;
 
-  void startPreprobing(ProberType proberType);
+  void startPreprobing(ProberType proberType, bool ipv4);
 
-  void startProbing(ProberType proberType);
+  void startProbing(ProberType proberType, bool ipv4);
 
   bool parseIcmpPreprobing(const IpAddress& destination,
                            const IpAddress& responder, uint8_t distance,

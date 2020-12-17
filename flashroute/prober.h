@@ -2,9 +2,9 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 #include <iostream>
 #include <string>
-#include <functional>
 
 #include <arpa/inet.h>
 #include <netinet/ip.h>       // ip header
@@ -18,7 +18,7 @@ namespace flashroute {
 
 enum class SocketType { UDP, ICMP, TCP };
 
-const uint32_t kPacketMessageDefaultPayloadSize = 256;
+const uint32_t kPacketMessageDefaultPayloadSize = 1500;
 
 struct PacketIcmp {
   struct ip ip;
@@ -37,12 +37,10 @@ struct PacketTcp {
   char payload[kPacketMessageDefaultPayloadSize];
 } __attribute__((packed));
 
-using PacketReceiverCallback = std::function<void(
-    const IpAddress& destination, const IpAddress& responder, uint8_t distance,
-    bool fromDestination, uint32_t rtt, uint8_t probePhase, uint16_t replyIpid,
-    uint8_t replyTtl, uint32_t replySize, uint32_t probeSize,
-    uint16_t probeIpid, uint16_t probeSourcePort,
-    uint16_t probeDestinationPort)>;
+using PacketReceiverCallback =
+    std::function<void(const IpAddress& destination, const IpAddress& responder,
+                       uint8_t distance, uint32_t rtt, bool fromDestination,
+                       bool ipv4, void* packetHeader, size_t headerLen)>;
 
 class Prober {
  public:

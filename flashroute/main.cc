@@ -20,6 +20,7 @@
 #include "flashroute/targets.h"
 #include "flashroute/traceroute.h"
 #include "flashroute/udp_prober.h"
+#include "flashroute/udp_prober_v6.h"
 #include "flashroute/utils.h"
 
 ABSL_FLAG(bool, recommended_mode, false,
@@ -188,12 +189,6 @@ int main(int argc, char* argv[]) {
     finalInterface = absl::GetFlag(FLAGS_interface);
   }
 
-  std::string localIpAddress = getAddressByInterface(finalInterface);
-  if (localIpAddress.size() == 0) {
-    LOG(INFO) << "Interface does not exist.";
-    return 0;
-  }
-
   bool targetIsNetwork = isNetwork(target);
 
   printFlags();
@@ -238,9 +233,16 @@ int main(int argc, char* argv[]) {
           target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
     }
 
+    // check if the scan is for ipv4 or ipv6.
+    bool ipv4 = true;
+    if (dcbManager->peek() != nullptr) {
+      ipv4 = dcbManager->peek()->ipAddress->isIpv4();
+    }
+
     NetworkManager networkManager(NULL, finalInterface,
-                                  absl::GetFlag(FLAGS_probing_rate));
-    traceRouterPtr = std::make_unique<Tracerouter>(
+                                  absl::GetFlag(FLAGS_probing_rate), ipv4);
+
+    Tracerouter traceRouter(
         dcbManager, &networkManager, resultDumper,
         absl::GetFlag(FLAGS_split_ttl), absl::GetFlag(FLAGS_preprobing_ttl),
         absl::GetFlag(FLAGS_forward_probing), absl::GetFlag(FLAGS_gaplimit),
@@ -250,8 +252,6 @@ int main(int argc, char* argv[]) {
         absl::GetFlag(FLAGS_src_port), absl::GetFlag(FLAGS_dst_port),
         absl::GetFlag(FLAGS_default_payload_message),
         absl::GetFlag(FLAGS_encode_timestamp));
-
-    Tracerouter& traceRouter = *traceRouterPtr.get();
 
     // Load hitlist.
     if (!absl::GetFlag(FLAGS_hitlist).empty()) {
@@ -269,7 +269,7 @@ int main(int argc, char* argv[]) {
       return 0;
     }
 
-    traceRouter.startScan(proberType, false);
+    traceRouter.startScan(proberType, ipv4, false);
 
     // Terminate Tcpdump.
     if (!absl::GetFlag(FLAGS_tcpdump_output).empty()) {
@@ -282,6 +282,15 @@ int main(int argc, char* argv[]) {
     printFlags();
     traceRouterPtr.release();
   } else {
+    auto remoteHost =
+        std::unique_ptr<IpAddress>(
+          parseIpFromStringToIpAddress(target));
+    std::string localIpAddress =
+        getAddressByInterface(finalInterface, remoteHost->isIpv4());
+    if (localIpAddress.size() == 0) {
+      LOG(INFO) << "Interface or local Ip address does not exist.";
+      return 0;
+    }
     LOG(INFO) << "Split TTL is " << absl::GetFlag(FLAGS_split_ttl);
     std::unordered_map<uint8_t,
                        std::tuple<std::shared_ptr<IpAddress>, uint32_t>>
@@ -293,12 +302,10 @@ int main(int argc, char* argv[]) {
     uint32_t destinationHop = 32;
     PacketReceiverCallback response_handler =
         [&results, &destinationHop, &backwardHop, &preprobeUpdated,
-         &forwardHorizon, &forwardHop](
-            const IpAddress& destination, const IpAddress& responder,
-            uint8_t distance, bool fromDestination, uint32_t rtt,
-            uint8_t probePhase, uint16_t replyIpid, uint8_t replyTtl,
-            uint16_t replySize, uint16_t probeSize, uint16_t probeIpid,
-            uint16_t probeSourcePort, uint16_t probeDestinationPort) {
+         &forwardHorizon,
+         &forwardHop](const IpAddress& destination, const IpAddress& responder,
+                      uint8_t distance, uint32_t rtt, bool fromDestination,
+                      bool ipv4, void* packetBuffer, uint32_t packetLen) {
           if (fromDestination) {
             if (!preprobeUpdated) {
               backwardHop = distance;
@@ -318,10 +325,7 @@ int main(int argc, char* argv[]) {
           } else {
             LOG(INFO) << boost::format("%2% (%1%) rtt: %3% ms") %
                              static_cast<int32_t>(distance) %
-                             parseIpFromIntToString(
-                                 dynamic_cast<const Ipv4Address&>(responder)
-                                     .getIpv4Address()) %
-                             rtt;
+                             parseIpFromIpAddressToString(responder) % rtt;
             results.insert(
                 {distance,
                  std::make_tuple(std::shared_ptr<IpAddress>(responder.clone()),
@@ -333,13 +337,19 @@ int main(int argc, char* argv[]) {
           }
         };
 
-    UdpProber udpProber(&response_handler, 0, 0, absl::GetFlag(FLAGS_dst_port),
+    Prober* prober;
+    if (remoteHost->isIpv4()) {
+      prober =
+          new UdpProber(&response_handler, 0, 0, absl::GetFlag(FLAGS_dst_port),
                         absl::GetFlag(FLAGS_default_payload_message),
                         absl::GetFlag(FLAGS_encode_timestamp));
-    NetworkManager networkManager(&udpProber, finalInterface, 2);
-    auto remoteHost =
-        std::unique_ptr<IpAddress>(
-          parseIpFromStringToIpAddress(target));
+    } else {
+      prober = new UdpProberIpv6(&response_handler, 0, 0,
+                                 absl::GetFlag(FLAGS_dst_port),
+                                 absl::GetFlag(FLAGS_default_payload_message));
+    }
+    NetworkManager networkManager(prober, finalInterface, 2,
+                                  remoteHost->isIpv4());
     networkManager.startListening();
     LOG(INFO) << "Preprobe the target and wait 1 seconds...";
     networkManager.schedualProbeRemoteHost(*remoteHost,
@@ -371,20 +381,18 @@ int main(int argc, char* argv[]) {
       } else {
         LOG(INFO) << boost::format("%1% %|5t|%2% %|5t|%3% ms") %
                          static_cast<int>(i) %
-                         parseIpFromIntToString(
-                             (dynamic_cast<const Ipv4Address&>(
-                                  *std::get<0>(results.find(i)->second)))
-                                 .getIpv4Address()) %
+                         parseIpFromIpAddressToString(
+                             *std::get<0>(results.find(i)->second)) %
                          std::get<1>(results.find(i)->second);
       }
     }
     LOG(INFO) << " =============================";
 
-    LOG(INFO) << "Checksum Mismatches: " << udpProber.getChecksumMismatches();
+    LOG(INFO) << "Checksum Mismatches: " << prober->getChecksumMismatches();
     LOG(INFO) << "Distance Abnormalities: "
-              << udpProber.getDistanceAbnormalities();
+              << prober->getDistanceAbnormalities();
     LOG(INFO) << "Other Mismatches: "
-              << udpProber.getOtherMismatches();
+              << prober->getOtherMismatches();
   }
   LOG(INFO) << "The program ends.";
 }

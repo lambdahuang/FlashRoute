@@ -37,7 +37,9 @@ DcbManager* Targets::loadTargetsFromFile(absl::string_view filePath) const {
   std::unordered_set<uint32_t> addressBlocks;
   for (std::string line; std::getline(in, line);) {
     if (!line.empty()) {
-      auto ip = std::unique_ptr<IpAddress>(parseIpFromStringToIpAddress(line));
+      auto result = parseIpFromStringToIpAddress(line);
+      if (result == NULL) continue;
+      auto ip = std::unique_ptr<IpAddress>(result);
       // Set ip address
       if (blacklist_ != nullptr && !blacklist_->contains(*ip)) {
         dcbManager->addDcb(*ip, defaultSplitTtl_);
@@ -80,10 +82,8 @@ DcbManager* Targets::generateTargetsFromNetwork(
   }
 
   LOG(INFO) << boost::format("The target network is from %1% to %2%.") %
-                   parseIpFromIntToString(
-                       targetNetworkFirstAddress_.getIpv4Address()) %
-                   parseIpFromIntToString(
-                       targetNetworkLastAddress_.getIpv4Address());
+                   parseIpFromIpAddressToString(targetNetworkFirstAddress_) %
+                   parseIpFromIpAddressToString(targetNetworkLastAddress_);
 
   uint64_t targetNetworkSize =
       static_cast<int64_t>(targetNetworkLastAddress_.getIpv4Address()) -

@@ -205,19 +205,8 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
   Ipv4Address ipv4Destination(destination);
   Ipv4Address ipv4Responder(responder);
 
-#ifdef __FAVOR_BSD
   (*callback_)(ipv4Destination, ipv4Responder, static_cast<uint8_t>(distance),
-               fromDestination, rtt, probePhase, replyIpId,
-               parsedPacket->ip.ip_ttl, replyIpLen, probeIpLen, probeIpId,
-               ntohs(residualUdpPacket->udp.uh_sport),
-               ntohs(residualUdpPacket->udp.uh_dport));
-#else
-  (*callback_)(ipv4Destination, ipv4Responder, static_cast<uint8_t>(distance),
-               fromDestination, rtt, probePhase, replyIpId,
-               parsedPacket->ip.ip_ttl, replyIpLen, probeIpLen, probeIpId,
-               ntohs(residualUdpPacket->udp.source),
-               ntohs(residualUdpPacket->udp.dest));
-#endif
+               rtt, fromDestination, true, buffer, size);
 }
 
 uint16_t UdpIdempotentProber::getDestAddrChecksum(const uint16_t* ipAddress,

@@ -3,11 +3,11 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <fstream>
+#include <iostream>
 #include <limits>
 #include <string>
 #include <thread>
-#include <iostream>
-#include <fstream>
 #include <utility>
 
 #include "absl/strings/numbers.h"
@@ -22,6 +22,7 @@
 #include "flashroute/network.h"
 #include "flashroute/prober.h"
 #include "flashroute/udp_prober.h"
+#include "flashroute/udp_prober_v6.h"
 #include "flashroute/udp_idempotent_prober.h"
 
 namespace flashroute {
@@ -154,7 +155,7 @@ void Tracerouter::startMetricMonitoring() {
   });
 }
 
-void Tracerouter::startScan(ProberType proberType,
+void Tracerouter::startScan(ProberType proberType, bool ipv4,
                             bool randomizeAddressAfterPreprobing) {
   stopProbing_ = false;
   checksumMismatches_ = 0;
@@ -165,7 +166,7 @@ void Tracerouter::startScan(ProberType proberType,
 
   startMetricMonitoring();
   if (preprobingMark_) {
-    startPreprobing(proberType);
+    startPreprobing(proberType, ipv4);
     if (randomizeAddressAfterPreprobing) {
       dcbManager_->randomizeAddress();
     } else {
@@ -177,7 +178,7 @@ void Tracerouter::startScan(ProberType proberType,
       }
     }
   }
-  if (!stopProbing_) startProbing(proberType);
+  if (!stopProbing_) startProbing(proberType, ipv4);
   auto endTimestamp = std::chrono::steady_clock::now();
   stopProbing_ = true;
   stopMetricMonitoring();
@@ -195,30 +196,32 @@ void Tracerouter::stopMetricMonitoring() {
   std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 }
 
-void Tracerouter::startPreprobing(ProberType proberType) {
+void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
   // Update status.
   probePhase_ = ProbePhase::PREPROBE;
   // Set up callback function.
   PacketReceiverCallback callback =
       [this](const IpAddress& destination, const IpAddress& responder,
-             uint8_t distance, bool fromDestination, uint32_t rtt,
-             uint8_t probePhase, uint16_t replyIpid, uint8_t replyTtl,
-             uint16_t replySize, uint16_t probeSize, uint16_t probeIpid,
-             uint16_t probeSourcePort, uint16_t probeDestinationPort) {
+             uint8_t distance, uint32_t rtt, bool fromDestination, bool ipv4,
+             void* receivedPacket, size_t packetLen) {
         if (parseIcmpPreprobing(destination, responder, distance,
                                 fromDestination) &&
             resultDumper_ != nullptr) {
-          resultDumper_->scheduleDumpData(
-              destination, responder, distance, fromDestination, rtt,
-              probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
-              probeSourcePort, probeDestinationPort);
+          resultDumper_->scheduleDumpData(destination, responder, distance, rtt,
+                                          fromDestination, ipv4, receivedPacket,
+                                          packetLen);
         }
       };
 
   if (proberType == ProberType::UDP_PROBER) {
-    prober_ =
-        std::make_unique<UdpProber>(&callback, 0, kPreProbePhase, dstPort_,
-                                    defaultPayloadMessage_, encodeTimestamp_);
+    if (ipv4) {
+      prober_ =
+          std::make_unique<UdpProber>(&callback, 0, kPreProbePhase, dstPort_,
+                                      defaultPayloadMessage_, encodeTimestamp_);
+    } else {
+      prober_ = std::make_unique<UdpProberIpv6>(
+          &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_);
+    }
   } else if (proberType == ProberType::UDP_IDEMPOTENT_PROBER) {
     prober_ = std::make_unique<UdpIdempotentProber>(
         &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_,
@@ -253,30 +256,33 @@ void Tracerouter::startPreprobing(ProberType proberType) {
   sentPreprobes_ = networkManager_->getSentPacketCount();
 }
 
-void Tracerouter::startProbing(ProberType proberType) {
+void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
   // Update status
   probePhase_ = ProbePhase::PROBE;
   // Set up callback function.
   PacketReceiverCallback callback =
       [this](const IpAddress& destination, const IpAddress& responder,
-             uint8_t distance, bool fromDestination, uint32_t rtt,
-             uint8_t probePhase, uint16_t replyIpid, uint8_t replyTtl,
-             uint16_t replySize, uint16_t probeSize, uint16_t probeIpid,
-             uint16_t probeSourcePort, uint16_t probeDestinationPort) {
+             uint8_t distance, uint32_t rtt, bool fromDestination, bool ipv4,
+             void* receivedPacket, size_t packetLen) {
         if (parseIcmpProbing(destination, responder, distance,
                              fromDestination) &&
             resultDumper_ != nullptr) {
-          resultDumper_->scheduleDumpData(
-              destination, responder, distance, fromDestination, rtt,
-              probePhase, replyIpid, replyTtl, replySize, probeSize, probeIpid,
-              probeSourcePort, probeDestinationPort);
+          resultDumper_->scheduleDumpData(destination, responder, distance, rtt,
+                                          fromDestination, ipv4, receivedPacket,
+                                          packetLen);
         }
       };
 
   if (proberType == ProberType::UDP_PROBER) {
-    prober_ =
-        std::make_unique<UdpProber>(&callback, 0, kMainProbePhase, dstPort_,
-                                    defaultPayloadMessage_, encodeTimestamp_);
+    if (ipv4) {
+      prober_ =
+          std::make_unique<UdpProber>(&callback, 0, kMainProbePhase, dstPort_,
+                                      defaultPayloadMessage_, encodeTimestamp_);
+
+    } else {
+      prober_ = std::make_unique<UdpProberIpv6>(
+          &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_);
+    }
   } else if (proberType == ProberType::UDP_IDEMPOTENT_PROBER) {
     prober_ = std::make_unique<UdpIdempotentProber>(
         &callback, 0, kMainProbePhase, dstPort_, defaultPayloadMessage_,

@@ -8,9 +8,9 @@
 
 #include <boost/asio.hpp>
 #include <boost/circular_buffer.hpp>
-#include "flashroute/utils.h"
 #include "flashroute/bounded_buffer.h"
 #include "flashroute/prober.h"
+#include "flashroute/utils.h"
 
 namespace flashroute {
 
@@ -22,8 +22,10 @@ const uint16_t kReceivingBufferSize =
 const uint32_t kThreadPoolSize = 4;  // Default thread pool size.
 
 NetworkManager::NetworkManager(Prober* prober, const std::string& interface,
-                               const uint64_t sendingRate)
+                               const uint64_t sendingRate, const bool ipv4)
     : prober_(prober),
+      ipv4_(ipv4),
+      interface_(interface),
       stopReceiving_(false),
       expectedRate_(static_cast<double>(sendingRate)),
       sentPackets_(0),
@@ -32,15 +34,19 @@ NetworkManager::NetworkManager(Prober* prober, const std::string& interface,
 
   if (!interface.empty()) {
     localIpAddress_ = std::unique_ptr<IpAddress>(
-        parseIpFromStringToIpAddress(getAddressByInterface(interface)));
+        parseIpFromStringToIpAddress(getAddressByInterface(interface, ipv4_)));
   } else {
     LOG(FATAL) << "Network Module: Local address is not configured.";
   }
 
-
   // Initialize sending buffer
-  sendingBuffer_ =
-      std::make_unique<BoundedBuffer<ProbeUnitIpv4>>(expectedRate_);
+  if (ipv4_) {
+    sendingBuffer_ =
+        std::make_unique<BoundedBuffer<ProbeUnitIpv4>>(expectedRate_);
+  } else {
+    sendingBuffer6_ =
+        std::make_unique<BoundedBuffer<ProbeUnitIpv6>>(expectedRate_);
+  }
 
   if (expectedRate_ < 1) {
     VLOG(2) << "Network Module: Sendg rate limit is disabled since expected "
@@ -74,6 +80,8 @@ void NetworkManager::schedualProbeRemoteHost(const IpAddress& destinationIp,
       sendingBuffer_->pushFront(tmp);
     } else {
       // TODO(neohuang): handle IPv6.
+      ProbeUnitIpv6 tmp(dynamic_cast<const Ipv6Address&>(destinationIp), ttl);
+      sendingBuffer6_->pushFront(tmp);
     }
   } else {
     // if we disable rate limit.
@@ -110,14 +118,27 @@ void NetworkManager::stopListening() {
 
 bool NetworkManager::createIcmpSocket() {
   // create raw socket return -1 if failed
-  mainReceivingSocket_ = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+
   int on = 1;
-  if (mainReceivingSocket_ < 0 ||
-      setsockopt(mainReceivingSocket_, IPPROTO_IP, IP_HDRINCL,
-                 reinterpret_cast<char*>(&on), sizeof(on)) < 0) {
-    LOG(FATAL)
-        << "Network Module: Raw ICMP receiving socket failed to initialize.";
-    return false;
+  if (ipv4_) {
+    mainReceivingSocket_ = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    if (mainReceivingSocket_ < 0 ||
+        setsockopt(mainReceivingSocket_, IPPROTO_IP, IP_HDRINCL,
+                   reinterpret_cast<char*>(&on), sizeof(on)) < 0) {
+      LOG(FATAL)
+          << "Network Module: Raw ICMP receiving socket failed to initialize.";
+      return false;
+    }
+  } else {
+    mainReceivingSocket_ = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IPV6));
+    // Bind socket to the device.
+    if (mainReceivingSocket_ < 0 ||
+        setsockopt(mainReceivingSocket_, SOL_SOCKET, SO_BINDTODEVICE,
+                   interface_.c_str(), interface_.length() + 1) < 0) {
+      LOG(FATAL)
+          << "Network Module: Raw ICMP receiving socket failed to initialize.";
+      return false;
+    }
   }
 
   int optval = 0;
@@ -142,15 +163,27 @@ bool NetworkManager::createIcmpSocket() {
 
 bool NetworkManager::createRawSocket() {
   // create raw socket return -1 if failed
-  sendingSocket_ = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-  int on = 1;
-  if (sendingSocket_ < 0 ||
-      setsockopt(sendingSocket_, IPPROTO_IP, IP_HDRINCL,
-                 reinterpret_cast<char*>(&on), sizeof(on)) < 0) {
-    LOG(FATAL) << "The sending socket initialize failed.";
-    return false;
+  if (ipv4_) {
+    sendingSocket_ = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+    int on = 1;
+    if (sendingSocket_ < 0 ||
+        setsockopt(sendingSocket_, IPPROTO_IP, IP_HDRINCL,
+                   reinterpret_cast<char*>(&on), sizeof(on)) < 0) {
+      LOG(FATAL) << "The sending socket initialize failed.";
+      return false;
+    }
+    VLOG(2) << "Network Module: Raw Ipv4 sending socket initialized.";
+  } else {
+    sendingSocket_ = socket(AF_INET6, SOCK_RAW, IPPROTO_RAW);
+    int on = 1;
+    if (sendingSocket_ < 0 ||
+        setsockopt(sendingSocket_, IPPROTO_IPV6, IPV6_HDRINCL,
+                   reinterpret_cast<char*>(&on), sizeof(on)) < 0) {
+      LOG(FATAL) << "The sending socket initialize failed.";
+      return false;
+    }
+    VLOG(2) << "Network Module: Raw Ipv6 sending socket initialized.";
   }
-  VLOG(2) << "Network Module: Raw sending socket initialized.";
   return true;
 }
 
@@ -160,11 +193,13 @@ void NetworkManager::runSendingThread() {
   }
   VLOG(2) << "Network module: Sending thread initialized.";
   ProbeUnitIpv4 tmp;
+  ProbeUnitIpv6 tmp6;
 
   uint64_t sentProbes = 0;
   auto lastSeenTimestamp = std::chrono::steady_clock::now();
   while (!isStopReceiving()) {
-    if (sendingBuffer_->empty()) {
+    if ((ipv4_ && sendingBuffer_->empty()) ||
+        (!ipv4_ && sendingBuffer6_->empty())) {
       continue;
     }
     double timeDifference =
@@ -178,8 +213,13 @@ void NetworkManager::runSendingThread() {
     if (sentProbes >= expectedRate_) {
       continue;
     }
-    sendingBuffer_->popBack(&tmp);
-    probeRemoteHost(tmp.ip, tmp.ttl);
+    if (ipv4_) {
+      sendingBuffer_->popBack(&tmp);
+      probeRemoteHost(tmp.ip, tmp.ttl);
+    } else {
+      sendingBuffer6_->popBack(&tmp6);
+      probeRemoteHost(tmp6.ip, tmp6.ttl);
+    }
     sentProbes += 1;
   }
   VLOG(2) << "Network module: Sending thread recycled.";
@@ -192,30 +232,55 @@ void NetworkManager::receiveIcmpPacket() {
     int32_t packetSize = recv(mainReceivingSocket_, &buffer, sizeof(buffer), 0);
     // an icmp packet has to have an 8-byte ip header and a 20-byte icmp
     // header
-    if (packetSize < 28) {
-      continue;
-    }
+    if (ipv4_) {
+      if (packetSize < 28) {
+        continue;
+      }
 
-    {
-      std::lock_guard<std::mutex> guard(receivedPacketMutex_);
-      receivedPackets_ += 1;
+      {
+        std::lock_guard<std::mutex> guard(receivedPacketMutex_);
+        receivedPackets_ += 1;
+      }
+      prober_->parseResponse(buffer, packetSize, SocketType::ICMP);
+    } else {
+      if (packetSize < 48) {
+        continue;
+      }
+
+      {
+        std::lock_guard<std::mutex> guard(receivedPacketMutex_);
+        receivedPackets_ += 1;
+      }
+      prober_->parseResponse(buffer + 14, packetSize - 14, SocketType::ICMP);
     }
-    prober_->parseResponse(buffer, packetSize, SocketType::ICMP);
   }
   VLOG(2) << "Network module: Receiving thread recycled.";
 }
 
 void NetworkManager::sendRawPacket(uint8_t* buffer, size_t length) {
-  struct sockaddr_in sin;
-  sin.sin_family = AF_INET;
-  sin.sin_port = 80;
-  sin.sin_addr.s_addr = 1;
-  if (sendto(sendingSocket_, buffer, length, 0, (struct sockaddr*)&sin,
-             sizeof(sin)) < 0) {
-    LOG(ERROR) << "Send packet failed. Errno: " << errno;
+  if (ipv4_) {
+    struct sockaddr_in sin;
+    sin.sin_family = AF_INET;
+    sin.sin_port = 80;
+    sin.sin_addr.s_addr = 1;
+    if (sendto(sendingSocket_, buffer, length, 0, (struct sockaddr*)&sin,
+               sizeof(sin)) < 0) {
+      LOG(ERROR) << "Send packet failed. Errno: " << errno;
+    } else {
+      std::lock_guard<std::mutex> guard(sentPacketsMutex_);
+      sentPackets_ += 1;
+    }
   } else {
-    std::lock_guard<std::mutex> guard(sentPacketsMutex_);
-    sentPackets_ += 1;
+    struct sockaddr_in6 sin;
+    sin.sin6_family = AF_INET6;
+    sin.sin6_port = 0;
+    if (sendto(sendingSocket_, buffer, length, 0, (struct sockaddr*)&sin,
+               sizeof(sin)) < 0) {
+      LOG(ERROR) << "Send packet failed. Errno: " << errno;
+    } else {
+      std::lock_guard<std::mutex> guard(sentPacketsMutex_);
+      sentPackets_ += 1;
+    }
   }
 }
 

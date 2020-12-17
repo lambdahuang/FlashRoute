@@ -33,11 +33,14 @@ uint32_t parseIpFromStringToInt(const std::string& stringIp);
 IpAddress* parseIpFromStringToIpAddress(const std::string& stringIp);
 
 // Convert decimal IP to string.
-std::string parseIpFromIntToString(const uint32_t ip);
+std::string parseIpv4FromIntToString(const uint32_t ip);
+
+// Convert decimal IP to string.
+std::string parseIpFromIpAddressToString(const IpAddress& ip);
 
 // Get IP address by interface name. Return empty string, if interface does not
 // exist.
-std::string getAddressByInterface(const std::string& interface);
+std::string getAddressByInterface(const std::string& interface, bool ipv4);
 
 // Get first address of a IP block.
 Ipv4Address getFirstAddressOfBlock(const uint32_t address,

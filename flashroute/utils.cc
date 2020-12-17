@@ -70,18 +70,11 @@ IpAddress* parseIpFromStringToIpAddress(const std::string& stringIp) {
     struct in6_addr result;
     if (inet_pton(AF_INET6, stringIp.c_str(), &result) == 1) {
       // successfully parsed string into "result"
-      uint64_t prefix = 0;
-      uint64_t suffix = 0;
-      prefix = static_cast<uint64_t>(ntohl(result.__in6_u.__u6_addr32[3]))
-                   << 32 |
-               static_cast<uint64_t>(ntohl(result.__in6_u.__u6_addr32[2]));
-      suffix = static_cast<uint64_t>(ntohl(result.__in6_u.__u6_addr32[1]))
-                   << 32 |
-               static_cast<uint64_t>(ntohl(result.__in6_u.__u6_addr32[0]));
-      absl::uint128 addr_ = static_cast<absl::uint128>(prefix) << 64 |
-                            static_cast<absl::uint128>(suffix);
+      absl::uint128 addr_ = 0;
+      memcpy(&addr_, &result, sizeof(result));
       return new Ipv6Address(addr_);
     } else {
+      VLOG(2) << "Failed to parse: " << stringIp;
       return NULL;
     }
 
@@ -91,7 +84,7 @@ IpAddress* parseIpFromStringToIpAddress(const std::string& stringIp) {
   }
 }
 
-std::string parseIpFromIntToString(const uint32_t ip) {
+std::string parseIpv4FromIntToString(const uint32_t ip) {
   uint32_t section[4];
   section[0] = ip & 0xFF;
   section[1] = (ip >> 8) & 0xFF;
@@ -103,23 +96,46 @@ std::string parseIpFromIntToString(const uint32_t ip) {
   return result;
 }
 
-std::string getAddressByInterface(const std::string& interface) {
+std::string parseIpFromIpAddressToString(const IpAddress& ip) {
+  if (ip.isIpv4()) {
+    return parseIpv4FromIntToString(ip.getIpv4Address());
+  } else {
+    char interfaceTmp[256];
+    absl::uint128 tempAddr = ip.getIpv6Address();
+    inet_ntop(AF_INET6, &tempAddr, interfaceTmp,
+              sizeof(interfaceTmp));
+    std::string ip = interfaceTmp;
+    return ip;
+  }
+}
+
+std::string getAddressByInterface(const std::string& interface, bool ipv4) {
   struct ifaddrs *addrs, *iap;
-  struct sockaddr_in *sa;
   char interfaceTmp[256];
   std::string ip;
   getifaddrs(&addrs);
   for (iap = addrs; iap != NULL; iap = iap->ifa_next) {
-    if (iap->ifa_addr && (iap->ifa_flags & IFF_UP) &&
-        iap->ifa_addr->sa_family == AF_INET) {
-      sa = (struct sockaddr_in *)(iap->ifa_addr);
-      inet_ntop(iap->ifa_addr->sa_family, (void *)&(sa->sin_addr), interfaceTmp,
-                sizeof(interfaceTmp));
-      std::string tmp = iap->ifa_name;
-      if (!tmp.compare(interface)) {
-        ip = interfaceTmp;
-        VLOG(2) <<  "Interface: " << interface << " IP address: " << ip;
-        break;
+    if (iap->ifa_addr && (iap->ifa_flags & IFF_UP)) {
+      if (ipv4 && iap->ifa_addr->sa_family == AF_INET) {
+        struct sockaddr_in* sa = (struct sockaddr_in*)(iap->ifa_addr);
+        inet_ntop(iap->ifa_addr->sa_family, (void*)&(sa->sin_addr),
+                  interfaceTmp, sizeof(interfaceTmp));
+        std::string tmp = iap->ifa_name;
+        if (!tmp.compare(interface)) {
+          ip = interfaceTmp;
+          VLOG(2) << "Interface: " << interface << " IPv4 address: " << ip;
+          break;
+        }
+      } else if (!ipv4 && iap->ifa_addr->sa_family == AF_INET6){
+        struct sockaddr_in6* in6 = (struct sockaddr_in6*)iap->ifa_addr;
+        inet_ntop(AF_INET6, &in6->sin6_addr, interfaceTmp,
+                  sizeof(interfaceTmp));
+        std::string tmp = iap->ifa_name;
+        if (!tmp.compare(interface)) {
+          ip = interfaceTmp;
+          VLOG(2) << "Interface: " << interface << " IPv6 address: " << ip;
+          break;
+        }
       }
     }
   }
