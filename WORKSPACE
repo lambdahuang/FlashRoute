@@ -48,9 +48,9 @@ boost_deps()
 
 git_repository(
     name = "com_google_absl",
-    commit = "da3a87690c56f965705b6a233d25ba5a3294067c",
+    commit = "6df644c56f31b100bf731e27c3825069745651e3",
     remote = "https://github.com/abseil/abseil-cpp.git",
-    shallow_since = "1591122396 -0400",
+    shallow_since = "1608147541 -0500",
 )
 
 new_git_repository(
