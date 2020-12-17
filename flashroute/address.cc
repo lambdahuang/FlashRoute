@@ -42,6 +42,7 @@ namespace flashroute {
   }
 
   bool Ipv4Address::equal_to(const IpAddress& rhs) const {
+    if (!rhs.isIpv4()) return false;
     return address_ ==
            dynamic_cast<Ipv4Address&>(const_cast<IpAddress&>(rhs)).address_;
   }
@@ -113,6 +114,7 @@ namespace flashroute {
   }
 
   bool Ipv6Address::equal_to(const IpAddress& rhs) const {
+    if (rhs.isIpv4()) return false;
     Ipv6Address& temp = dynamic_cast<Ipv6Address&>(const_cast<IpAddress&>(rhs));
     return address_ == temp.address_;
   }
