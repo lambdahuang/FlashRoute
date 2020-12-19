@@ -251,6 +251,7 @@ void NetworkManager::receiveIcmpPacket() {
         std::lock_guard<std::mutex> guard(receivedPacketMutex_);
         receivedPackets_ += 1;
       }
+      // Currently the IPv6 socket returns the entire ethernet frame.
       prober_->parseResponse(buffer + 14, packetSize - 14, SocketType::ICMP);
     }
   }

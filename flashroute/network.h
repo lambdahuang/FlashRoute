@@ -52,7 +52,8 @@ class ProbeUnitIpv6 {
  * NetworkManager networkManager(
  *  &prober,  // The prober to process packets.
  *  "eth0",   // The interface to send the probe.
- *  100000    // The packet sending rate.
+ *  100000,   // The packet sending rate.
+ *  true      // Tell network manager to use ipv4 or ipv6 sockets.
  * );
  *
  * // Start capturing the incoming packets.
