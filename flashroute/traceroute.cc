@@ -394,17 +394,17 @@ bool Tracerouter::parseIcmpPreprobing(const IpAddress& destination,
     preprobeUpdatedCount_ += 1;
   }
   if (preprobingPredictionMark_) {
-    // int64_t predictionLowerBound =
-    //     std::max<int64_t>(blockIndex - preprobingPredictionProximitySpan_, 0);
-    // int64_t predictionUpperBound = std::min<int64_t>(
-    //     blockIndex + preprobingPredictionProximitySpan_, getBlockCount() - 1);
-    // for (int64_t i = predictionLowerBound; i <= predictionUpperBound; i++) {
-    //   if (i != blockIndex) {
-    //     if (targetList_[i].updateSplitTtl(distance, false)) {
-    //       preprobeUpdatedCount_ += 1;
-    //     }
-    //   }
-    // }
+    std::vector<DestinationControlBlock*>* result =
+        dcbManager_->getDcbsByAddress(destination);
+    if (result != nullptr) {
+      for (auto it = result->begin(); it != result->end(); it++) {
+        if ((*it)->updateSplitTtl(distance, false)) {
+          preprobeUpdatedCount_++;
+        }
+      }
+      // remove all dcbs from future update.
+      result->clear();
+    }
   }
   return true;
 }

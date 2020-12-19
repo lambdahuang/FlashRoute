@@ -15,7 +15,8 @@ class Targets {
           Blacklist* blacklist);
 
   // Load targets from file.
-  DcbManager* loadTargetsFromFile(absl::string_view filePath) const;
+  DcbManager* loadTargetsFromFile(absl::string_view filePath,
+                                  const uint8_t granularity) const;
 
   // Generate targets from a range.
   DcbManager* generateTargetsFromNetwork(absl::string_view targetNetwork,
@@ -25,6 +26,7 @@ class Targets {
   Blacklist* blacklist_;
   uint8_t defaultSplitTtl_;
   uint32_t seed_;
+  uint32_t granularity_;
 
 };
 

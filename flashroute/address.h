@@ -156,10 +156,23 @@ class IpNetwork {
 
   bool contains(const IpAddress& addr) const;
   IpNetwork* clone() const;
-
+  absl::uint128 getPrefix() const;
  private:
   std::unique_ptr<IpAddress> addr_;
   uint32_t prefix_;
+};
+
+// customize hash and equality function for IpAddress object
+struct IpNetworkHash {
+  std::size_t operator()(const IpNetwork* tmp) const {
+    return static_cast<std::size_t>(tmp->getPrefix() % __SIZE_MAX__);
+  }
+};
+
+struct IpNetworkEquality {
+  std::size_t operator()(const IpNetwork* lhs, const IpNetwork* rhs) const {
+    return lhs->getPrefix() == lhs->getPrefix();
+  }
 };
 
 }  // namespace flashroute

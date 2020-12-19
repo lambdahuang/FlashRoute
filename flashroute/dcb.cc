@@ -1,9 +1,10 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
+#include "flashroute/dcb.h"
+
 #include <memory>
 #include <mutex>
 #include <utility>
 
-#include "flashroute/dcb.h"
 
 namespace flashroute {
 
@@ -31,20 +32,18 @@ bool DestinationControlBlock::updateSplitTtl(uint8_t ttlToUpdate,
   // If the target does not have any confirmed hop-distance, we are allowed to
   // update it.
   if (!accurateDistanceMark_) {
-    {
-      nextBackwardHop_ = ttlToUpdate;
-      // update the initial TTL for backward probing.
-      initialBackwardProbingTtl = ttlToUpdate;
-      // Also update the next forward hop.
-      nextForwardHop_ = ttlToUpdate + 1;
-      forwardHorizon_ = ttlToUpdate;
-      // If the updated TTL is from an accurate preprobing result, we lock the
-      // future update.
-      if (confirmResult) {
-        accurateDistanceMark_ = true;
-      }
-      preprobedMark_ = true;
+    nextBackwardHop_ = ttlToUpdate;
+    // update the initial TTL for backward probing.
+    initialBackwardProbingTtl = ttlToUpdate;
+    // Also update the next forward hop.
+    nextForwardHop_ = ttlToUpdate + 1;
+    forwardHorizon_ = ttlToUpdate;
+    // If the updated TTL is from an accurate preprobing result, we lock the
+    // future update.
+    if (confirmResult) {
+      accurateDistanceMark_ = true;
     }
+    preprobedMark_ = true;
   }
   testAndSet->clear(std::memory_order_release);
   return result;

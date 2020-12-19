@@ -52,6 +52,10 @@ ABSL_FLAG(int16_t, preprobing_ttl, 32, "Preprobing ttl.");
 
 ABSL_FLAG(bool, distance_prediction, true,
           "Distance prediction in preprobing.");
+
+ABSL_FLAG(int32_t, distance_prediction_prefix, 24,
+          "Distance prediction will be applied to a given range.");
+
 ABSL_FLAG(int32_t, proximity_span, 5,
           "Proximity span for distnace prediction.");
 
@@ -226,8 +230,9 @@ int main(int argc, char* argv[]) {
     DcbManager* dcbManager;
     // Load targets.
     if (!absl::GetFlag(FLAGS_targets).empty()) {
-      dcbManager =
-          targetLoader.loadTargetsFromFile(absl::GetFlag(FLAGS_targets));
+      dcbManager = targetLoader.loadTargetsFromFile(
+          absl::GetFlag(FLAGS_targets), static_cast<uint8_t>(absl::GetFlag(
+                                            FLAGS_distance_prediction_prefix)));
     } else {
       dcbManager = targetLoader.generateTargetsFromNetwork(
           target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));

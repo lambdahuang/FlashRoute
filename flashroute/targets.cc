@@ -23,8 +23,9 @@ Targets::Targets(const uint8_t defaultSplitTtl, const uint32_t seed,
                  Blacklist* blacklist)
     : blacklist_(blacklist), defaultSplitTtl_(defaultSplitTtl), seed_(seed) {}
 
-DcbManager* Targets::loadTargetsFromFile(absl::string_view filePath) const {
-  DcbManager* dcbManager = new DcbManager(1000, 0, seed_);
+DcbManager* Targets::loadTargetsFromFile(absl::string_view filePath,
+                                         const uint8_t granularity) const {
+  DcbManager* dcbManager = new DcbManager(1000, granularity, seed_);
   if (filePath.empty()) {
     VLOG(2) << "Targets disabled.";
     return dcbManager;
@@ -55,7 +56,7 @@ DcbManager* Targets::loadTargetsFromFile(absl::string_view filePath) const {
 
 DcbManager* Targets::generateTargetsFromNetwork(
     absl::string_view targetNetwork, const uint8_t granularity) const {
-  DcbManager* dcbManager = new DcbManager(1000, 0, seed_);
+  DcbManager* dcbManager = new DcbManager(1000, granularity, seed_);
 
   std::vector<absl::string_view> parts = absl::StrSplit(targetNetwork, "/");
   if (parts.size() != 2) {

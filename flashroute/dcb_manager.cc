@@ -24,7 +24,16 @@ DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
                                          IpAddressHash, IpAddressEquality>>(
           new std::unordered_map<IpAddress*, DestinationControlBlock*,
                                  IpAddressHash, IpAddressEquality>());
+
+  coarseMap_ = std::unique_ptr<
+      std::unordered_map<IpNetwork*, std::vector<DestinationControlBlock*>,
+                         IpNetworkHash, IpNetworkEquality>>(
+      new std::unordered_map<IpNetwork*, std::vector<DestinationControlBlock*>,
+                             IpNetworkHash, IpNetworkEquality>());
+
   map_->reserve(reservedSpace);
+  coarseMap_->reserve(reservedSpace);
+
   // insert the special dcb.
   specialDcb_ = addDcb(Ipv4Address(0), 0);
   currentDcb_ = specialDcb_;
@@ -33,7 +42,7 @@ DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
 }
 
 bool DcbManager::hasNext() {
-  if (currentDcb_->nextElement == currentDcb_)
+  if (liveDcbCount_ == 0)
     return false;
   else
     return true;
@@ -100,7 +109,17 @@ DestinationControlBlock* DcbManager::getDcbByAddress(
   if (result != map_->end()) {
     return result->second;
   }
-  return NULL;
+  return nullptr;
+}
+
+std::vector<DestinationControlBlock*>* DcbManager::getDcbsByAddress(
+    const IpAddress& pseudo) const {
+  IpNetwork ipNetwork(pseudo, granularity_);
+  auto result = coarseMap_->find(&ipNetwork);
+  if (result != coarseMap_->end()) {
+    return &result->second;
+  }
+  return nullptr;
 }
 
 DestinationControlBlock* DcbManager::addDcb(const IpAddress& addr,
@@ -114,7 +133,7 @@ DestinationControlBlock* DcbManager::addDcb(const IpAddress& addr,
   }
 
   if (map_->find(&(const_cast<IpAddress&>(addr))) != map_->end()) {
-    return NULL;
+    return nullptr;
   }
 
   DestinationControlBlock* tmp =
@@ -133,6 +152,8 @@ DestinationControlBlock* DcbManager::addDcb(const IpAddress& addr,
   }
 
   liveDcbCount_++;
+  // add to corse map for distance prediction.
+  addToCoarseMap(tmp);
   return tmp;
 }
 
@@ -177,7 +198,19 @@ void DcbManager::snapshot() {
 }
 
 void DcbManager::reset() {
-
+  DestinationControlBlock* tmp = nullptr;
+  DestinationControlBlock* first = nullptr;
+  for (auto it = map_->begin(); it != map_->end(); ++it) {
+    if (tmp == nullptr) {
+      tmp = it->second;
+      first = tmp;
+    } else {
+      it->second->previousElement = tmp;
+      tmp->nextElement = it->second;
+    }
+  }
+  tmp->nextElement = first;
+  first->previousElement = tmp;
 }
 
 uint64_t DcbManager::size() {
@@ -213,6 +246,19 @@ void DcbManager::swapDcbElementSequence(DestinationControlBlock* x,
 
   previousY->nextElement = x;
   previousX->nextElement = y;
+}
+
+void DcbManager::addToCoarseMap(DestinationControlBlock* dcb) {
+  IpNetwork* ipNetwork = new IpNetwork(*dcb->ipAddress, granularity_);
+  auto result = coarseMap_->find(ipNetwork);
+  if (result != coarseMap_->end()) {
+    result->second.push_back(dcb);
+    free(ipNetwork);
+    return;
+  } else {
+    coarseMap_->insert({ipNetwork, {dcb}});
+  }
+  return;
 }
 
 }  // namespace flashroute

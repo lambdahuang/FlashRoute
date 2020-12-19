@@ -1,10 +1,11 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
 #pragma once
 
-#include <memory>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "flashroute/address.h"
 #include "flashroute/dcb.h"
@@ -40,6 +41,10 @@ class DcbManager {
   // get DCB based on the address.
   DestinationControlBlock* getDcbByAddress(const IpAddress& pseudo) const;
 
+  // get all DCBs fall in prefix.
+  std::vector<DestinationControlBlock*>* getDcbsByAddress(
+      const IpAddress& pseudo) const;
+
   // insert address.
   DestinationControlBlock* addDcb(const IpAddress& addr,
                                   const uint8_t initialTtl);
@@ -73,6 +78,11 @@ class DcbManager {
                                      IpAddressHash, IpAddressEquality>>
       map_;
 
+  std::unique_ptr<
+      std::unordered_map<IpNetwork*, std::vector<DestinationControlBlock*>,
+                         IpNetworkHash, IpNetworkEquality>>
+      coarseMap_;
+
   DestinationControlBlock* currentDcb_;
   DestinationControlBlock* lastAddedDcb_;
   DestinationControlBlock* firstAddedDcb_;
@@ -82,6 +92,8 @@ class DcbManager {
 
   void swapDcbElementSequence(DestinationControlBlock* x,
                               DestinationControlBlock* y);
+
+  void addToCoarseMap(DestinationControlBlock* dcb);
 };
 
 }  // namespace flashroute

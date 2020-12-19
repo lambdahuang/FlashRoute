@@ -1,9 +1,9 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
+#include "flashroute/address.h"
 
 #include <cmath>
 #include <memory>
 
-#include "flashroute/address.h"
 #include "absl/random/random.h"
 
 
@@ -167,6 +167,14 @@ namespace flashroute {
 
   IpNetwork* IpNetwork::clone() const {
     return new  IpNetwork(*this);
+  }
+
+  absl::uint128 IpNetwork::getPrefix() const {
+    if (addr_->isIpv4()) {
+      return addr_->getIpv4Address() >> (32 - prefix_);
+    } else {
+      return addr_->getIpv6Address() >> (128 - prefix_);
+    }
   }
 
 }  // namespace flashroute
