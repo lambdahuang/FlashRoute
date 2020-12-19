@@ -84,6 +84,11 @@ export PATH="$PATH:$HOME/bin"
 export BAZEL_CXXOPTS="-std=c++14" 
 ```
 
+### Other Compiling Requirements
+
+**Linux Kernel 4.18+** is required to build the IPv6 compatibility.
+**gcc 5++** is required.
+
 # Compiling
 
 **Caveat**: Make sure your computer has Internet connection when building, Bazel will download underlying libraries for FlashRoute.
@@ -152,7 +157,7 @@ sudo ./bazel-bin/flashroute/flashroute --interface eth0 --probing_rate 10000 --o
 
 `--distance_prediction` Enable distance prediction, which uses measured distances to predict distances to proximity blocks. By default, enabled.
 
-`--proximity_span` Specify the span of blocks of which distances will be predicted. By default, 5.
+`--distance_prediction_prefix` Specify the prefix length. When the distance of one address from the prefix is measured, the result will be used to predict the distance of other addresses in the same prefix.
 
 `--forward_probing` Enable forward probing. The forawrd probing explores routes in the forward direction and stops if reaching the destination or experiencing N-consecutive silent interfaces, controlled by `--gaplimit`.
 
