@@ -1,5 +1,4 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
-
 #include "flashroute/utils.h"
 
 #include "glog/logging.h"

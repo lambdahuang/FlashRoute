@@ -1,8 +1,6 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
 #include "flashroute/blacklist.h"
 
-#include "glog/logging.h"
-
 #include <fstream>
 #include <limits>
 #include <string>
@@ -12,6 +10,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "glog/logging.h"
 
 #include "flashroute/address.h"
 #include "flashroute/utils.h"

@@ -1,5 +1,5 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
-
+#include "flashroute/udp_idempotent_prober.h"
 
 #include <netinet/ip.h>       // ip header
 #include <netinet/ip_icmp.h>  // icmp header
@@ -10,7 +10,6 @@
 #include <cstring>
 
 #include "glog/logging.h"
-#include "flashroute/udp_idempotent_prober.h"
 
 namespace flashroute {
 
