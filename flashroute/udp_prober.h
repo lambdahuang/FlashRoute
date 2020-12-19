@@ -17,10 +17,12 @@ const uint32_t kTimestampSlot = 65536;
  *
  * Example:
  *
+ * // Callback function to parse the data. 
  * PacketReceiverCallback callback =
  *    [](const IpAddress& destination, const IpAddress& responder,
- *                    uint8_t distance, bool fromDestination) {
- *      // The tracerouting logic on response.
+ *                    uint8_t distance, uint32_t rtt, bool fromDestination,
+ *                    bool ipv4, void* packetHeader, size_t headerLen) {
+ *      // Handle response.
  *    };
  *
  * UdpProber prober(
@@ -37,11 +39,11 @@ const uint32_t kTimestampSlot = 65536;
  * NetworkManager networkManager(
  *  &prober,  // The prober to process packets.
  *  "eth0",   // The interface to send the probe.
- *  100000    // The packet sending rate.
+ *  100000,   // The packet sending rate.
+ *  true      // Tell network manager to use ipv4 or ipv6 sockets.
  * );
  *
  */
-
 class UdpProber : public virtual Prober {
  public:
   UdpProber(PacketReceiverCallback* callback, const int32_t checksumOffset,
@@ -59,10 +61,10 @@ class UdpProber : public virtual Prober {
   // Change checksum offset (support discovery-optimized mode.)
   void setChecksumOffset(int32_t checksumOffset);
 
-  // Put here for testing purpose.
+  // Calculate checksum of ip address.
   uint16_t getChecksum(const uint16_t* ipaddress, uint16_t offset) const;
 
-  // Put here for testing purpose.
+  // Calculate checksum of packet.
   uint16_t getChecksum(const uint8_t protocolValue, size_t packetLength,
                        const uint16_t* src_addr, const uint16_t* dest_addr,
                        uint16_t* buff) const;

@@ -9,14 +9,19 @@
 namespace flashroute {
 
 /**
- * UDP Prober handles packet construction and response parsing.
+ * UDP Idempotent Prober handles packet construction and response parsing. The
+ * difference of this from the regular UDP prober is that Idempotent Prober will
+ * keep fields the same between two individual scan by removing timestamp
+ * encoding.
  *
  * Example:
  *
+ * // Callback function to parse the data.
  * PacketReceiverCallback callback =
  *    [](const IpAddress& destination, const IpAddress& responder,
- *                    uint8_t distance, bool fromDestination) {
- *      // The tracerouting logic on response.
+ *                    uint8_t distance, uint32_t rtt, bool fromDestination,
+ *                    bool ipv4, void* packetHeader, size_t headerLen) {
+ *      // Handle response.
  *    };
  *
  * UdpProber prober(
@@ -33,11 +38,11 @@ namespace flashroute {
  * NetworkManager networkManager(
  *  &prober,  // The prober to process packets.
  *  "eth0",   // The interface to send the probe.
- *  100000    // The packet sending rate.
+ *  100000,   // The packet sending rate.
+ *  true      // Tell network manager to use ipv4 or ipv6 sockets.
  * );
  *
  */
-
 class UdpIdempotentProber : public virtual Prober {
  public:
   UdpIdempotentProber(PacketReceiverCallback* callback,
@@ -58,17 +63,6 @@ class UdpIdempotentProber : public virtual Prober {
   // Change checksum offset (support discovery-optimized mode.)
   void setChecksumOffset(int32_t checksumOffset);
 
-  // Put here for testing purpose.
-  uint16_t getDestAddrChecksum(const uint16_t* ipaddress,
-                               const uint16_t offset) const;
-
-  // Put here for testing purpose.
-  uint16_t getChecksum(const uint8_t protocolValue, size_t packetLength,
-                       const uint16_t* src_addr, const uint16_t* dest_addr,
-                       uint16_t* buff) const;
-
-  uint16_t getChecksum(uint16_t* buff, uint16_t offset) const;
-
   // Get metrics information
   uint64_t getChecksumMismatches() override;
   uint64_t getDistanceAbnormalities() override;
@@ -86,6 +80,17 @@ class UdpIdempotentProber : public virtual Prober {
   uint64_t checksumMismatches_;
   uint64_t distanceAbnormalities_;
   uint64_t otherMismatches_;
+
+  // Calculate checksum of ip address.
+  uint16_t getDestAddrChecksum(const uint16_t* ipaddress,
+                               const uint16_t offset) const;
+
+  // Calculate checksum of packet.
+  uint16_t getChecksum(const uint8_t protocolValue, size_t packetLength,
+                       const uint16_t* src_addr, const uint16_t* dest_addr,
+                       uint16_t* buff) const;
+
+  uint16_t getChecksum(uint16_t* buff, uint16_t offset) const;
 };
 
 }  // namespace flashroute
