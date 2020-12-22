@@ -4,7 +4,9 @@ FlashRoute is now supporting **IPv6 scan and customized target list** starting f
 
 Considering changes in the internal design, the users may find the old FlashRoute from branch v0.0.2.
 
-Also for users who is directed from "https://osf.io/kw5jr/", you probably also look for branch v0.0.2.
+Also for users who are directed from "https://osf.io/kw5jr/" (FlashRoute), you probably also look for branch v0.0.2.
+
+For users who are directed from  "https://osf.io/8xv5r/ (FlashRoute6), the default branch is what you look for.
 
 ___
 
