@@ -142,12 +142,15 @@ FlashRoute supports
 sudo ./bazel-bin/flashroute/flashroute --interface eth0 192.168.1.1
 ```
 
+```
+sudo ./bazel-bin/flashroute/flashroute --interface eth0 2607:f8b0:4009:805::200e
+```
+
 2. Probe all IPv4 /24 subnets.
 
 ```
 sudo ./bazel-bin/flashroute/flashroute --interface eth0 --probing_rate 10000 --output ~/test.output 0.0.0.0/0
 ```
-
 
 ## Flags
 
@@ -199,8 +202,8 @@ sudo ./bazel-bin/flashroute/flashroute --interface eth0 --probing_rate 10000 --o
 
 `--tcpdump_dump_filepath` autorun the tcpdump to collect the packets and dump the collected packets to a pcap file.
 
-`--hitlist` Specify the file path to Hitlist and use IP from hitlist to replace the random selected IP in each /24 subnet.
+<!-- `--hitlist` Specify the file path to Hitlist and use IP from hitlist to replace the random selected IP in each /24 subnet. -->
 
-`--targets` Specify the file path to target list. Note: each /24 will select one address.
+`--targets` Specify the file path to target list.
 
-`--seed` the seed to select destination IP addresses from each /24 subnet.
+`--seed` the seed to select destination IP addresses if users ask for auto-generated targets.
