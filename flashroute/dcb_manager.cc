@@ -207,10 +207,28 @@ void DcbManager::reset() {
     } else {
       it->second->previousElement = tmp;
       tmp->nextElement = it->second;
+      tmp = it->second;
+    }
+    // Reset split TTL.
+    if (it->second != specialDcb_) {
+      if (it->second->isPreprobed()) {
+        // If dcb has preprobing result, new TTL is generated based on the
+        // preprobing result.
+        it->second->resetProbingProgress(
+            rand() % it->second->initialBackwardProbingTtl + 1);
+      } else {
+        // If dcb does not have preprobing result, new TTL is generated based on
+        // the lastest forward probed hop.
+        it->second->resetProbingProgress(rand() % it->second->peekForwardHop() + 1);
+      }
     }
   }
   tmp->nextElement = first;
   first->previousElement = tmp;
+  currentDcb_ = specialDcb_;
+
+  liveDcbCount_ = map_->size() - 1;
+  VLOG(2) << "DcbManager has been reset.";
 }
 
 uint64_t DcbManager::size() {

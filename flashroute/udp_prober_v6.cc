@@ -1,5 +1,5 @@
 /* Copyright (C) 2019 Neo Huang - All Rights Reserved */
-
+#include "flashroute/udp_prober_v6.h"
 
 #include <netinet/ip6.h>      // struct ip6_hdr
 #include <netinet/icmp6.h>  // icmp header
@@ -11,7 +11,6 @@
 
 #include "glog/logging.h"
 #include "flashroute/address.h"
-#include "flashroute/udp_prober_v6.h"
 #include "flashroute/utils.h"
 
 namespace flashroute {
@@ -71,13 +70,15 @@ size_t UdpProberIpv6::packProbe(const IpAddress& destinationIp,
   memset(&packet->udp, 0, sizeof(packet->udp));
   memset(&packet->ip, 0, sizeof(packet->ip));
 
+  uint16_t destinationChecksum = getChecksum(
+      reinterpret_cast<uint16_t*>(&destinationIpDecimal), checksumOffset_);
+
   // Fabricate the IP header or we can use the
   // standard header structures but assign our own values.
   // 4 bits version is set to 6
   // 8 bits is set to 0 (No Specific traffic)
-  uint32_t flowLabel = 0;  // flow label 20 bits;
   packet->ip.ip6_ctlun.ip6_un1.ip6_un1_flow =
-      htonl((6 << 28) | (0 << 20) | flowLabel);
+      htonl((6 << 28) | (0 << 20) | (destinationChecksum & 0xFFFFF));
   packet->ip.ip6_ctlun.ip6_un1.ip6_un1_nxt = kUdpProtocol;
   packet->ip.ip6_ctlun.ip6_un1.ip6_un1_hlim = ttl;
 
@@ -96,9 +97,7 @@ size_t UdpProberIpv6::packProbe(const IpAddress& destinationIp,
 
 #ifdef __FAVOR_BSD
   packet->udp.uh_dport = destinationPort_;
-  packet->udp.uh_sport = getChecksum(
-      reinterpret_cast<uint16_t*>(&destinationIpDecimal), checksumOffset_);
-  packet->udp.uh_ulen = htons(packetExpectedSize - IP6_HDRLEN);
+  packet->udp.uh_sport = destinationChecksum;
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
   // the correct checksum during transmission
@@ -111,8 +110,7 @@ size_t UdpProberIpv6::packProbe(const IpAddress& destinationIp,
 
 #else
   packet->udp.dest = destinationPort_;
-  packet->udp.source = getChecksum(
-      reinterpret_cast<uint16_t*>(&destinationIpDecimal), checksumOffset_);
+  packet->udp.source = destinationChecksum;
   packet->udp.len = htons(packetExpectedSize - IP6_HDRLEN);
 
   // if you set a checksum to zero, your kernel's IP stack should fill in

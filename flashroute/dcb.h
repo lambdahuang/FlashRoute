@@ -82,6 +82,10 @@ class DestinationControlBlock {
    */
   void resetProbingProgress(uint8_t ttl);
 
+  bool isPreprobed() const;
+
+  uint8_t peekForwardHop() const;
+
  private:
   uint8_t nextBackwardHop_;
   // std::unique_ptr<std::mutex> ttlToProbeMutex_;

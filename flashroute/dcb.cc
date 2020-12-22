@@ -144,6 +144,12 @@ void DestinationControlBlock::resetProbingProgress(uint8_t ttl) {
   removed = false;
 }
 
+bool DestinationControlBlock::isPreprobed() const { return preprobedMark_; }
+
+uint8_t DestinationControlBlock::peekForwardHop() const {
+  return nextForwardHop_;
+};
+
 }  // namespace flashroute
 
 
