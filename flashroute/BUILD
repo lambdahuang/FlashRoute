@@ -174,6 +174,7 @@ cc_binary(
         "hitlist",
         ":targets",
         ":utils",
+        ":single_host",
         "@boost//:asio",
         "@boost//:format",
         "@com_google_absl//absl/flags:flag",
@@ -230,5 +231,21 @@ cc_library(
         ":utils",
         ":bounded_buffer",
         "//external:glog",
+    ],
+)
+
+cc_library(
+    name = "single_host",
+    hdrs = ["single_host.h"],
+    srcs = ["single_host.cc"],
+    copts = ["-std=c++14"],
+    deps = [
+        ":address",
+        ":utils",
+        ":network",
+        ":prober",
+        ":dcb_manager",
+        "//external:glog",
+        "@boost//:format",
     ],
 )
