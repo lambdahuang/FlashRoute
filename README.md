@@ -140,21 +140,25 @@ FlashRoute supports
 
 ## Examples
 
-1. Probe a single host.
+1. Probe an IPv4 address.
 
 ```
 sudo ./bazel-bin/flashroute/flashroute --interface eth0 192.168.1.1
 ```
 
+2. Probe an IPv6 address.
+
 ```
 sudo ./bazel-bin/flashroute/flashroute --interface eth0 2607:f8b0:4009:805::200e
 ```
 
-2. Probe all IPv4 /24 subnets.
+3. Probe all IPv4 /24 subnets (one address per /24 prefix).
 
 ```
 sudo ./bazel-bin/flashroute/flashroute --interface eth0 --probing_rate 10000 --granularity 24 --output ~/test.output 0.0.0.0/0
 ```
+
+4. Probe all /48 subnets under a give IPv6 prefix (one address per /48 prefix).
 
 ```
 sudo ./bazel-bin/flashroute/flashroute --interface eth0 --granularity 48 2607:f8b0:4009:805::200e/44
