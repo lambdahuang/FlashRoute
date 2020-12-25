@@ -153,7 +153,11 @@ sudo ./bazel-bin/flashroute/flashroute --interface eth0 2607:f8b0:4009:805::200e
 2. Probe all IPv4 /24 subnets.
 
 ```
-sudo ./bazel-bin/flashroute/flashroute --interface eth0 --probing_rate 10000 --output ~/test.output 0.0.0.0/0
+sudo ./bazel-bin/flashroute/flashroute --interface eth0 --probing_rate 10000 --granularity 24 --output ~/test.output 0.0.0.0/0
+```
+
+```
+sudo ./bazel-bin/flashroute/flashroute --interface eth0 --granularity 48 2607:f8b0:4009:805::200e/44
 ```
 
 ## Flags

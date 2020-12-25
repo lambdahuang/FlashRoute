@@ -50,8 +50,10 @@ IpAddress* getFirstAddressOfBlock(const IpAddress& address,
 IpAddress* getLastAddressOfBlock(const IpAddress& address,
                                 const int32_t prefixLength);
 
+// Similar to htonl but designed for absl::uint128 ipv6 address.
 absl::uint128 htonll(absl::uint128 in);
 
+// Similar to ntohl but designed for absl::uint128 ipv6 address.
 absl::uint128 ntohll(absl::uint128 in);
 
 bool isNetwork(const std::string& input);
