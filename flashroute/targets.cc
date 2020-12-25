@@ -69,43 +69,69 @@ DcbManager* Targets::generateTargetsFromNetwork(
     LOG(FATAL) << "Failed to parse the target network.";
   }
 
-  uint32_t targetBaseAddress = parseIpFromStringToInt(std::string(parts[0]));
+  IpAddress* targetBaseAddress =
+      parseIpFromStringToIpAddress(std::string(parts[0]));
 
-  Ipv4Address targetNetworkFirstAddress_ =
-      getFirstAddressOfBlock(targetBaseAddress, subnetPrefixLength);
-  Ipv4Address targetNetworkLastAddress_ =
-      getLastAddressOfBlock(targetBaseAddress, subnetPrefixLength);
+  IpAddress* targetNetworkFirstAddress_ =
+      getFirstAddressOfBlock(*targetBaseAddress, subnetPrefixLength);
+  IpAddress* targetNetworkLastAddress_ =
+      getLastAddressOfBlock(*targetBaseAddress, subnetPrefixLength);
 
   if (targetNetworkFirstAddress_ >= targetNetworkLastAddress_) {
-    LOG(FATAL) << boost::format("Ip address range is incorrect. [%1%, %2%]") %
-                      targetNetworkFirstAddress_.getIpv4Address() %
-                      targetNetworkLastAddress_.getIpv4Address();
+    LOG(FATAL) << "Ip address range is incorrect.";
   }
 
   LOG(INFO) << boost::format("The target network is from %1% to %2%.") %
-                   parseIpFromIpAddressToString(targetNetworkFirstAddress_) %
-                   parseIpFromIpAddressToString(targetNetworkLastAddress_);
+                   parseIpFromIpAddressToString(*targetNetworkFirstAddress_) %
+                   parseIpFromIpAddressToString(*targetNetworkLastAddress_);
 
-  uint64_t targetNetworkSize =
-      static_cast<int64_t>(targetNetworkLastAddress_.getIpv4Address()) -
-      static_cast<int64_t>(targetNetworkFirstAddress_.getIpv4Address()) + 1;
+  if (targetBaseAddress->isIpv4()) {
+    uint64_t targetNetworkSize =
+        static_cast<int64_t>(targetNetworkLastAddress_->getIpv4Address()) -
+        static_cast<int64_t>(targetNetworkFirstAddress_->getIpv4Address()) + 1;
 
-  uint64_t blockFactor_ = static_cast<uint64_t>(std::pow(2, 32 - granularity));
-  uint64_t dcbCount = static_cast<uint64_t>(targetNetworkSize / blockFactor_);
+    uint64_t blockFactor_ =
+        static_cast<uint64_t>(std::pow(2, 32 - granularity));
+    uint64_t dcbCount = static_cast<uint64_t>(targetNetworkSize / blockFactor_);
 
-  // set random seed.
-  std::srand(seed_);
-  for (uint64_t i = 0; i < dcbCount; i++) {
-    // randomly generate IP addresse avoid the first and last ip address
-    // in the block.
-    Ipv4Address tmp(targetNetworkFirstAddress_.getIpv4Address() +
-                    ((i) << (32 - granularity)) +
-                    (rand() % (blockFactor_ - 3)) + 2);
-    if (blacklist_ != nullptr && !blacklist_->contains(tmp)) {
-      dcbManager->addDcb(tmp, defaultSplitTtl_);
+    // set random seed.
+    std::srand(seed_);
+    for (uint64_t i = 0; i < dcbCount; i++) {
+      // randomly generate IP addresse avoid the first and last ip address
+      // in the block.
+      Ipv4Address tmp(targetNetworkFirstAddress_->getIpv4Address() +
+                      ((i) << (32 - granularity)) +
+                      (rand() % (blockFactor_ - 3)) + 2);
+      if (blacklist_ != nullptr && !blacklist_->contains(tmp)) {
+        dcbManager->addDcb(tmp, defaultSplitTtl_);
+      }
     }
+    VLOG(2) << boost::format("Created %1% entries (1 reserved dcb).") %
+                   dcbCount;
+  } else {
+    absl::uint128 targetNetworkSize =
+        ntohll(targetNetworkLastAddress_->getIpv6Address()) -
+        ntohll(targetNetworkFirstAddress_->getIpv6Address()) + 1;
+
+    absl::uint128 blockFactor_ =
+        static_cast<absl::uint128>(std::pow(2, 128 - granularity));
+    absl::uint128 dcbCount =
+        static_cast<absl::uint128>(targetNetworkSize / blockFactor_);
+
+    // set random seed.
+    std::srand(seed_);
+    for (absl::uint128 i = 0; i < dcbCount; i++) {
+      // randomly generate IP addresse avoid the first and last ip address
+      // in the block.
+      Ipv6Address tmp(htonll(
+          ntohll(targetNetworkFirstAddress_->getIpv6Address()) +
+          ((i) << (128 - granularity)) + (rand() % (blockFactor_ - 3)) + 2));
+      if (blacklist_ != nullptr && !blacklist_->contains(tmp)) {
+        dcbManager->addDcb(tmp, defaultSplitTtl_);
+      }
+    }
+    VLOG(2) << "Created " << dcbCount << " entries (1 reserved dcb).";
   }
-  VLOG(2) << boost::format("Created %1% entries (1 reserved dcb).") % dcbCount;
 
   return dcbManager;
 }
