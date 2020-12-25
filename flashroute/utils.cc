@@ -142,28 +142,70 @@ std::string getAddressByInterface(const std::string& interface, bool ipv4) {
   return ip;
 }
 
-Ipv4Address getFirstAddressOfBlock(const uint32_t address,
+IpAddress* getFirstAddressOfBlock(const IpAddress& address,
                                  const int32_t prefixLength) {
-  if (prefixLength > 32 || prefixLength < 0) {
-    LOG(FATAL) << "network prefix length is incorrect!!!";
+  if (address.isIpv4()) {
+    if (prefixLength > 32 || prefixLength < 0) {
+      LOG(FATAL) << "network prefix length is incorrect!!!";
+    }
+    int64_t result = address.getIpv4Address();
+    for (int32_t i = 0; i < 32 - prefixLength; i++) {
+      result = result & (~static_cast<uint32_t>(1UL << i));
+    }
+    return new Ipv4Address(static_cast<uint32_t>(result));
+  } else {
+    if (prefixLength > 128 || prefixLength < 0) {
+      LOG(FATAL) << "network prefix length is incorrect!!!";
+    }
+    absl::uint128 result = ntohll(address.getIpv6Address());
+    for (int32_t i = 0; i < 128 - prefixLength; i++) {
+      result = result & (~(static_cast<absl::uint128>(1) << i));
+    }
+    return new Ipv6Address(htonll(result));
   }
-  int64_t result = address;
-  for (int32_t i = 0; i < 32 - prefixLength; i++) {
-    result = result & (~static_cast<uint32_t>(1UL << i));
-  }
-  return Ipv4Address(static_cast<uint32_t>(result));
 }
 
-Ipv4Address getLastAddressOfBlock(const uint32_t address,
+IpAddress* getLastAddressOfBlock(const IpAddress& address,
                                 const int32_t prefixLength) {
-  if (prefixLength > 32 || prefixLength < 0) {
-    LOG(FATAL) << "network prefix length is incorrect!!!";
+  if (address.isIpv4()) {
+    if (prefixLength > 32 || prefixLength < 0) {
+      LOG(FATAL) << "network prefix length is incorrect!!!";
+    }
+    int64_t result = address.getIpv4Address();
+    for (int32_t i = 0; i < 32 - prefixLength; i++) {
+      result = result | (1UL << i);
+    }
+    return new Ipv4Address(static_cast<uint32_t>(result));
+  } else {
+    if (prefixLength > 128 || prefixLength < 0) {
+      LOG(FATAL) << "network prefix length is incorrect!!!";
+    }
+    absl::uint128 result = ntohll(address.getIpv6Address());
+    for (int32_t i = 0; i < 128 - prefixLength; i++) {
+      result = result | (static_cast<absl::uint128>(1) << i);
+    }
+    return new Ipv6Address(htonll(result));
   }
-  int64_t result = address;
-  for (int32_t i = 0; i < 32 - prefixLength; i++) {
-    result = result | (1UL << i);
+}
+
+absl::uint128 htonll(absl::uint128 in) {
+  absl::uint128 result;
+  uint8_t* srcPtr = reinterpret_cast<uint8_t*>(&in);
+  uint8_t* dstPtr = reinterpret_cast<uint8_t*>(&result);
+  for (uint32_t i = 0; i < sizeof(absl::uint128); i++) {
+    dstPtr[sizeof(absl::uint128) - i - 1] = srcPtr[i];
   }
-  return Ipv4Address(static_cast<uint32_t>(result));
+  return result;
+}
+
+absl::uint128 ntohll(absl::uint128 in) {
+  absl::uint128 result;
+  uint8_t* srcPtr = reinterpret_cast<uint8_t*>(&in);
+  uint8_t* dstPtr = reinterpret_cast<uint8_t*>(&result);
+  for (uint32_t i = 0; i < sizeof(absl::uint128); i++) {
+    dstPtr[sizeof(absl::uint128) - i - 1] = srcPtr[i];
+  }
+  return result;
 }
 
 bool isNetwork(const std::string& input) {

@@ -43,12 +43,16 @@ std::string parseIpFromIpAddressToString(const IpAddress& ip);
 std::string getAddressByInterface(const std::string& interface, bool ipv4);
 
 // Get first address of a IP block.
-Ipv4Address getFirstAddressOfBlock(const uint32_t address,
+IpAddress* getFirstAddressOfBlock(const IpAddress& address,
                                  const int32_t prefixLength);
 
 // Get last address of a IP block.
-Ipv4Address getLastAddressOfBlock(const uint32_t address,
+IpAddress* getLastAddressOfBlock(const IpAddress& address,
                                 const int32_t prefixLength);
+
+absl::uint128 htonll(absl::uint128 in);
+
+absl::uint128 ntohll(absl::uint128 in);
 
 bool isNetwork(const std::string& input);
 
