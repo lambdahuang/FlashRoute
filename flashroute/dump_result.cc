@@ -5,6 +5,7 @@
 #include "absl/numeric/int128.h"
 
 #include "flashroute/address.h"
+#include "flashroute/utils.h"
 
 namespace flashroute {
 
@@ -53,8 +54,8 @@ void ResultDumper::scheduleDumpData(const IpAddress& destination,
       destinationAddr = destination.getIpv4Address();
       responderAddr = responder.getIpv4Address();
     } else {
-      destinationAddr = destination.getIpv6Address();
-      responderAddr = responder.getIpv4Address();
+      destinationAddr = ntohll(destination.getIpv6Address());
+      responderAddr = ntohll(responder.getIpv6Address());
     }
 
     dumpingBuffer_->pushFront({destinationAddr, responderAddr, rtt, distance,

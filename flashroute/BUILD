@@ -87,7 +87,7 @@ cc_library(
         ":utils",
         ":network",
         ":prober",
-        "dump_result",
+        ":dump_result",
         "@boost//:asio",
         "@boost//:format",
         "@com_google_absl//absl/strings",
