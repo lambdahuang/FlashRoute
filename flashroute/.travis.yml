@@ -1,0 +1,17 @@
+dist: trusty
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - wget
+      - pkg-config
+
+before_install:
+  - wget https://github.com/bazelbuild/bazel/releases/download/3.7.2/bazel_3.7.2-linux-x86_64.deb
+  - sha256sum -c tools/bazel_3.7.2-linux-x86_64.deb.sha256
+  - sudo dpkg -i bazel_3.7.2-linux-x86_64.deb
+
+script:
+  - bazel build flashroute
