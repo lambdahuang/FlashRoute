@@ -168,7 +168,7 @@ sudo ./bazel-bin/flashroute/flashroute --interface eth0 --granularity 48 2607:f8
 
 `--split_ttl` Specify initial TTL to start Scan. By default, 16.
 
-`--granularity` Specify the granularity of the scan. For example, if this value is set to 24, FlashRoute will scan one address per /24 prefix. The range of this value is [1, 32]. By default, 24. Caveat: this value will affect the memory footprint and the network probes and time usage of a scan.
+`--granularity` Specify the granularity of the scan. For example, if this value is set to 24, FlashRoute will scan one address per /24 prefix. The range of this value is [0, 32] for Ipv4. By default, 24. Caveat: this value will affect the memory footprint and the network probes and time usage of a scan. For Ipv6, the range of this value is [0, 128]. 
 
 `--prober_type` The type of prober. Options: udp, udp_idempotent.
 

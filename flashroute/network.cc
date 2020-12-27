@@ -176,12 +176,16 @@ bool NetworkManager::createRawSocket() {
   } else {
     sendingSocket_ = socket(AF_INET6, SOCK_RAW, IPPROTO_RAW);
     int on = 1;
+#ifdef IPV6_HDRINCL
     if (sendingSocket_ < 0 ||
         setsockopt(sendingSocket_, IPPROTO_IPV6, IPV6_HDRINCL,
                    reinterpret_cast<char*>(&on), sizeof(on)) < 0) {
       LOG(FATAL) << "The sending socket initialize failed.";
       return false;
     }
+#else
+    LOG(FATAL) << "Flashroute's IPv6 scan is not competible with the OS.";
+#endif
     VLOG(2) << "Network Module: Raw Ipv6 sending socket initialized.";
   }
   return true;

@@ -37,8 +37,9 @@ ABSL_FLAG(std::string, prober_type, "udp",
 ABSL_FLAG(int16_t, split_ttl, 16, "Default split ttl.");
 ABSL_FLAG(
     int16_t, granularity, 24,
-    "The granularity of scan; that is, scan pick 1 address per the given "
-    "length of prefix. The range of this value is [1, 32]. By default, 24.");
+    "The granularity of scan; that is, scan picks 1 address per the given "
+    "length of prefix. The range of this value is [0, 32] for Ipv4 and [0, "
+    "128] for Ipv6. By default, 24.");
 
 ABSL_FLAG(std::string, interface, "", "Relay Interface.");
 ABSL_FLAG(int32_t, probing_rate, 400000, "Probing rate.");
