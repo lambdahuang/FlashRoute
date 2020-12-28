@@ -1,5 +1,7 @@
-dist: trusty
-
+dist: bionic
+language: python
+python:
+  - "3.6"
 addons:
   apt:
     sources:
@@ -7,11 +9,12 @@ addons:
     packages:
       - wget
       - pkg-config
+      - build-essential
+      - gcc
 
 before_install:
   - wget https://github.com/bazelbuild/bazel/releases/download/3.7.2/bazel_3.7.2-linux-x86_64.deb
-  - sha256sum -c tools/bazel_3.7.2-linux-x86_64.deb.sha256
   - sudo dpkg -i bazel_3.7.2-linux-x86_64.deb
 
 script:
-  - bazel build flashroute
+  - bazel build --cxxopt="--std=c++14" flashroute

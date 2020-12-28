@@ -1,5 +1,7 @@
 # FlashRoute6 (IPv6 Compatible)
 
+[![Build Status](https://travis-ci.com/lambdahuang/FlashRoute.svg?branch=v0.1.0)](https://travis-ci.com/lambdahuang/FlashRoute)
+
 FlashRoute is now supporting **IPv6 scan and customized target list** starting from v0.1.0!
 
 Considering changes in the internal design, the users may find the old FlashRoute from branch v0.0.2.
