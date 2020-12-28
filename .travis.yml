@@ -15,4 +15,4 @@ before_install:
   - sudo dpkg -i bazel_3.7.2-linux-x86_64.deb
 
 script:
-  - bazel build flashroute
+  - bazel build --cxxopt="--std=c++14" flashroute
