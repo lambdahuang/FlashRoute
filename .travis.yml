@@ -1,5 +1,6 @@
 dist: trusty
-
+python:
+  - "3.6"
 addons:
   apt:
     sources:
