@@ -237,7 +237,7 @@ void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
   auto startTimestamp = std::chrono::steady_clock::now();
   LOG(INFO) << "Start preprobing.";
   uint64_t dcbCount = dcbManager_->liveDcbSize();
-  for (uint64_t i = 0; i < dcbCount; i ++) {
+  for (uint64_t i = 0; i < dcbCount && !stopProbing_; i++) {
     networkManager_->schedualProbeRemoteHost(*(dcbManager_->next()->ipAddress),
                                            defaultPreprobingTTL_);
   }

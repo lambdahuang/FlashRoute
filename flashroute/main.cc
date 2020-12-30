@@ -104,7 +104,7 @@ ABSL_FLAG(bool, vverbose, false, "Verbose level 2.");
 
 using namespace flashroute;
 
-std::unique_ptr<Tracerouter> traceRouterPtr;
+Tracerouter* traceRouterPtr = nullptr;
 std::unique_ptr<CommandExecutor> commandExecutor;
 
 std::string finalInterface;
@@ -112,7 +112,7 @@ std::string finalInterface;
 void signalHandler(int signalNumber) {
   LOG(INFO)
       << "Received SIGINT signal. Forcefully terminate program by Ctrl-C.";
-  traceRouterPtr.get()->stopScan();
+  traceRouterPtr->stopScan();
   static bool firstCatch = true;
   if (firstCatch) {
     LOG(INFO) << "Stop probing...";
@@ -259,6 +259,7 @@ int main(int argc, char* argv[]) {
         absl::GetFlag(FLAGS_src_port), absl::GetFlag(FLAGS_dst_port),
         absl::GetFlag(FLAGS_default_payload_message),
         absl::GetFlag(FLAGS_encode_timestamp));
+    traceRouterPtr = &traceRouter;
 
     // Load hitlist.
     if (!absl::GetFlag(FLAGS_hitlist).empty()) {
@@ -287,7 +288,6 @@ int main(int argc, char* argv[]) {
     if (dcbManager != nullptr) delete dcbManager;
 
     printFlags();
-    traceRouterPtr.release();
   } else {
     SingleHost tracerouter(0, absl::GetFlag(FLAGS_dst_port));
     tracerouter.startScan(target, finalInterface);
