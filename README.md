@@ -123,6 +123,12 @@ On ARM system, such as Raspberry Pi, you may need add one more linking option `-
 bazel build --cxxopt="--std=c++14" —linkopt="-latomic" flashroute
 ```
 
+To optimize the program in the compiling process, you may use this. This can improve program running performance **significantly**.
+
+```
+bazel build --cxxopt="--std=c++14" --compilation_mode=opt flashroute
+```
+
 # Miscellaneous
 
 FlashRoute uses Clang-format as the linter to check the code-style, which can be installed using following commandline.
