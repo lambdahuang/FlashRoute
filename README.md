@@ -1,6 +1,8 @@
 # FlashRoute6 (IPv6 Compatible)
 
 [![Build Status](https://travis-ci.com/lambdahuang/FlashRoute.svg?branch=v0.1.0)](https://travis-ci.com/lambdahuang/FlashRoute)
+[![Generic badge](https://img.shields.io/badge/c\++-14-blue.svg)](https://shields.io/)
+[![Generic badge](https://img.shields.io/badge/bazel-3.7.2-blue.svg)](https://shields.io/)
 
 FlashRoute is now supporting **IPv6 scan and customized target list** starting from v0.1.0!
 
