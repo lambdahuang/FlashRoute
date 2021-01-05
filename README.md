@@ -229,3 +229,15 @@ sudo ./bazel-bin/flashroute/flashroute --interface eth0 --granularity 48 2607:f8
 `--targets` Specify the file path to target list.
 
 `--seed` the seed to select destination IP addresses if users ask for auto-generated targets.
+
+## Referencing the FlashRoute
+
+```
+@inproceedings{huang2020flashroute,
+  title={FlashRoute: Efficient Traceroute on a Massive Scale},
+  author={Huang, Yuchen and Rabinovich, Michael and Al-Dalky, Rami},
+  booktitle={Proceedings of the ACM Internet Measurement Conference},
+  pages={443--455},
+  year={2020}
+}
+```
