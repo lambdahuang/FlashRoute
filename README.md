@@ -85,15 +85,15 @@ Bazel is an open-source build system, developed by Google and widely adopted by 
 
 Bazel supports [ different installation methods ](https://docs.bazel.build/versions/master/install-ubuntu.html).
 
-This example provides the installation of Bazel 2.0.0, but you can freely replace the version to whatever the version you like to install.
-FlashRoute can be built by Bazel from 0.x to 3.2 on x86_64 machines.
+This example provides the installation of Bazel 3.7.2, but you can freely replace the version to whatever the version you like to install.
+FlashRoute can be built by Bazel from 0.x to 3.7 on x86_64 machines.
 However, for Arm users, **Bazel 2.1.1 is recommended**.
 
 ```
-wget https://github.com/bazelbuild/bazel/releases/download/2.0.0/bazel-2.0.0-installer-linux-x86_64.sh
+wget https://github.com/bazelbuild/bazel/releases/download/3.7.2/bazel-3.7.2-installer-linux-x86_64.sh
 
-chmod +x bazel-2.0.0-installer-linux-x86_64.sh
-./bazel-2.0.0-installer-linux-x86_64.sh --user
+chmod +x bazel-3.7.2-installer-linux-x86_64.sh
+./bazel-3.7.2-installer-linux-x86_64.sh --user
 export PATH="$PATH:$HOME/bin"
 export BAZEL_CXXOPTS="-std=c++14" 
 ```
