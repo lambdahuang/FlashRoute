@@ -34,6 +34,10 @@ ABSL_FLAG(std::string, dump_targets_file, "", "Dump targets to file.");
 ABSL_FLAG(std::string, prober_type, "udp",
           "The prober used for the scan. Options: udp, udp idempotent");
 
+ABSL_FLAG(int16_t, ttl_offset, 0,
+          "Offset of ttl. For example, if offset is 5, the scan will cover the "
+          "ttl in thhe range [6, 38].");
+
 ABSL_FLAG(int16_t, split_ttl, 16, "Default split ttl.");
 ABSL_FLAG(
     int16_t, granularity, 24,
@@ -258,7 +262,7 @@ int main(int argc, char* argv[]) {
         absl::GetFlag(FLAGS_proximity_span), absl::GetFlag(FLAGS_scan_count),
         absl::GetFlag(FLAGS_src_port), absl::GetFlag(FLAGS_dst_port),
         absl::GetFlag(FLAGS_default_payload_message),
-        absl::GetFlag(FLAGS_encode_timestamp));
+        absl::GetFlag(FLAGS_encode_timestamp), absl::GetFlag(FLAGS_ttl_offset));
     traceRouterPtr = &traceRouter;
 
     // Load hitlist.
@@ -289,7 +293,8 @@ int main(int argc, char* argv[]) {
 
     printFlags();
   } else {
-    SingleHost tracerouter(0, absl::GetFlag(FLAGS_dst_port));
+    SingleHost tracerouter(0, absl::GetFlag(FLAGS_dst_port),
+                           absl::GetFlag(FLAGS_ttl_offset));
     tracerouter.startScan(target, finalInterface);
   }
   LOG(INFO) << "The program ends.";

@@ -13,8 +13,9 @@
 
 namespace flashroute {
 
-SingleHost::SingleHost(const uint16_t srcPort, const uint16_t dstPort)
-    : srcPort_(srcPort), dstPort_(dstPort) {
+SingleHost::SingleHost(const uint16_t srcPort, const uint16_t dstPort,
+                       const uint8_t ttlOffset)
+    : srcPort_(srcPort), dstPort_(dstPort), ttlOffset_(ttlOffset) {
   results_ = new std::unordered_map<
       uint8_t, std::tuple<std::shared_ptr<IpAddress>, uint32_t>>();
 }
@@ -42,7 +43,8 @@ void SingleHost::startScan(const std::string& target,
 
   Prober* prober;
   if (remoteHost->isIpv4()) {
-    prober = new UdpProber(&response_handler, 0, 0, dstPort_, "test", true);
+    prober = new UdpProber(&response_handler, 0, 0, dstPort_, "test", true,
+                           ttlOffset_);
   } else {
     prober = new UdpProberIpv6(&response_handler, 0, 0, dstPort_, "test");
   }
@@ -55,7 +57,7 @@ void SingleHost::startScan(const std::string& target,
 
   sleep(3);
 
-  for (uint8_t i = 1; i <= 32; i++) {
+  for (uint8_t i = 1 + ttlOffset_; i <= 32 + ttlOffset_; i++) {
     if (results_->find(i) == results_->end()) {
       LOG(INFO) << boost::format("%1% %|5t|*") % static_cast<int>(i);
     } else {

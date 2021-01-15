@@ -57,7 +57,8 @@ Tracerouter::Tracerouter(
     const bool preprobing, const bool preprobingPrediction,
     const int32_t predictionProximitySpan, const int32_t scanCount,
     const uint16_t srcPort, const uint16_t dstPort,
-    const std::string& defaultPayloadMessage, const bool encodeTimestamp)
+    const std::string& defaultPayloadMessage, const bool encodeTimestamp,
+    const uint8_t ttlOffset)
     : dcbManager_(dcbManager),
       stopProbing_(false),
       probePhase_(ProbePhase::NONE),
@@ -65,6 +66,7 @@ Tracerouter::Tracerouter(
       networkManager_(networkManager),
       defaultSplitTTL_(defaultSplitTTL),
       defaultPreprobingTTL_(defaultPreprobingTTL),
+      ttlOffset_(ttlOffset),
       forwardProbingMark_(forwardProbing),
       forwardProbingGapLimit_(forwardProbingGapLimit),
       redundancyRemovalMark_(redundancyRemoval),
@@ -215,9 +217,9 @@ void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
 
   if (proberType == ProberType::UDP_PROBER) {
     if (ipv4) {
-      prober_ =
-          std::make_unique<UdpProber>(&callback, 0, kPreProbePhase, dstPort_,
-                                      defaultPayloadMessage_, encodeTimestamp_);
+      prober_ = std::make_unique<UdpProber>(&callback, 0, kPreProbePhase,
+                                            dstPort_, defaultPayloadMessage_,
+                                            encodeTimestamp_, ttlOffset_);
     } else {
       prober_ = std::make_unique<UdpProberIpv6>(
           &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_);
@@ -275,9 +277,9 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
 
   if (proberType == ProberType::UDP_PROBER) {
     if (ipv4) {
-      prober_ =
-          std::make_unique<UdpProber>(&callback, 0, kMainProbePhase, dstPort_,
-                                      defaultPayloadMessage_, encodeTimestamp_);
+      prober_ = std::make_unique<UdpProber>(&callback, 0, kMainProbePhase,
+                                            dstPort_, defaultPayloadMessage_,
+                                            encodeTimestamp_, ttlOffset_);
 
     } else {
       prober_ = std::make_unique<UdpProberIpv6>(
