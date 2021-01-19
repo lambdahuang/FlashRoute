@@ -176,8 +176,9 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
                                        kTimestampSlot) %
                  kTimestampSlot;
 
-  int16_t initialTTL = static_cast<int16_t>(probeIpId & 0x1F) + ttlOffset_;
+  int16_t initialTTL = static_cast<int16_t>(probeIpId & 0x1F);
   if (initialTTL == 0) initialTTL = 32;
+  initialTTL += ttlOffset_;
 
   if (parsedPacket->icmp.icmp_type == 3 &&
       (parsedPacket->icmp.icmp_code == 3 || parsedPacket->icmp.icmp_code == 2 ||
@@ -202,7 +203,7 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
     return;
   }
 
-  if (distance <= ttlOffset_ || distance > kMaxTtl + ttlOffset_) {
+  if (distance <= ttlOffset_ || distance > (kMaxTtl + ttlOffset_)) {
     distanceAbnormalities_ += 1;
     return;
   }

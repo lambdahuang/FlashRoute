@@ -241,7 +241,7 @@ void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
   uint64_t dcbCount = dcbManager_->liveDcbSize();
   for (uint64_t i = 0; i < dcbCount && !stopProbing_; i++) {
     networkManager_->schedualProbeRemoteHost(*(dcbManager_->next()->ipAddress),
-                                           defaultPreprobingTTL_);
+                                           defaultPreprobingTTL_ - ttlOffset_);
   }
   std::this_thread::sleep_for(
       std::chrono::milliseconds(kHaltTimeAfterPreprobingSequenceMs));
@@ -337,7 +337,7 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
       uint8_t nextBackwardTask = dcb.pullBackwardTask();
 
       bool hasForwardTask = nextForwardTask != 0;
-      bool hasBackwardTask = nextBackwardTask != 0;
+      bool hasBackwardTask = nextBackwardTask > ttlOffset_;
       // An entry will be removed only if backward and forward probings are
       // all done.
       if (!hasBackwardTask &&
@@ -442,8 +442,9 @@ bool Tracerouter::parseIcmpProbing(const IpAddress& destination,
     if (distance <= dcb->getMaxProbedDistance()) {
       // Set forward probing
       int16_t newMax = std::min<int16_t>(
-          distance + static_cast<int16_t>(forwardProbingGapLimit_), kMaxTtl);
-      if (newMax >= 0 && newMax <= kMaxTtl) {
+          distance + static_cast<int16_t>(forwardProbingGapLimit_),
+          kMaxTtl + ttlOffset_);
+      if (newMax > 0 && newMax <= kMaxTtl + ttlOffset_) {
         dcb->setForwardHorizon(static_cast<uint8_t>(newMax));
       }
     }
