@@ -53,8 +53,9 @@ enum class ProberType { UDP_PROBER, UDP_IDEMPOTENT_PROBER };
  *    53,                         // Set the expected destination port.
  *    "test",                     // Message to encode into the payload of each
  *                                // probe.   
- *    true)                       // Control whether to encode timestamp to each
+ *    true,                       // Control whether to encode timestamp to each
  *                                // probe. (Test function).
+ *    0)                          // ttl offset to shift the range of ttl
  * );
  * 
  * // startScan accepts two parameters:
@@ -80,7 +81,7 @@ class Tracerouter {
               const int32_t predictionProximitySpan, const int32_t scanCount,
               const uint16_t srcPort, const uint16_t dstPort,
               const std::string& defaultPayloadMessage,
-              const bool encodeTimestamp);
+              const bool encodeTimestamp, const uint8_t ttlOffset);
 
   ~Tracerouter();
 
@@ -108,6 +109,9 @@ class Tracerouter {
 
   // The ttl to preprobe targets.
   uint8_t defaultPreprobingTTL_;
+
+  // The offset of ttl.
+  uint8_t ttlOffset_;
 
   // Control whether or not to forward probe. Per our design, we can forward
   // probe the router interfaces at a hop-distance further if tailing N nodes

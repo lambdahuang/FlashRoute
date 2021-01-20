@@ -56,6 +56,7 @@ NetworkManager::NetworkManager(Prober* prober, const std::string& interface,
 }
 
 NetworkManager::~NetworkManager() {
+  stopListening();
   close(sendingSocket_);
 }
 

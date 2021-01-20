@@ -31,12 +31,14 @@ UdpProberIpv6::UdpProberIpv6(PacketReceiverCallback* callback,
                              const int32_t checksumOffset,
                              const uint8_t probePhaseCode,
                              const uint16_t destinationPort,
-                             const std::string& payloadMessage) {
+                             const std::string& payloadMessage,
+                             const uint8_t ttlOffset) {
   probePhaseCode_ = probePhaseCode;
   callback_ = callback;
   checksumOffset_ = checksumOffset;
   payloadMessage_ = payloadMessage;
   destinationPort_ = htons(destinationPort);
+  ttlOffset_ = ttlOffset;
   checksumMismatches_ = 0;
   distanceAbnormalities_ = 0;
   otherMismatches_ = 0;
@@ -80,7 +82,7 @@ size_t UdpProberIpv6::packProbe(const IpAddress& destinationIp,
   packet->ip.ip6_ctlun.ip6_un1.ip6_un1_flow =
       htonl((6 << 28) | (0 << 20) | (destinationChecksum & 0xFFFFF));
   packet->ip.ip6_ctlun.ip6_un1.ip6_un1_nxt = kUdpProtocol;
-  packet->ip.ip6_ctlun.ip6_un1.ip6_un1_hlim = ttl;
+  packet->ip.ip6_ctlun.ip6_un1.ip6_un1_hlim = ttl + ttlOffset_;
 
   memcpy(&(packet->ip.ip6_dst), &destinationIpDecimal, sizeof(absl::uint128));
   memcpy(&(packet->ip.ip6_src), &sourceIpDecimal, sizeof(absl::uint128));
@@ -182,6 +184,7 @@ void UdpProberIpv6::parseResponse(uint8_t* buffer, size_t size,
     return;
 
   if (initialTTL == 0) initialTTL = 32;
+  initialTTL += ttlOffset_;
 
   if (parsedPacket->icmp.icmp6_type == 1 &&
       (parsedPacket->icmp.icmp6_code == 4 ||
@@ -208,7 +211,7 @@ void UdpProberIpv6::parseResponse(uint8_t* buffer, size_t size,
     return;
   }
 
-  if (distance <= 0 || distance > kMaxTtl) {
+  if (distance <= ttlOffset_ || distance > (kMaxTtl + ttlOffset_)) {
     distanceAbnormalities_ += 1;
     return;
   }

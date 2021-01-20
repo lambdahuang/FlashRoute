@@ -14,7 +14,8 @@ namespace flashroute {
 
 class SingleHost {
  public:
-  SingleHost(const uint16_t srcPort, const uint16_t dstPort);
+  SingleHost(const uint16_t srcPort, const uint16_t dstPort,
+             const uint8_t ttlOffset);
 
   ~SingleHost();
 
@@ -28,6 +29,7 @@ class SingleHost {
  private:
   uint16_t srcPort_;
   uint16_t dstPort_;
+  uint8_t ttlOffset_;
 
   std::unordered_map<uint8_t, std::tuple<std::shared_ptr<IpAddress>, uint32_t>>*
       results_;
