@@ -222,12 +222,13 @@ void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
                                             encodeTimestamp_, ttlOffset_);
     } else {
       prober_ = std::make_unique<UdpProberIpv6>(
-          &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_);
+          &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_,
+          ttlOffset_);
     }
   } else if (proberType == ProberType::UDP_IDEMPOTENT_PROBER) {
     prober_ = std::make_unique<UdpIdempotentProber>(
         &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_,
-        encodeTimestamp_);
+        encodeTimestamp_, ttlOffset_);
   } else {
     LOG(FATAL) << "Error in creating prober.";
   }
@@ -283,12 +284,13 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
 
     } else {
       prober_ = std::make_unique<UdpProberIpv6>(
-          &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_);
+          &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_,
+          ttlOffset_);
     }
   } else if (proberType == ProberType::UDP_IDEMPOTENT_PROBER) {
     prober_ = std::make_unique<UdpIdempotentProber>(
         &callback, 0, kMainProbePhase, dstPort_, defaultPayloadMessage_,
-        encodeTimestamp_);
+        encodeTimestamp_, ttlOffset_);
   } else {
     LOG(FATAL) << "Error in creating prober.";
   }

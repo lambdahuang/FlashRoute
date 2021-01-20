@@ -50,7 +50,7 @@ class UdpIdempotentProber : public virtual Prober {
                       const uint8_t probePhaseCode,
                       const uint16_t destinationPort,
                       const std::string& payloadMessage,
-                      const bool encodeTimestamp);
+                      const bool encodeTimestamp, const uint8_t ttlOffset);
 
   // Construct probe.
   size_t packProbe(const IpAddress& destinationIp, const IpAddress& sourceIp,
@@ -73,6 +73,7 @@ class UdpIdempotentProber : public virtual Prober {
   int32_t checksumOffset_;
   uint8_t probePhaseCode_;
   uint16_t destinationPort_;
+  uint8_t ttlOffset_;
   std::string payloadMessage_;
   bool encodeTimestamp_;
 

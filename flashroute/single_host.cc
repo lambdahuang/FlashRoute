@@ -46,7 +46,8 @@ void SingleHost::startScan(const std::string& target,
     prober = new UdpProber(&response_handler, 0, 0, dstPort_, "test", true,
                            ttlOffset_);
   } else {
-    prober = new UdpProberIpv6(&response_handler, 0, 0, dstPort_, "test");
+    prober = new UdpProberIpv6(&response_handler, 0, 0, dstPort_, "test",
+                               ttlOffset_);
   }
   NetworkManager networkManager(prober, interface, 100, remoteHost->isIpv4());
   networkManager.startListening();

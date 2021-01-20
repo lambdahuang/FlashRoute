@@ -70,7 +70,7 @@ class UdpProberIpv6 : public virtual Prober {
  public:
   UdpProberIpv6(PacketReceiverCallback* callback, const int32_t checksumOffset,
                 const uint8_t probePhaseCode, const uint16_t destinationPort,
-                const std::string& payloadMessage);
+                const std::string& payloadMessage, const uint8_t ttlOffset);
 
   // Construct probe.
   size_t packProbe(const IpAddress& destinationIp, const IpAddress& sourceIp,
@@ -96,6 +96,7 @@ class UdpProberIpv6 : public virtual Prober {
   PacketReceiverCallback* callback_;
   int32_t checksumOffset_;
   uint8_t probePhaseCode_;
+  uint8_t ttlOffset_;
   uint16_t destinationPort_;
   std::string payloadMessage_;
   bool encodeTimestamp_;
