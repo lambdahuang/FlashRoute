@@ -62,7 +62,7 @@ size_t UdpIdempotentProber::packProbe(const IpAddress& destinationIp,
       *(reinterpret_cast<struct in_addr*>(&destinationIpDecimal));
   packet->ip.ip_src = *(reinterpret_cast<struct in_addr*>(&sourceIpDecimal));
   packet->ip.ip_p = kUdpProtocol;  // UDP protocol
-  packet->ip.ip_ttl = ttl + ttlOffset_;
+  packet->ip.ip_ttl = ttl;
 
   int32_t packetExpectedSize = 0;
   uint8_t groupOfDestination =
@@ -71,8 +71,8 @@ size_t UdpIdempotentProber::packProbe(const IpAddress& destinationIp,
   // packet-size encodes 3-bit destination group.
   packetExpectedSize = (groupOfDestination & 0x7) << 6;
   // packet-size encodes 6-bit: 5-bit TTL and 1 bit for encoding protoType.
-  packetExpectedSize =
-      packetExpectedSize | (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
+  packetExpectedSize = packetExpectedSize | ((ttl - ttlOffset_) & 0x1F) |
+                       ((probePhaseCode_ & 0x1) << 5);
 
   // In OSX, please use: packet->ip.ip_len = packetExpectedSize;
   // Otherwise, you will have an Errno-22.

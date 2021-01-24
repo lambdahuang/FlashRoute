@@ -40,7 +40,7 @@ class DestinationControlBlock {
   /**
    * return current backward ttl and move backward.
    */
-  uint8_t pullBackwardTask();
+  uint8_t pullBackwardTask(int16_t ttlOffset);
 
   /**
    * return true if there is backward probing task.

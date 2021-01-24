@@ -52,7 +52,7 @@ void SingleHost::startScan(const std::string& target,
   NetworkManager networkManager(prober, interface, 100, remoteHost->isIpv4());
   networkManager.startListening();
 
-  for (uint8_t i = 1; i <= 32; i ++) {
+  for (uint8_t i = 1 + ttlOffset_; i <= 32 + ttlOffset_; i ++) {
     networkManager.scheduleProbeRemoteHost(*remoteHost, i);
   }
 

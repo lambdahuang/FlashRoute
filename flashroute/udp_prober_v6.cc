@@ -82,7 +82,7 @@ size_t UdpProberIpv6::packProbe(const IpAddress& destinationIp,
   packet->ip.ip6_ctlun.ip6_un1.ip6_un1_flow =
       htonl((6 << 28) | (0 << 20) | (destinationChecksum & 0xFFFFF));
   packet->ip.ip6_ctlun.ip6_un1.ip6_un1_nxt = kUdpProtocol;
-  packet->ip.ip6_ctlun.ip6_un1.ip6_un1_hlim = ttl + ttlOffset_;
+  packet->ip.ip6_ctlun.ip6_un1.ip6_un1_hlim = ttl;
 
   memcpy(&(packet->ip.ip6_dst), &destinationIpDecimal, sizeof(absl::uint128));
   memcpy(&(packet->ip.ip6_src), &sourceIpDecimal, sizeof(absl::uint128));

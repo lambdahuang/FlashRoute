@@ -58,11 +58,11 @@ size_t UdpProber::packProbe(const IpAddress& destinationIp,
       *(reinterpret_cast<struct in_addr*>(&destinationIpDecimal));
   packet->ip.ip_src = *(reinterpret_cast<struct in_addr*>(&sourceIpDecimal));
   packet->ip.ip_p = kUdpProtocol;  // UDP protocol
-  packet->ip.ip_ttl = ttl + ttlOffset_;
+  packet->ip.ip_ttl = ttl;
   // ipid: 5-bit for encoding intiial TTL, 1 bit for encoding probeType, 10-bit
   // for encoding timestamp.
   // 0x3FF = 2^10 to extract first 10-bit of timestamp
-  uint16_t ipid = (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
+  uint16_t ipid = ((ttl - ttlOffset_) & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
   int32_t packetExpectedSize = 128;
 
   if (encodeTimestamp_) {
