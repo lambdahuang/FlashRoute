@@ -53,7 +53,7 @@ void SingleHost::startScan(const std::string& target,
   networkManager.startListening();
 
   for (uint8_t i = 1; i <= 32; i ++) {
-    networkManager.schedualProbeRemoteHost(*remoteHost, i);
+    networkManager.scheduleProbeRemoteHost(*remoteHost, i);
   }
 
   sleep(3);

@@ -34,7 +34,7 @@ namespace flashroute {
  * );
  *
  * // Pass prober instance to network manager, so users can call
- * schedualProbeRemoteHost to issue probe or process responses in callback func.
+ * scheduleProbeRemoteHost to issue probe or process responses in callback func.
  * NetworkManager networkManager(
  *  &prober,  // The prober to process packets.
  *  "eth0",   // The interface to send the probe.

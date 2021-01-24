@@ -241,7 +241,7 @@ void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
   LOG(INFO) << "Start preprobing.";
   uint64_t dcbCount = dcbManager_->liveDcbSize();
   for (uint64_t i = 0; i < dcbCount && !stopProbing_; i++) {
-    networkManager_->schedualProbeRemoteHost(*(dcbManager_->next()->ipAddress),
+    networkManager_->scheduleProbeRemoteHost(*(dcbManager_->next()->ipAddress),
                                            defaultPreprobingTTL_ - ttlOffset_);
   }
   std::this_thread::sleep_for(
@@ -348,12 +348,12 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
       } else {
         if (forwardProbingMark_ && hasForwardTask) {
           // forward probing
-          networkManager_->schedualProbeRemoteHost(
+          networkManager_->scheduleProbeRemoteHost(
               *dcb.ipAddress, nextForwardTask);
         }
         if (hasBackwardTask) {
           // backward probing
-          networkManager_->schedualProbeRemoteHost(
+          networkManager_->scheduleProbeRemoteHost(
               *dcb.ipAddress, nextBackwardTask);
         }
       }

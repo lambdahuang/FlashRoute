@@ -73,7 +73,7 @@ void NetworkManager::probeRemoteHost(const IpAddress& destinationIp,
   sendRawPacket(buffer, packetSize);
 }
 
-void NetworkManager::schedualProbeRemoteHost(const IpAddress& destinationIp,
+void NetworkManager::scheduleProbeRemoteHost(const IpAddress& destinationIp,
                                              const uint8_t ttl) {
   if (expectedRate_ >= 1) {
     if (destinationIp.isIpv4()) {
