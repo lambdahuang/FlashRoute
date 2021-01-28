@@ -18,7 +18,7 @@ class DcbManager {
   int32_t scanRound = 0;
 
   explicit DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
-                      const uint32_t seed);
+                      const uint32_t seed, const bool coarseFind);
 
   // return true if there is any dcb in iteration list.
   bool hasNext();

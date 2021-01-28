@@ -10,7 +10,7 @@ namespace flashroute {
 // When granularity has been set to 0, it will be updated based on the type of
 // the first inserted address.
 DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
-                       const uint32_t seed)
+                       const uint32_t seed, const bool coarseFind)
     : scanRound(0),
       liveDcbCount_(0),
       granularity_(granularity),
@@ -25,11 +25,14 @@ DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
           new std::unordered_map<IpAddress*, DestinationControlBlock*,
                                  IpAddressHash, IpAddressEquality>());
 
-  coarseMap_ = std::unique_ptr<
-      std::unordered_map<IpNetwork*, std::vector<DestinationControlBlock*>,
-                         IpNetworkHash, IpNetworkEquality>>(
-      new std::unordered_map<IpNetwork*, std::vector<DestinationControlBlock*>,
-                             IpNetworkHash, IpNetworkEquality>());
+  if (coarseFind) {
+    coarseMap_ = std::unique_ptr<
+        std::unordered_map<IpNetwork*, std::vector<DestinationControlBlock*>,
+                           IpNetworkHash, IpNetworkEquality>>(
+        new std::unordered_map<IpNetwork*,
+                               std::vector<DestinationControlBlock*>,
+                               IpNetworkHash, IpNetworkEquality>());
+  }
 
   map_->reserve(reservedSpace);
   coarseMap_->reserve(reservedSpace);
@@ -114,6 +117,7 @@ DestinationControlBlock* DcbManager::getDcbByAddress(
 
 std::vector<DestinationControlBlock*>* DcbManager::getDcbsByAddress(
     const IpAddress& pseudo) const {
+  if (coarseMap_.get() == nullptr) return nullptr;
   IpNetwork ipNetwork(pseudo, granularity_);
   auto result = coarseMap_->find(&ipNetwork);
   if (result != coarseMap_->end()) {
@@ -219,7 +223,8 @@ void DcbManager::reset() {
       } else {
         // If dcb does not have preprobing result, new TTL is generated based on
         // the lastest forward probed hop.
-        it->second->resetProbingProgress(rand() % it->second->peekForwardHop() + 1);
+        it->second->resetProbingProgress(rand() % it->second->peekForwardHop() +
+                                         1);
       }
     }
   }
@@ -267,6 +272,7 @@ void DcbManager::swapDcbElementSequence(DestinationControlBlock* x,
 }
 
 void DcbManager::addToCoarseMap(DestinationControlBlock* dcb) {
+  if (coarseMap_.get() == nullptr) return;
   IpNetwork* ipNetwork = new IpNetwork(*dcb->ipAddress, granularity_);
   auto result = coarseMap_->find(ipNetwork);
   if (result != coarseMap_->end()) {

@@ -16,11 +16,13 @@ class Targets {
 
   // Load targets from file.
   DcbManager* loadTargetsFromFile(absl::string_view filePath,
-                                  const uint8_t granularity) const;
+                                  const uint8_t granularity,
+                                  const bool preprobingSupport) const;
 
   // Generate targets from a range.
   DcbManager* generateTargetsFromNetwork(absl::string_view targetNetwork,
-                                        const uint8_t granularity) const;
+                                         const uint8_t granularity,
+                                         const bool preprobingSupport) const;
 
  private:
   Blacklist* blacklist_;

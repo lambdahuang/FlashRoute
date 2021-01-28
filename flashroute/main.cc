@@ -237,11 +237,13 @@ int main(int argc, char* argv[]) {
     // Load targets.
     if (!absl::GetFlag(FLAGS_targets).empty()) {
       dcbManager = targetLoader.loadTargetsFromFile(
-          absl::GetFlag(FLAGS_targets), static_cast<uint8_t>(absl::GetFlag(
-                                            FLAGS_distance_prediction_prefix)));
+          absl::GetFlag(FLAGS_targets),
+          static_cast<uint8_t>(absl::GetFlag(FLAGS_distance_prediction_prefix)),
+          absl::GetFlag(FLAGS_preprobing));
     } else {
       dcbManager = targetLoader.generateTargetsFromNetwork(
-          target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
+          target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)),
+          absl::GetFlag(FLAGS_preprobing));
     }
 
     // check if the scan is for ipv4 or ipv6.
