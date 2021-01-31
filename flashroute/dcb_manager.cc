@@ -24,6 +24,7 @@ DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
                                          IpAddressHash, IpAddressEquality>>(
           new std::unordered_map<IpAddress*, DestinationControlBlock*,
                                  IpAddressHash, IpAddressEquality>());
+  map_->reserve(reservedSpace);
 
   if (coarseFind) {
     coarseMap_ = std::unique_ptr<
@@ -32,10 +33,9 @@ DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
         new std::unordered_map<IpNetwork*,
                                std::vector<DestinationControlBlock*>,
                                IpNetworkHash, IpNetworkEquality>());
+    coarseMap_->reserve(reservedSpace);
   }
 
-  map_->reserve(reservedSpace);
-  coarseMap_->reserve(reservedSpace);
 
   // insert the special dcb.
   specialDcb_ = addDcb(Ipv4Address(0), 0);

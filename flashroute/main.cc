@@ -239,11 +239,11 @@ int main(int argc, char* argv[]) {
       dcbManager = targetLoader.loadTargetsFromFile(
           absl::GetFlag(FLAGS_targets),
           static_cast<uint8_t>(absl::GetFlag(FLAGS_distance_prediction_prefix)),
-          absl::GetFlag(FLAGS_preprobing));
+          absl::GetFlag(FLAGS_distance_prediction));
     } else {
       dcbManager = targetLoader.generateTargetsFromNetwork(
           target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)),
-          absl::GetFlag(FLAGS_preprobing));
+          absl::GetFlag(FLAGS_distance_prediction));
     }
 
     // check if the scan is for ipv4 or ipv6.
