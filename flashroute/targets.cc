@@ -81,7 +81,7 @@ DcbManager* Targets::generateTargetsFromNetwork(
   IpAddress* targetNetworkLastAddress_ =
       getLastAddressOfBlock(*targetBaseAddress, subnetPrefixLength);
 
-  if (targetNetworkFirstAddress_ >= targetNetworkLastAddress_) {
+  if (*targetNetworkFirstAddress_ >= *targetNetworkLastAddress_) {
     LOG(FATAL) << "Ip address range is incorrect.";
   }
 

@@ -31,7 +31,7 @@ namespace flashroute {
 // /24 ip address block, the corresponding value is 24
 const uint8_t kProbingGranularity = 24;
 
-const uint32_t kDiscoverySetCapacity = 100000;
+const uint32_t kDiscoverySetCapacity = 100;
 
 const uint32_t kThreadPoolSize = 2;
 
