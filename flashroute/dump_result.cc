@@ -90,7 +90,7 @@ size_t ResultDumper::binaryDumping(uint8_t* buffer, const size_t maxSize,
   *reinterpret_cast<absl::uint128*>(buffer + 0) = dataElement.destination;
   *reinterpret_cast<absl::uint128*>(buffer + 16) = dataElement.responder;
 
-  *reinterpret_cast<uint8_t*>(buffer + 32) = dataElement.rtt;
+  *reinterpret_cast<uint32_t*>(buffer + 32) = dataElement.rtt;
   *reinterpret_cast<uint8_t*>(buffer + 36) = dataElement.distance;
   *reinterpret_cast<uint8_t*>(buffer + 37) = dataElement.fromDestination;
   *reinterpret_cast<uint8_t*>(buffer + 38) = dataElement.ipv4;
