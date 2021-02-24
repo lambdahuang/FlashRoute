@@ -36,7 +36,6 @@ ResultDumper::ResultDumper(const std::string& resultFilepath)
 }
 
 ResultDumper::~ResultDumper() {
-  stopDumping_ = true;
   threadPool_->join();
   VLOG(2) << "ResultDumper: ResultDumper recycled. " << dumpedCount_
           << " responses have been dumped.";
