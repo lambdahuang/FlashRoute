@@ -168,7 +168,7 @@ void printFlags() {
 }
 
 int main(int argc, char* argv[]) {
-  FLAGS_logtostderr = 1;
+  FLAGS_alsologtostderr = 1;
 
   google::InitGoogleLogging(argv[0]);
   absl::SetProgramUsageMessage("This program does nothing.");
