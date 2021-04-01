@@ -65,7 +65,7 @@ void ResultDumper::scheduleDumpData(const IpAddress& destination,
 
 void ResultDumper::runDumpingThread() {
   VLOG(2) << "ResultDumper: Dumping thread initialized.";
-  while (!stopDumping_ || !dumpingBuffer_->empty()) {
+  while (!stopDumping_ && !dumpingBuffer_->empty()) {
     std::ofstream dumpFile;
     dumpFile.open(resultFilepath_, std::ofstream::binary | std::ofstream::app);
     uint8_t buffer[kDumpingTmpBufferSize];
