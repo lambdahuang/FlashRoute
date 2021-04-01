@@ -36,6 +36,12 @@ ResultDumper::ResultDumper(const std::string& resultFilepath)
 }
 
 ResultDumper::~ResultDumper() {
+  while (!dumpingBuffer_->empty()) {
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(100));
+  }
+  stopDumping_ = true;
+
   threadPool_->join();
   VLOG(2) << "ResultDumper: ResultDumper recycled. " << dumpedCount_
           << " responses have been dumped.";
@@ -65,7 +71,7 @@ void ResultDumper::scheduleDumpData(const IpAddress& destination,
 
 void ResultDumper::runDumpingThread() {
   VLOG(2) << "ResultDumper: Dumping thread initialized.";
-  while (!stopDumping_ && !dumpingBuffer_->empty()) {
+  while (!stopDumping_) {
     std::ofstream dumpFile;
     dumpFile.open(resultFilepath_, std::ofstream::binary | std::ofstream::app);
     uint8_t buffer[kDumpingTmpBufferSize];
