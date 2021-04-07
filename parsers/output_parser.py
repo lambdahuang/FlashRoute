@@ -1,5 +1,4 @@
 from struct import unpack
-import argparse
 import ipaddress
 
 class Result:
@@ -27,23 +26,7 @@ class FlashRouteParser:
     def next(self) -> Result:
         file_content = self.file.read(39)
         if (len(file_content) < 39):
-            print("under flow")
             return None
         [dest_ip, _, _, _, resp_ip, _, _, _, rtt,
             distance, from_dest, ipv4_addr] = unpack("IIIIIIIIIB??", file_content)
         return Result(dest_ip, resp_ip, rtt, distance, from_dest, ipv4_addr)
-
-
-if __name__ == "__main__":
-    argument_parser = argparse.ArgumentParser(
-        description='Parse output of FlashRoute.')
-    argument_parser.add_argument("-f", type=str, required=True,
-                                 help='Parse output of FlashRoute.')
-    args = argument_parser.parse_args()
-    flashroute_parser = FlashRouteParser(args.f)
-    while(True):
-        result = flashroute_parser.next()
-        if result is None:
-            break
-        print(result)
-

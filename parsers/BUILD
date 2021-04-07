@@ -1,12 +1,30 @@
-# load("@parser_dependencies//:requirements.bzl", "requirement")
-# load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+load("@parsers_deps//:requirements.bzl", "requirement")
 
-# py_binary(
-#     name = "tcpdump_parser",
-#     srcs = ["tcpdump_parser.py"],
-#     python_version = "PY3",
-#     deps = [
-#         requirement("scapy"),
-#     ],
-# )
+py_library(
+    name = "output_parser",
+    srcs = ["output_parser.py"],
+)
 
+
+py_binary(
+    name = "example",
+    srcs = ["example.py"],
+    python_version = "PY3",
+    deps = [
+        requirement("glog"),
+        ":output_parser"
+    ],
+)
+
+py_binary(
+    name = "jupyter",
+    srcs = ["jupyter.py"],
+    python_version = "PY3",
+    deps = [
+        requirement("notebook"),
+        requirement("glog"),
+        requirement("pandas"),
+        requirement("matplotlib"),
+        ":output_parser"
+    ],
+)
