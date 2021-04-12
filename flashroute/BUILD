@@ -106,6 +106,7 @@ cc_library(
     deps = [
         "@com_google_absl//absl/random",
     ],
+    visibility = ["//visibility:public"],
     copts = ["-std=c++14"],
 )
 
