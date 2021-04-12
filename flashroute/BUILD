@@ -226,6 +226,7 @@ cc_library(
     hdrs = ["dump_result.h"],
     srcs = ["dump_result.cc"],
     copts = ["-std=c++14"],
+    visibility = ["//visibility:public"],
     deps = [
         ":address",
         ":utils",
