@@ -46,6 +46,7 @@ class ResultDumper {
   bool stopDumping_;
 
   uint64_t dumpedCount_;
+  uint64_t scheduledCount_;
 
   // Dumping thread.
   void runDumpingThread();

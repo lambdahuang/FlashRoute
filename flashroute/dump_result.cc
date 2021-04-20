@@ -15,7 +15,10 @@ const uint32_t kDumpingIntervalMs = 100;      // Sleep interval.
 const uint32_t kDumpingBufferSize = 100000;
 
 ResultDumper::ResultDumper(const std::string& resultFilepath)
-    : resultFilepath_(resultFilepath), stopDumping_(false), dumpedCount_(0) {
+    : resultFilepath_(resultFilepath),
+      stopDumping_(false),
+      dumpedCount_(0),
+      scheduledCount_(0) {
   resultFilepath_ = resultFilepath;
   threadPool_ = std::make_unique<boost::asio::thread_pool>(kThreadPoolSize);
   dumpingBuffer_ =
@@ -43,8 +46,9 @@ ResultDumper::~ResultDumper() {
   stopDumping_ = true;
 
   threadPool_->join();
-  VLOG(2) << "ResultDumper: ResultDumper recycled. " << dumpedCount_
-          << " responses have been dumped.";
+  VLOG(2) << "ResultDumper: ResultDumper recycled.";
+  VLOG(2) << "ResultDumper:" << scheduledCount_ << " scheduled " << dumpedCount_
+          << " dumped.";
 }
 
 void ResultDumper::scheduleDumpData(const IpAddress& destination,
@@ -52,6 +56,7 @@ void ResultDumper::scheduleDumpData(const IpAddress& destination,
                                     uint8_t distance, uint32_t rtt,
                                     bool fromDestination, bool ipv4,
                                     void* buffer, size_t size) {
+  scheduledCount_++;
   if (!stopDumping_) {
     absl::uint128 destinationAddr = 0;
     absl::uint128 responderAddr = 0;
