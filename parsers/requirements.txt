@@ -1,1 +1,4 @@
 glog
+notebook
+pandas
+matplotlib

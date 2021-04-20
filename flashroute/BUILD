@@ -106,6 +106,7 @@ cc_library(
     deps = [
         "@com_google_absl//absl/random",
     ],
+    visibility = ["//visibility:public"],
     copts = ["-std=c++14"],
 )
 
@@ -226,6 +227,7 @@ cc_library(
     hdrs = ["dump_result.h"],
     srcs = ["dump_result.cc"],
     copts = ["-std=c++14"],
+    visibility = ["//visibility:public"],
     deps = [
         ":address",
         ":utils",
