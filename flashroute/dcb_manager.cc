@@ -44,6 +44,37 @@ DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
   liveDcbCount_ = 0;
 }
 
+void DcbManager::releaseCoarseMapping() {
+  if (coarseMap_.get() != nullptr) {
+    while (!coarseMap_->empty()) {
+      auto element = coarseMap_->begin();
+      auto keyAddress = element->first;
+      coarseMap_->erase(keyAddress);
+      delete keyAddress;
+    }
+    VLOG(2) << "DcbManager: coarse address mapping is released.";
+  }
+}
+
+void DcbManager::releaseAccurateMapping() {
+  if (map_.get() != nullptr) {
+    while (!map_->empty()) {
+      auto element = map_->begin();
+      auto keyAddress = element->first;
+      map_->erase(keyAddress);
+      delete keyAddress;
+    }
+
+    VLOG(2) << "DcbManager: accurate address mapping is released.";
+  }
+}
+
+DcbManager::~DcbManager() {
+  releaseCoarseMapping();
+  releaseAccurateMapping();
+  VLOG(2) << "DcbManager: cleanup is finished.";
+}
+
 bool DcbManager::hasNext() {
   if (liveDcbCount_ == 0)
     return false;
