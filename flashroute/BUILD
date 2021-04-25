@@ -176,6 +176,7 @@ cc_binary(
         ":targets",
         ":utils",
         ":single_host",
+        ":output_parser",
         "@boost//:asio",
         "@boost//:format",
         "@com_google_absl//absl/flags:flag",
@@ -249,5 +250,17 @@ cc_library(
         ":dcb_manager",
         "//external:glog",
         "@boost//:format",
+    ],
+)
+
+cc_library(
+    name = "output_parser",
+    hdrs = ["output_parser.h"],
+    srcs = ["output_parser.cc"],
+    copts = ["-std=c++14"],
+    deps = [
+        ":utils",
+        ":dcb_manager",
+        "//external:glog",
     ],
 )

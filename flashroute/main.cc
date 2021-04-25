@@ -23,6 +23,7 @@
 #include "flashroute/udp_prober_v6.h"
 #include "flashroute/utils.h"
 #include "flashroute/single_host.h"
+#include "flashroute/output_parser.h"
 
 ABSL_FLAG(bool, recommended_mode, false,
           "Use recommended configuration.");
@@ -73,6 +74,11 @@ ABSL_FLAG(int16_t, gaplimit, 5,
 // Optimization: Backward probing.
 ABSL_FLAG(bool, remove_redundancy, true,
           "Remove redundancy in backward probing.");
+
+// Optimization: Read route length information from history probing result.
+
+ABSL_FLAG(std::string, history_probing_result, "",
+          "Read history result to optimize the coming probing.");
 
 // Miscellaneous
 ABSL_FLAG(std::string, output, "", "Output path.");
@@ -244,6 +250,13 @@ int main(int argc, char* argv[]) {
       dcbManager = targetLoader.generateTargetsFromNetwork(
           target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)),
           absl::GetFlag(FLAGS_distance_prediction));
+    }
+
+    // Learn route length from the history
+    if (!absl::GetFlag(FLAGS_history_probing_result).empty()) {
+      LOG(INFO) << "Update split TTL based on the history scan.";
+      updateDcbsBasedOnHistory(absl::GetFlag(FLAGS_history_probing_result),
+                               dcbManager);
     }
 
     // check if the scan is for ipv4 or ipv6.

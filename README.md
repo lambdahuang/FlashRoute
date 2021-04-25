@@ -196,6 +196,8 @@ sudo ./bazel-bin/flashroute/flashroute --interface eth0 --granularity 48 2607:f8
 
 `--remove_redundancy` Enable Doubletree-based redundancy removal in backward probing. By default, enabled.
 
+`--history_probing_result` Optmize the scan based on the history.
+
 ---
 
 `--sequential_scan` Specify the scan all destinations in a sequantial way, otherwise, following random sequence.
