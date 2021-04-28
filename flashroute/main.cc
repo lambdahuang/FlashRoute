@@ -135,6 +135,8 @@ void signalHandler(int signalNumber) {
 
 void printFlags() {
   VLOG(1) << boost::format("Boost version: %|30t|%1%") % BOOST_LIB_VERSION;
+
+  VLOG(1) << " ========== Network ========== ";
   VLOG(1) << boost::format("Prober Type: %|30t|%1%") %
                  ((absl::GetFlag(FLAGS_prober_type).compare("udp") == 0)
                       ? "udp"
@@ -150,6 +152,9 @@ void printFlags() {
                    (absl::GetFlag(FLAGS_sequential_scan) ? "true" : "false");
   VLOG(1) << boost::format("Probing rate: %|30t|%1% Packet Per Second") %
                    absl::GetFlag(FLAGS_probing_rate);
+
+  VLOG(1) << " ========== Experiment Feature ========== ";
+
   VLOG(1) << boost::format("Scan granularity: %|30t|%1%") %
                    absl::GetFlag(FLAGS_granularity);
   VLOG(1) << boost::format("Preprobing: %|30t|%1%") %
@@ -171,6 +176,11 @@ void printFlags() {
                    absl::GetFlag(FLAGS_seed);
   VLOG(1) << boost::format("Scan Count: %|30t|%1%") %
                    absl::GetFlag(FLAGS_scan_count);
+
+  VLOG(1) << " ========== Miscellaneous ========== ";
+  VLOG(1) << boost::format("Hitlist: %|30t|%1%") % absl::GetFlag(FLAGS_hitlist);
+  VLOG(1) << boost::format("Target: %|30t|%1%") % absl::GetFlag(FLAGS_targets);
+  VLOG(1) << boost::format("Output: %|30t|%1%") % absl::GetFlag(FLAGS_output);
 }
 
 int main(int argc, char* argv[]) {
