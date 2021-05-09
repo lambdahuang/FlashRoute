@@ -157,6 +157,7 @@ cc_library(
     deps = [
         ":address",
         ":blacklist",
+        ":bogon_filter",
         ":dcb_manager",
         ":utils",
         "//external:glog",
@@ -177,6 +178,7 @@ cc_binary(
         ":utils",
         ":single_host",
         ":output_parser",
+        ":bogon_filter",
         "@boost//:asio",
         "@boost//:format",
         "@com_google_absl//absl/flags:flag",
@@ -191,6 +193,7 @@ cc_test(
     srcs = ["utils_test.cc"],
     deps = [
         ":utils",
+        ":address",
         "@googletest//:gtest_main",
     ],
 )
@@ -262,5 +265,40 @@ cc_library(
         ":utils",
         ":dcb_manager",
         "//external:glog",
+    ],
+)
+
+cc_library(
+    name = "trie",
+    hdrs = ["trie.h"],
+    srcs = ["trie.cc"],
+    copts = ["-std=c++14"],
+    deps = [
+        ":utils",
+        ":address",
+        "//external:glog",
+    ],
+)
+
+cc_library(
+    name = "bogon_filter",
+    hdrs = ["bogon_filter.h"],
+    srcs = ["bogon_filter.cc"],
+    copts = ["-std=c++14"],
+    deps = [
+        ":utils",
+        ":trie",
+        "//external:glog",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "trie_test",
+    srcs = ["trie_test.cc"],
+    deps = [
+        ":utils",
+        ":trie",
+        "@googletest//:gtest_main",
     ],
 )

@@ -10,18 +10,20 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include <boost/format.hpp>
-#include "glog/logging.h"
-
 #include "flashroute/blacklist.h"
 #include "flashroute/dcb_manager.h"
 #include "flashroute/utils.h"
+#include "glog/logging.h"
+#include <boost/format.hpp>
 
 namespace flashroute {
 
 Targets::Targets(const uint8_t defaultSplitTtl, const uint32_t seed,
-                 Blacklist* blacklist)
-    : blacklist_(blacklist), defaultSplitTtl_(defaultSplitTtl), seed_(seed) {}
+                 Blacklist* blacklist, BogonFilter* bogerFilter)
+    : blacklist_(blacklist),
+      bogerFilter_(bogerFilter),
+      defaultSplitTtl_(defaultSplitTtl),
+      seed_(seed) {}
 
 DcbManager* Targets::loadTargetsFromFile(
     absl::string_view filePath, const uint8_t granularity,
@@ -44,7 +46,8 @@ DcbManager* Targets::loadTargetsFromFile(
       if (result == NULL) continue;
       auto ip = std::unique_ptr<IpAddress>(result);
       // Set ip address
-      if (blacklist_ != nullptr && !blacklist_->contains(*ip)) {
+      if ((blacklist_ == nullptr || !blacklist_->contains(*ip)) &&
+          (bogerFilter_ == nullptr || !bogerFilter_->isBogonAddress(*ip))) {
         dcbManager->addDcb(*ip, defaultSplitTtl_);
       }
       count++;
@@ -100,18 +103,26 @@ DcbManager* Targets::generateTargetsFromNetwork(
 
     // set random seed.
     std::srand(seed_);
+    uint32_t actualCount = 0;
+    uint32_t bogonCount = 0;
     for (uint64_t i = 0; i < dcbCount; i++) {
       // randomly generate IP addresse avoid the first and last ip address
       // in the block.
       Ipv4Address tmp(targetNetworkFirstAddress_->getIpv4Address() +
                       ((i) << (32 - granularity)) +
                       (rand() % (blockFactor_ - 3)) + 2);
-      if (blacklist_ != nullptr && !blacklist_->contains(tmp)) {
+
+      if ((blacklist_ == nullptr || !blacklist_->contains(tmp)) &&
+          (bogerFilter_ == nullptr || !bogerFilter_->isBogonAddress(tmp))) {
         dcbManager->addDcb(tmp, defaultSplitTtl_);
+        actualCount++;
+      } else if (bogerFilter_ != nullptr && bogerFilter_->isBogonAddress(tmp)) {
+        bogonCount ++;
       }
     }
     VLOG(2) << boost::format("Created %1% entries (1 reserved dcb).") %
-                   dcbCount;
+                   actualCount;
+    LOG(INFO) << "BOGON COUNT " << bogonCount;
   } else {
     absl::uint128 targetNetworkSize =
         ntohll(targetNetworkLastAddress_->getIpv6Address()) -
@@ -123,6 +134,7 @@ DcbManager* Targets::generateTargetsFromNetwork(
         static_cast<absl::uint128>(targetNetworkSize / blockFactor_);
 
     // set random seed.
+    absl::uint128 actualCount = 0;
     std::srand(seed_);
     for (absl::uint128 i = 0; i < dcbCount; i++) {
       // randomly generate IP addresse avoid the first and last ip address
@@ -132,9 +144,10 @@ DcbManager* Targets::generateTargetsFromNetwork(
           ((i) << (128 - granularity)) + (rand() % (blockFactor_ - 3)) + 2));
       if (blacklist_ != nullptr && !blacklist_->contains(tmp)) {
         dcbManager->addDcb(tmp, defaultSplitTtl_);
+        actualCount++;
       }
     }
-    VLOG(2) << "Created " << dcbCount << " entries (1 reserved dcb).";
+    VLOG(2) << "Created " << actualCount << " entries (1 reserved dcb).";
   }
 
   return dcbManager;

@@ -24,6 +24,7 @@
 #include "flashroute/utils.h"
 #include "flashroute/single_host.h"
 #include "flashroute/output_parser.h"
+#include "flashroute/bogon_filter.h"
 
 ABSL_FLAG(bool, recommended_mode, false,
           "Use recommended configuration.");
@@ -81,6 +82,9 @@ ABSL_FLAG(std::string, history_probing_result, "",
           "Read history result to optimize the coming probing.");
 
 // Miscellaneous
+
+ABSL_FLAG(std::string, bogon_filter_potaroo, "",
+          "Bogon filter input in potaroo format.");
 ABSL_FLAG(std::string, output, "", "Output path.");
 
 ABSL_FLAG(std::string, tcpdump_output, "", "Tcpdump output path.");
@@ -238,11 +242,15 @@ int main(int argc, char* argv[]) {
     blacklist.loadRulesFromFile(absl::GetFlag(FLAGS_blacklist));
 
     // Remove reserved addresses.
-    if (absl::GetFlag(FLAGS_remove_reserved_addresses))
+    if (absl::GetFlag(FLAGS_remove_reserved_addresses)) {
       blacklist.loadRulesFromReservedAddress();
-    LOG(INFO) << "Load " << blacklist.size() << " blacklist rules.";
+      LOG(INFO) << "Load " << blacklist.size() << " blacklist rules.";
+    }
 
-    Targets targetLoader(absl::GetFlag(FLAGS_split_ttl), seed, &blacklist);
+    BogonFilter bogonFilter{absl::GetFlag(FLAGS_bogon_filter_potaroo)};
+
+    Targets targetLoader(absl::GetFlag(FLAGS_split_ttl), seed, &blacklist,
+                         &bogonFilter);
 
     ResultDumper* resultDumper = nullptr;
     if (!absl::GetFlag(FLAGS_output).empty()) {
