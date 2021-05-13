@@ -1,14 +1,16 @@
 #include "bogon_filter.h"
 
+#include <algorithm>
 #include <fstream>
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_split.h"
+#include "flashroute/utils.h"
 #include "glog/logging.h"
 
-#include "flashroute/utils.h"
-
 namespace flashroute {
+
+const uint32_t kNormalizeBgpPrefix =16;
 
 BogonFilter::BogonFilter(const std::string& filePath) {
   initialized_ = false;
@@ -35,6 +37,8 @@ BogonFilter::BogonFilter(const std::string& filePath) {
 
       std::unique_ptr<IpAddress> targetBaseAddress{
           parseIpFromStringToIpAddress(std::string(parts[0]))};
+
+      subnetPrefixLength = std::min(kNormalizeBgpPrefix, subnetPrefixLength);
       trie_->insert(*targetBaseAddress, subnetPrefixLength);
     }
   }
