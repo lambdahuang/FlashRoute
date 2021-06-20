@@ -191,13 +191,13 @@ void printFlags() {
 }
 
 int main(int argc, char* argv[]) {
+  absl::SetProgramUsageMessage("FlashRoute");
+  absl::ParseCommandLine(argc, argv);
   FLAGS_alsologtostderr = 1;
   std::string logOutput = absl::GetFlag(FLAGS_output) + "_log";
 
   google::InitGoogleLogging(argv[0]);
   google::SetLogDestination(0, logOutput.c_str());
-  absl::SetProgramUsageMessage("This program does nothing.");
-  absl::ParseCommandLine(argc, argv);
 
   if (absl::GetFlag(FLAGS_vverbose)) {
     FLAGS_v = 2;
