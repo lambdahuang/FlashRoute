@@ -10,7 +10,7 @@
 
 namespace flashroute {
 
-const uint32_t kNormalizeBgpPrefix =16;
+const uint32_t kNormalizeBgpPrefix = 32;
 
 BogonFilter::BogonFilter(const std::string& filePath) {
   initialized_ = false;

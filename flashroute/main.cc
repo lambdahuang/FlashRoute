@@ -182,9 +182,12 @@ void printFlags() {
                    absl::GetFlag(FLAGS_scan_count);
 
   VLOG(1) << " ========== Miscellaneous ========== ";
-  VLOG(1) << boost::format("Hitlist: %|30t|%1%") % absl::GetFlag(FLAGS_hitlist);
-  VLOG(1) << boost::format("Target: %|30t|%1%") % absl::GetFlag(FLAGS_targets);
-  VLOG(1) << boost::format("Output: %|30t|%1%") % absl::GetFlag(FLAGS_output);
+  VLOG(1) << boost::format("Backlist: %|15t|%1%") % absl::GetFlag(FLAGS_blacklist);
+  VLOG(1) << boost::format("Bgp: %|15t|%1%") % absl::GetFlag(FLAGS_bogon_filter_potaroo);
+  VLOG(1) << boost::format("Hishotry: %|15t|%1%") % absl::GetFlag(FLAGS_history_probing_result);
+  VLOG(1) << boost::format("Hitlist: %|15t|%1%") % absl::GetFlag(FLAGS_hitlist);
+  VLOG(1) << boost::format("Target: %|15t|%1%") % absl::GetFlag(FLAGS_targets);
+  VLOG(1) << boost::format("Output: %|15t|%1%") % absl::GetFlag(FLAGS_output);
 }
 
 int main(int argc, char* argv[]) {

@@ -4,7 +4,7 @@
 
 namespace flashroute {
 
-bool getSignificantBitFromIpv4Address(const IpAddress& addr, int position) {
+bool getSignificantBitFromIpv4AddressByIndex(const IpAddress& addr, int position) {
   auto decimalAddr = addr.getIpv4Address();
   return (decimalAddr >> (32 - position)) & 1;
 }
@@ -16,7 +16,8 @@ bool TrieManager::checkAddressContained(const IpAddress& dest) {
   TrieNode* tmp = root_.get();
   if (ipv4_) {
     for (int i = 1; i <= 32; i++) {
-      bool result = getSignificantBitFromIpv4Address(dest, i);
+      if (tmp->end == true) return true;
+      bool result = getSignificantBitFromIpv4AddressByIndex(dest, i);
       if (result) {
         if (tmp->one.get() == nullptr) {
           return tmp->end;
@@ -43,7 +44,7 @@ void TrieManager::insert(const IpAddress& dest, const uint32_t length) {
     if (length > 32)
       LOG(FATAL) << "Prefix length is greater than the max length of address.";
     for (uint32_t i = 1; i <= length; i++) {
-      bool result = getSignificantBitFromIpv4Address(dest, i);
+      bool result = getSignificantBitFromIpv4AddressByIndex(dest, i);
       if (result) {
         if (tmp->one.get() == nullptr) {
           tmp->one = std::make_unique<TrieNode>(false);
