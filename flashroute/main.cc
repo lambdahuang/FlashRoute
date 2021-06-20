@@ -184,7 +184,7 @@ void printFlags() {
   VLOG(1) << " ========== Miscellaneous ========== ";
   VLOG(1) << boost::format("Backlist: %|15t|%1%") % absl::GetFlag(FLAGS_blacklist);
   VLOG(1) << boost::format("Bgp: %|15t|%1%") % absl::GetFlag(FLAGS_bogon_filter_potaroo);
-  VLOG(1) << boost::format("Hishotry: %|15t|%1%") % absl::GetFlag(FLAGS_history_probing_result);
+  VLOG(1) << boost::format("History: %|15t|%1%") % absl::GetFlag(FLAGS_history_probing_result);
   VLOG(1) << boost::format("Hitlist: %|15t|%1%") % absl::GetFlag(FLAGS_hitlist);
   VLOG(1) << boost::format("Target: %|15t|%1%") % absl::GetFlag(FLAGS_targets);
   VLOG(1) << boost::format("Output: %|15t|%1%") % absl::GetFlag(FLAGS_output);
@@ -192,8 +192,10 @@ void printFlags() {
 
 int main(int argc, char* argv[]) {
   FLAGS_alsologtostderr = 1;
+  std::string logOutput = absl::GetFlag(FLAGS_output) + "_log";
 
   google::InitGoogleLogging(argv[0]);
+  google::SetLogDestination(0, logOutput.c_str());
   absl::SetProgramUsageMessage("This program does nothing.");
   absl::ParseCommandLine(argc, argv);
 

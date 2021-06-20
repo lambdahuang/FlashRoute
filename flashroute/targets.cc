@@ -122,7 +122,7 @@ DcbManager* Targets::generateTargetsFromNetwork(
     }
     VLOG(2) << boost::format("Created %1% entries (1 reserved dcb).") %
                    actualCount;
-    LOG(INFO) << "BOGON COUNT " << bogonCount;
+    VLOG(2) << "Bogon filter removes addresses " << bogonCount;
   } else {
     absl::uint128 targetNetworkSize =
         ntohll(targetNetworkLastAddress_->getIpv6Address()) -
