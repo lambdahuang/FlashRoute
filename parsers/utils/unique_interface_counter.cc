@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
   std::unordered_set<IpAddress *, IpAddressHash, IpAddressEquality> observedInterface;
 
   std::ifstream inFile;
-  auto tarGetFiles = absl::GetFlag(FLAGS_target_file);
+  auto tarGetFiles = absl::GetFlag(FLAGS_targets);
   uint64_t records = 0;
   uint64_t interface = 0;
   for (auto file : tarGetFiles) {
