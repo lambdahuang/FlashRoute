@@ -20,8 +20,8 @@ using flashroute::Ipv4Address;
 using flashroute::IpAddressHash;
 using flashroute::IpAddressEquality;
 
-ABSL_FLAG(std::vector<std::string>, target_file, std::vector<std::string>{},
-          "Dump targets to file.");
+ABSL_FLAG(std::vector<std::string>, targets, std::vector<std::string>{},
+          "Output of flashroute.");
 
 struct DataElement {
   uint32_t destination[4];
