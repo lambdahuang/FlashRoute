@@ -21,7 +21,7 @@ using flashroute::IpAddressHash;
 using flashroute::IpAddressEquality;
 
 ABSL_FLAG(std::vector<std::string>, targets, std::vector<std::string>{},
-          "Output of flashroute.");
+          "Outputs of flashroute. If there are multiple files, split by comma.");
 
 struct DataElement {
   uint32_t destination[4];
@@ -69,7 +69,8 @@ int main(int argc, char* argv[]) {
         // TODO: we need to add the code logic handle IPv6 Address.
       }
     }
-
+    inFile.clear();
+    inFile.seekg(0);
     inFile.close();
   }
   LOG(INFO) << "Processed " << records << " records.";
