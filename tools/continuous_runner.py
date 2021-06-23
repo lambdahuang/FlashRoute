@@ -35,7 +35,7 @@ def main():
         if previous_output != "":
             read_history_arg = f" --history_probing_result {previous_output}"
 
-        command = f"{args.e} -- --output {output_filename}{read_history_arg} {args.a}"
+        command = f"{args.e} --output {output_filename}{read_history_arg} {args.a}"
         glog.info(command)
         os.system(command)
         previous_output = output_filename
