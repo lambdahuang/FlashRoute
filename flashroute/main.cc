@@ -239,7 +239,14 @@ int main(int argc, char* argv[]) {
 
     std::time_t now = std::time(0);
     uint32_t seed = absl::GetFlag(FLAGS_seed);
-    if (seed == 0) seed = static_cast<std::uint32_t>(now);
+    if (seed == 0) {
+      seed = static_cast<std::uint32_t>(now);
+      LOG(INFO) << "Seed for random number generator is 0, we random generate "
+                   "the seed: "
+                << seed;
+    } else {
+      LOG(INFO) << "Seed for random number generator " << seed;
+    }
 
     // Remove exclusion/blacklist list.
     Blacklist blacklist;
