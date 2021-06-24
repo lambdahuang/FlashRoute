@@ -40,6 +40,9 @@ int main(int argc, char* argv[]) {
 
 
   std::unordered_set<IpAddress *, IpAddressHash, IpAddressEquality> observedInterface;
+  std::unordered_map<IpAddress *, std::shared_ptr<std::unordered_map<uint32_t, IpAddress *>>,
+                     IpAddressHash, IpAddressEquality>
+      observedEdges;
 
   std::ifstream inFile;
   auto tarGetFiles = absl::GetFlag(FLAGS_targets);
@@ -56,6 +59,7 @@ int main(int argc, char* argv[]) {
         // IPv4 address handling.
         auto addr = new Ipv4Address(buffer.responder[0]);
         if (buffer.fromDestination == true) {
+          // Do nothing
         } else if (observedInterface.find(addr) == observedInterface.end()) {
           observedInterface.insert(addr);
           if (buffer.fromDestination == 0)
@@ -63,6 +67,15 @@ int main(int argc, char* argv[]) {
 
         } else {
           delete addr;
+        }
+        auto dest = new Ipv4Address(buffer.destination[0]);
+        if (observedEdges.find(dest) == observedEdges.end()) {
+          auto tmp = std::make_shared<std::unordered_map<uint32_t, IpAddress *>>();
+          observedEdges.insert({dest, tmp});
+        }
+        auto tmp = observedEdges.find(dest)->second;
+        if (tmp->find(buffer.distance) == tmp->end()) {
+          tmp->insert({buffer.distance, new Ipv4Address(buffer.responder[0])});
         }
       } else {
         // IPv6 address handling
@@ -73,7 +86,24 @@ int main(int argc, char* argv[]) {
     inFile.seekg(0);
     inFile.close();
   }
+
+  std::unordered_set<uint64_t> edges;
+  for (const auto& key: observedEdges) {
+    auto route = key.second;
+    uint64_t previous = 0;
+    uint64_t edge = 0;
+    for (const auto& node : *route) {
+      if (previous != 0) {
+        uint64_t current = node.second->getIpv4Address();
+        edge = previous | current >> 32;
+        edges.insert(edge);
+      }
+      previous = node.second->getIpv4Address();
+    }
+  }
+
   LOG(INFO) << "Processed " << records << " records.";
   LOG(INFO) << "There are " << interface << " unique interfaces.";
+  LOG(INFO) << "There are " << edges.size() << " unique edges.";
 
 }
