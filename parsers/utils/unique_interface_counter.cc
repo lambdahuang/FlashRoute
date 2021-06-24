@@ -109,15 +109,15 @@ int main(int argc, char* argv[]) {
     inFile.close();
     for (const auto &key : observedEdges) {
       auto route = key.second;
-      uint64_t previous = 0;
       uint64_t edge = 0;
       for (const auto &node : *route) {
-        if (previous != 0) {
+        if (route->find(node.first - 1) != route->end()) {
           uint64_t current = node.second->getIpv4Address();
+          uint64_t previous =
+              route->find(node.first - 1)->second->getIpv4Address();
           edge = previous | current >> 32;
           edges.insert(edge);
         }
-        previous = node.second->getIpv4Address();
       }
     }
     cleanEdgeMap(observedEdges);
