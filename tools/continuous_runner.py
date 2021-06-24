@@ -11,8 +11,10 @@ def main():
                                  help='Directory of output.')
     argument_parser.add_argument("-e", type=str, required=True,
                                  help='Path to Flashroute.')
-    argument_parser.add_argument("-n", type=int, required=True,
+    argument_parser.add_argument("-n", type=int, required=False, default=0,
                                  help='Number of executions.')
+    argument_parser.add_argument("-t", type=int, required=False,
+                                 help='Time to run (minutes)')
     argument_parser.add_argument("-d", type=int, required=True,
                                  help='Interval in second between two continuous executions.')
     argument_parser.add_argument("-l", type=str, required=True,
@@ -29,7 +31,9 @@ def main():
 
     previous_output = ""
     read_history_arg = ""
-    for i in range(0, args.n):
+    i = 0
+    start = time.time()
+    while (args.n != 0 and i < args.n) or ((time.time() - start) / 60 <= args.t):
         glog.info(f"{i} round")
         output_filename = os.path.join(output_dir, f"{args.l}_{i}")
         if previous_output != "":
@@ -40,6 +44,7 @@ def main():
         os.system(command)
         previous_output = output_filename
         time.sleep(args.d)
+        i += 1
 
 
 if __name__ == "__main__":
