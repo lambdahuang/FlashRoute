@@ -32,6 +32,24 @@ struct DataElement {
   uint8_t ipv4;
 } __attribute__((packed));;
 
+using EdgeMap = std::unordered_map<
+    IpAddress *, std::shared_ptr<std::unordered_map<uint32_t, IpAddress *>>,
+    IpAddressHash, IpAddressEquality>;
+void cleanEdgeMap(EdgeMap& map) {
+    while (!map->empty()) {
+      auto element = map.begin();
+      auto keyAddress = element->first;
+      coarseMap_->erase(keyAddress);
+      auto routeMap = element->second;
+      while (!routeMap->empty()) {
+        auto pair = map.begin();
+        delete pair->second;
+        routeMap->erase(pair->first);
+      }
+      delete keyAddress;
+    }
+}
+
 int main(int argc, char* argv[]) {
   FLAGS_alsologtostderr = 1;
   google::InitGoogleLogging(argv[0]);
@@ -40,9 +58,9 @@ int main(int argc, char* argv[]) {
 
 
   std::unordered_set<IpAddress *, IpAddressHash, IpAddressEquality> observedInterface;
-  std::unordered_map<IpAddress *, std::shared_ptr<std::unordered_map<uint32_t, IpAddress *>>,
-                     IpAddressHash, IpAddressEquality>
-      observedEdges;
+
+  EdgeMap observedEdges;
+  std::unordered_set<uint64_t> edges;
 
   std::ifstream inFile;
   auto tarGetFiles = absl::GetFlag(FLAGS_targets);
@@ -52,6 +70,10 @@ int main(int argc, char* argv[]) {
     LOG(INFO) << "Start to read data from: " << file;
     inFile.open(file, std::ios::in | std::ios::binary);
     DataElement buffer;
+    std::unordered_map<
+        IpAddress *, std::shared_ptr<std::unordered_map<uint32_t, IpAddress *>>,
+        IpAddressHash, IpAddressEquality>
+        observedEdges;
     while (inFile.peek() != EOF) {
       inFile.read(reinterpret_cast<char *>(&buffer), 39);
       records++;
@@ -85,21 +107,20 @@ int main(int argc, char* argv[]) {
     inFile.clear();
     inFile.seekg(0);
     inFile.close();
-  }
-
-  std::unordered_set<uint64_t> edges;
-  for (const auto& key: observedEdges) {
-    auto route = key.second;
-    uint64_t previous = 0;
-    uint64_t edge = 0;
-    for (const auto& node : *route) {
-      if (previous != 0) {
-        uint64_t current = node.second->getIpv4Address();
-        edge = previous | current >> 32;
-        edges.insert(edge);
+    for (const auto &key : observedEdges) {
+      auto route = key.second;
+      uint64_t previous = 0;
+      uint64_t edge = 0;
+      for (const auto &node : *route) {
+        if (previous != 0) {
+          uint64_t current = node.second->getIpv4Address();
+          edge = previous | current >> 32;
+          edges.insert(edge);
+        }
+        previous = node.second->getIpv4Address();
       }
-      previous = node.second->getIpv4Address();
     }
+    cleanEdgeMap(observedEdges);
   }
 
   LOG(INFO) << "Processed " << records << " records.";
