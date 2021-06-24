@@ -36,16 +36,16 @@ using EdgeMap = std::unordered_map<
     IpAddress *, std::shared_ptr<std::unordered_map<uint32_t, IpAddress *>>,
     IpAddressHash, IpAddressEquality>;
 void cleanEdgeMap(EdgeMap& map) {
-    while (!map->empty()) {
+    while (!map.empty()) {
       auto element = map.begin();
       auto keyAddress = element->first;
-      coarseMap_->erase(keyAddress);
       auto routeMap = element->second;
       while (!routeMap->empty()) {
-        auto pair = map.begin();
+        auto pair = routeMap->begin();
         delete pair->second;
         routeMap->erase(pair->first);
       }
+      map.erase(keyAddress);
       delete keyAddress;
     }
 }
