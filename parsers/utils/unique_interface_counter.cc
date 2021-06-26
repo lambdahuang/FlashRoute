@@ -23,6 +23,10 @@ using flashroute::IpAddressEquality;
 ABSL_FLAG(std::vector<std::string>, targets, std::vector<std::string>{},
           "Outputs of flashroute. If there are multiple files, split by comma.");
 
+ABSL_FLAG(std::string, prefix, "", "Prefix of the path to the output file");
+ABSL_FLAG(int, start, 0, "Starting index of the outputs");
+ABSL_FLAG(int, end, 0, "Ending index of the outputs");
+
 struct DataElement {
   uint32_t destination[4];
   uint32_t responder[4];
@@ -63,10 +67,23 @@ int main(int argc, char* argv[]) {
   std::unordered_set<uint64_t> edges;
 
   std::ifstream inFile;
-  auto tarGetFiles = absl::GetFlag(FLAGS_targets);
+  std::vector<std::string> targetFiles;
+  if (absl::GetFlag(FLAGS_targets).size() != 0) {
+    targetFiles = absl::GetFlag(FLAGS_targets);
+  } else if (!absl::GetFlag(FLAGS_prefix).empty()){
+    int start = absl::GetFlag(FLAGS_start);
+    int end =
+        absl::GetFlag(FLAGS_end) == 0 ? start + 1 : absl::GetFlag(FLAGS_end);
+    for (int i = start; i < end; i++) {
+      targetFiles.push_back(absl::GetFlag(FLAGS_prefix) + std::to_string(i));
+    }
+  } else{
+    LOG(ERROR) << "No valid input.";
+  }
   uint64_t records = 0;
   uint64_t interface = 0;
-  for (auto file : tarGetFiles) {
+
+  for (auto file : targetFiles) {
     LOG(INFO) << "Start to read data from: " << file;
     inFile.open(file, std::ios::in | std::ios::binary);
     DataElement buffer;
