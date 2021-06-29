@@ -138,6 +138,8 @@ int main(int argc, char* argv[]) {
       }
     }
     cleanEdgeMap(observedEdges);
+    LOG(INFO) << "Unique interface: " << interface << " Unique edges: "
+              << edges.size();
   }
 
   LOG(INFO) << "Processed " << records << " records.";
