@@ -82,6 +82,8 @@ int main(int argc, char* argv[]) {
   }
   uint64_t records = 0;
   uint64_t interface = 0;
+  uint64_t previousInterface = 0;
+  uint64_t previousEdge = 0;
 
   for (auto file : targetFiles) {
     LOG(INFO) << "Start to read data from: " << file;
@@ -138,8 +140,12 @@ int main(int argc, char* argv[]) {
       }
     }
     cleanEdgeMap(observedEdges);
-    LOG(INFO) << "Unique interface: " << interface << " Unique edges: "
-              << edges.size();
+    LOG(INFO) << "Unique interface: " << interface << "(+"
+              << interface - previousInterface
+              << ") Unique edges: " << edges.size() << "(+"
+              << edges.size() - previousEdge << ")";
+    previousInterface = previousInterface;
+    previousEdge = edges.size();
   }
 
   LOG(INFO) << "Processed " << records << " records.";
