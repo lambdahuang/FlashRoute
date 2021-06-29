@@ -144,7 +144,7 @@ int main(int argc, char* argv[]) {
               << interface - previousInterface
               << ") Unique edges: " << edges.size() << "(+"
               << edges.size() - previousEdge << ")";
-    previousInterface = previousInterface;
+    previousInterface = interface;
     previousEdge = edges.size();
   }
 
