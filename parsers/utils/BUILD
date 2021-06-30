@@ -9,5 +9,6 @@ cc_binary(
         "@com_google_absl//absl/flags:parse", 
         "//flashroute:dump_result",
         "//flashroute:address",
+        "@boost//:filesystem",
     ],
 )

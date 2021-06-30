@@ -11,6 +11,9 @@
 #include "absl/flags/parse.h"
 #include "absl/strings/str_cat.h"
 #include "absl/numeric/int128.h"
+#include <boost/filesystem.hpp>
+#include <boost/range/iterator_range.hpp>
+
 
 #include "flashroute/dump_result.h"
 #include "flashroute/address.h"
@@ -23,7 +26,8 @@ using flashroute::IpAddressEquality;
 ABSL_FLAG(std::vector<std::string>, targets, std::vector<std::string>{},
           "Outputs of flashroute. If there are multiple files, split by comma.");
 
-ABSL_FLAG(std::string, prefix, "", "Prefix of the path to the output file");
+ABSL_FLAG(std::string, directory, "", "Path to the directory of output files");
+ABSL_FLAG(std::string, label, "", "Label of the data set");
 ABSL_FLAG(int, start, 0, "Starting index of the outputs");
 ABSL_FLAG(int, end, 0, "Ending index of the outputs");
 
@@ -54,6 +58,30 @@ void cleanEdgeMap(EdgeMap& map) {
     }
 }
 
+std::string getLogFileName(const std::string &directory,
+                           const std::string &prefix) {
+  for (const auto &entry : boost::make_iterator_range(
+           boost::filesystem::directory_iterator(directory), {})) {
+    std::string file = entry.path().string();
+    if (prefix != file && file.find(prefix) != std::string::npos) {
+      return file;
+    }
+  }
+  return "";
+}
+
+std::string getStartingTime(const std::string &logFile) {
+
+  std::ifstream inFile;
+  inFile.open(logFile, std::ios::in);
+  std::string line;
+  std::getline(inFile, line);
+  inFile.clear();
+  inFile.seekg(0);
+  inFile.close();
+  return line.substr(21);
+}
+
 int main(int argc, char* argv[]) {
   FLAGS_alsologtostderr = 1;
   google::InitGoogleLogging(argv[0]);
@@ -70,14 +98,17 @@ int main(int argc, char* argv[]) {
   std::vector<std::string> targetFiles;
   if (absl::GetFlag(FLAGS_targets).size() != 0) {
     targetFiles = absl::GetFlag(FLAGS_targets);
-  } else if (!absl::GetFlag(FLAGS_prefix).empty()){
+  } else if (!absl::GetFlag(FLAGS_label).empty() &&
+             !absl::GetFlag(FLAGS_directory).empty()) {
+    std::string prefix =
+        absl::GetFlag(FLAGS_directory) + absl::GetFlag(FLAGS_label) + "_";
     int start = absl::GetFlag(FLAGS_start);
     int end =
         absl::GetFlag(FLAGS_end) == 0 ? start + 1 : absl::GetFlag(FLAGS_end);
     for (int i = start; i < end; i++) {
-      targetFiles.push_back(absl::GetFlag(FLAGS_prefix) + std::to_string(i));
+      targetFiles.push_back(prefix + std::to_string(i));
     }
-  } else{
+  } else {
     LOG(ERROR) << "No valid input.";
   }
   uint64_t records = 0;
@@ -87,6 +118,9 @@ int main(int argc, char* argv[]) {
 
   for (auto file : targetFiles) {
     LOG(INFO) << "Start to read data from: " << file;
+    auto logFilename = getLogFileName(absl::GetFlag(FLAGS_directory), file);
+
+    auto createdTime = getStartingTime(logFilename);
     inFile.open(file, std::ios::in | std::ios::binary);
     DataElement buffer;
     std::unordered_map<
@@ -140,7 +174,8 @@ int main(int argc, char* argv[]) {
       }
     }
     cleanEdgeMap(observedEdges);
-    LOG(INFO) << "Unique interface: " << interface << "(+"
+    LOG(INFO) << "Created " << createdTime
+              << " Unique interface: " << interface << "(+"
               << interface - previousInterface
               << ") Unique edges: " << edges.size() << "(+"
               << edges.size() - previousEdge << ")";
