@@ -37,9 +37,9 @@ go_repository(
 
 git_repository(
     name = "com_github_nelhage_rules_boost",
-    commit = "9f9fb8b2f0213989247c9d5c0e814a8451d18d7f",
+    commit = "fb9f3c9a6011f966200027843d894923ebc9cd0b",
     remote = "https://github.com/nelhage/rules_boost",
-    shallow_since = "1570056263 -0700",
+    shallow_since = "1626494016 -0700",
 )
 
 load("@com_github_nelhage_rules_boost//:boost/boost.bzl", "boost_deps")
@@ -47,9 +47,9 @@ boost_deps()
 
 git_repository(
     name = "com_google_absl",
-    commit = "6df644c56f31b100bf731e27c3825069745651e3",
+    commit = "278e0a071885a22dcd2fd1b5576cc44757299343",
     remote = "https://github.com/abseil/abseil-cpp.git",
-    shallow_since = "1608147541 -0500",
+    shallow_since = "1622559169 -0400",
 )
 
 new_git_repository(
