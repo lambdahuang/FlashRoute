@@ -11,12 +11,10 @@
 #include "absl/flags/parse.h"
 #include "absl/strings/str_cat.h"
 #include "absl/numeric/int128.h"
-#include <boost/filesystem.hpp>
-#include <boost/range/iterator_range.hpp>
 
-
-#include "flashroute/dump_result.h"
 #include "flashroute/address.h"
+#include "flashroute/dump_result.h"
+#include "parsers/utils/utils.h"
 
 using flashroute::IpAddress;
 using flashroute::Ipv4Address;
@@ -26,10 +24,18 @@ using flashroute::IpAddressEquality;
 ABSL_FLAG(std::vector<std::string>, targets, std::vector<std::string>{},
           "Outputs of flashroute. If there are multiple files, split by comma.");
 
+// Example:
+// bazel run parsers/utils/unique_interface_counter -- --directory
+// /data/directory/ --label 7_25_fast_scan --start 1 --end 100
+// --step 5 --formatted true --output ~/prefix_
+
 ABSL_FLAG(std::string, directory, "", "Path to the directory of output files");
 ABSL_FLAG(std::string, label, "", "Label of the data set");
 ABSL_FLAG(int, start, 0, "Starting index of the outputs");
 ABSL_FLAG(int, end, 0, "Ending index of the outputs");
+ABSL_FLAG(int, step, 1, "Step to read outputs");
+ABSL_FLAG(bool, formatted, false, "Output machine-readable format.");
+ABSL_FLAG(std::string, output, "", "Directory of output");
 
 struct DataElement {
   uint32_t destination[4];
@@ -58,36 +64,20 @@ void cleanEdgeMap(EdgeMap& map) {
     }
 }
 
-std::string getLogFileName(const std::string &directory,
-                           const std::string &prefix) {
-  for (const auto &entry : boost::make_iterator_range(
-           boost::filesystem::directory_iterator(directory), {})) {
-    std::string file = entry.path().string();
-    if (prefix != file && file.find(prefix) != std::string::npos) {
-      return file;
-    }
-  }
-  return "";
-}
-
-std::string getStartingTime(const std::string &logFile) {
-
-  std::ifstream inFile;
-  inFile.open(logFile, std::ios::in);
-  std::string line;
-  std::getline(inFile, line);
-  inFile.clear();
-  inFile.seekg(0);
-  inFile.close();
-  return line.substr(21);
-}
-
 int main(int argc, char* argv[]) {
   FLAGS_alsologtostderr = 1;
-  google::InitGoogleLogging(argv[0]);
   absl::SetProgramUsageMessage("This program does nothing.");
   absl::ParseCommandLine(argc, argv);
 
+  std::string logOutput = absl::GetFlag(FLAGS_output) +
+                          absl::GetFlag(FLAGS_label) +
+                          std::to_string(absl::GetFlag(FLAGS_start)) + "_" +
+                          std::to_string(absl::GetFlag(FLAGS_end)) + "_log";
+
+  google::InitGoogleLogging(argv[0]);
+  if (!absl::GetFlag(FLAGS_output).empty()) {
+    google::SetLogDestination(0, logOutput.c_str());
+  }
 
   std::unordered_set<IpAddress *, IpAddressHash, IpAddressEquality> observedInterface;
 
@@ -105,7 +95,7 @@ int main(int argc, char* argv[]) {
     int start = absl::GetFlag(FLAGS_start);
     int end =
         absl::GetFlag(FLAGS_end) == 0 ? start + 1 : absl::GetFlag(FLAGS_end);
-    for (int i = start; i < end; i++) {
+    for (int i = start; i < end; i += absl::GetFlag(FLAGS_step)) {
       targetFiles.push_back(prefix + std::to_string(i));
     }
   } else {
@@ -117,7 +107,9 @@ int main(int argc, char* argv[]) {
   uint64_t previousEdge = 0;
 
   for (auto file : targetFiles) {
-    LOG(INFO) << "Start to read data from: " << file;
+    if (!absl::GetFlag(FLAGS_formatted)) {
+      LOG(INFO) << "Start to read data from: " << file;
+    }
     auto logFilename = getLogFileName(absl::GetFlag(FLAGS_directory), file);
 
     auto createdTime = getStartingTime(logFilename);
@@ -174,11 +166,19 @@ int main(int argc, char* argv[]) {
       }
     }
     cleanEdgeMap(observedEdges);
-    LOG(INFO) << "Created " << createdTime
-              << " Unique interface: " << interface << "(+"
-              << interface - previousInterface
-              << ") Unique edges: " << edges.size() << "(+"
-              << edges.size() - previousEdge << ")";
+    if (!absl::GetFlag(FLAGS_formatted)) {
+      LOG(INFO) << "Created " << createdTime
+                << " Unique interface: " << interface << "(+"
+                << interface - previousInterface
+                << ") Unique edges: " << edges.size() << "(+"
+                << edges.size() - previousEdge << ")";
+    } else {
+      LOG(INFO) << createdTime
+                << " " << interface << " "
+                << interface - previousInterface
+                << " " << edges.size() << " "
+                << edges.size() - previousEdge;
+    }
     previousInterface = interface;
     previousEdge = edges.size();
   }
