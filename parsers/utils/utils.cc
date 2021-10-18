@@ -2,6 +2,7 @@
 
 #include <map>
 
+#include "glog/logging.h"
 #include <boost/filesystem.hpp>
 #include <boost/range/iterator_range.hpp>
 
@@ -29,7 +30,16 @@ std::string getStartingTime(const std::string &logFile) {
   return line.substr(21);
 }
 
-std::shared_ptr<RouteNodev4> readDataset(std::string file, RouteFullMap &map) {
+static void connectRouteNodev4(uint32_t dest, std::shared_ptr<RouteNodev4> x,
+                               std::shared_ptr<RouteNodev4> y) {
+
+  x->next.insert({dest, y});
+  y->previous.insert({dest, x});
+}
+
+void readDataset(
+    std::string file, RouteFullMap &addressMap,
+    std::unordered_map<uint32_t, std::shared_ptr<RouteNodev4>>& routeMap) {
 
   std::ifstream inFile;
   inFile.open(file, std::ios::in | std::ios::binary);
@@ -38,9 +48,6 @@ std::shared_ptr<RouteNodev4> readDataset(std::string file, RouteFullMap &map) {
   uint32_t records = 0;
 
   std::shared_ptr<RouteNodev4> root;
-
-  std::unordered_map<uint32_t, std::shared_ptr<RouteNodev4>> addressMap;
-  // <address, corrsponding route node> 
 
   std::unordered_map<uint32_t,
                      std::shared_ptr<std::map<uint8_t, uint32_t>>>
@@ -60,7 +67,8 @@ std::shared_ptr<RouteNodev4> readDataset(std::string file, RouteFullMap &map) {
         auto tmp = std::make_shared<std::map<uint8_t, uint32_t>>();
         destFound = routeRawMap.insert({dest, tmp}).first;
       }
-      destFound->second->insert({distance, addr});
+      if (destFound->second->find(distance) == destFound->second->end())
+        destFound->second->insert({distance, addr});
     } else {
       // IPv6 address handling
       // TODO: we need to add the code logic handle IPv6 Address.
@@ -68,29 +76,92 @@ std::shared_ptr<RouteNodev4> readDataset(std::string file, RouteFullMap &map) {
   }
   inFile.close();
 
+  LOG(INFO) << "Preprocessing finished.";
+  uint32_t count = 0;
+  std::shared_ptr<RouteNodev4> lastNode = nullptr;
   for(const auto& elem : routeRawMap) {
     auto dest = elem.first;
     auto& route = elem.second;
+    lastNode = nullptr;
 
-    const auto& lowBound = route->cbegin();
-    const auto& highBound = route->crbegin();
-    uint8_t lowDistance = lowBound->first; 
-    uint8_t highDistance = highBound->first; 
-
-    for (uint8_t i =lowDistance; i <= highDistance; i ++  ) {
-
-    }
-
+    std::shared_ptr<RouteNodev4> previousNode = nullptr;
     for (const auto& node : *route) {
       auto distance = node.first;
       auto addr = node.second;
       auto nodeFound = addressMap.find(addr);
       if (nodeFound == addressMap.end()) {
-        auto tmp = std::make_shared<RouteNodev4>(addr);
-        nodeFound = addressMap.insert({addr, tmp}).first;
+        auto tmp = std::make_shared<RouteNodev4>();
+        tmp->address = addr;
+        nodeFound = addressMap.insert({addr, std::move(tmp)}).first;
       }
+      auto currentNode = nodeFound->second;
+      if (currentNode->distances.find(dest) == currentNode->distances.end())
+        currentNode->distances.insert({dest, distance});
+
+      if (previousNode) {
+        connectRouteNodev4(dest, previousNode, currentNode);
+      }
+      previousNode = currentNode;
+      lastNode = currentNode;
+    }
+    assert(lastNode);
+    routeMap.insert({dest, lastNode});
+
+    LOG_EVERY_N(INFO, 100000) << static_cast<double>(count) / routeRawMap.size() * 100 << "% finished.";
+    count++;
+  }
+}
+
+bool findRouteBack(uint32_t address, uint32_t dest,
+                   std::vector<RouteConstructNodev4> &route,
+                   std::vector<Routev4> &routes,
+                   std::unordered_set<uint32_t> &visited,
+                   RouteFullMap &addressMap, uint8_t convergencePoint) {
+  static int depth = 0;
+  if (visited.find(address) != visited.end()) {
+    // Cycle detected.
+    return false;
+  }
+  auto node = addressMap.find(address)->second;
+  auto distance = node->distances[dest];
+  route.push_back({address, dest, distance});
+  visited.insert(address);
+
+  if ((node->distances.find(dest) != node->distances.end() &&
+       node->distances[dest] <= 2) ||
+      (node->previous.size() == 0)) {
+    routes.push_back({route, RouteType::Regular, convergencePoint});
+    route.pop_back();
+    visited.erase(address);
+    return true;
+  }
+  // If we can find the same destionation predecessor.
+  bool success = false;
+  if (node->previous.find(dest) != node->previous.end()) {
+    depth++;
+    success =
+        findRouteBack(node->previous.find(dest)->second->address, dest, route,
+                      routes, visited, addressMap, convergencePoint);
+    depth--;
+  } else {
+    for (auto &tmp : node->previous) {
+      auto predecessorAddress = tmp.second->address;
+      auto predecessorDestination = tmp.first;
+      depth++;
+      success =
+          findRouteBack(predecessorAddress, predecessorDestination, route,
+                        routes, visited, addressMap, convergencePoint + 1) ||
+          success;
+      depth--;
     }
   }
+  if (!success) {
+    // If all attemps fail, this is the end.
+    routes.push_back({route, RouteType::Acyclic, convergencePoint});
+  }
+  route.pop_back();
+  visited.erase(address);
+  return true;
 }
 
 void readDataset(std::string file, RouteMap &edgeMap,

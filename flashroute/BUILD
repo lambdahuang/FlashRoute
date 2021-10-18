@@ -115,6 +115,7 @@ cc_library(
     hdrs = ["utils.h"],
     srcs = ["utils.cc"],
     copts = ["-std=c++14"],
+    visibility = ["//visibility:public"],
     deps = [
         ":address",
         "@boost//:process",

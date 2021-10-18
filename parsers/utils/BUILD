@@ -4,6 +4,7 @@ cc_library(
     hdrs= ["utils.h"],
     deps = [
         "@boost//:filesystem",
+        "//external:glog",
         "//flashroute:address",
     ],
 )
@@ -65,5 +66,6 @@ cc_binary(
         "//flashroute:address",
         "@boost//:filesystem",
         ":utils",
+        "//flashroute:utils",
     ],
 )

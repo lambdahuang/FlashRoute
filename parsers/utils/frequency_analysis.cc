@@ -1,13 +1,13 @@
 #include <fstream>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
 
-#include "glog/logging.h"
-#include "absl/flags/usage.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
-#include "absl/strings/str_cat.h"
+#include "absl/flags/usage.h"
 #include "absl/numeric/int128.h"
+#include "absl/strings/str_cat.h"
+#include "glog/logging.h"
 
 #include "flashroute/address.h"
 #include "flashroute/dump_result.h"
@@ -22,9 +22,9 @@ ABSL_FLAG(bool, formatted, false, "Output machine-readable format.");
 ABSL_FLAG(std::string, output, "", "Directory of output");
 
 using flashroute::IpAddress;
-using flashroute::Ipv4Address;
-using flashroute::IpAddressHash;
 using flashroute::IpAddressEquality;
+using flashroute::IpAddressHash;
+using flashroute::Ipv4Address;
 
 using GenericEdgeMap = std::unordered_map<uint64_t, uint32_t>;
 using GenericInterfaceMap = std::unordered_map<uint32_t, uint32_t>;
@@ -45,12 +45,12 @@ void getFrequencyDistribution(
 
 void printFrequency(std::unordered_map<uint32_t, uint32_t> &frequency) {
   LOG(INFO) << "----";
-  for (auto& pair: frequency) {
+  for (auto &pair : frequency) {
     LOG(INFO) << pair.first << " " << pair.second;
   }
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   LOG(INFO) << "Program starts.";
   FLAGS_alsologtostderr = 1;
   absl::SetProgramUsageMessage("This program does nothing.");
@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
   int datasetCount = 0;
   GenericEdgeMap frequencyEdgeMap;
   GenericInterfaceMap frequencyInterfaceMap;
-  for (auto& dataset : targetFiles) {
+  for (auto &dataset : targetFiles) {
 
     RouteMap edgeMap;
     InterfaceSet interfaceSet;
