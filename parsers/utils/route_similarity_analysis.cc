@@ -141,9 +141,11 @@ int main(int argc, char *argv[]) {
 
     std::unordered_map<uint32_t, std::shared_ptr<RouteNodev4>> routeMap1;
     readDataset(set1, routeFullMap1, routeMap1);
+    LOG(INFO) << "Finished";
 
     // readDataset(set2, routeFullMap2);
     int similarRoute = 0;
+    std::string buf;
     for (const auto &p : routeMap1) {
       uint32_t dest = p.first;
       uint32_t addr = p.second->address;
@@ -159,7 +161,7 @@ int main(int argc, char *argv[]) {
       LOG(INFO) << "Find routes:" << routes.size();
       int i = 0;
       for (auto& r: routes) {
-        LOG(INFO) << "Route #" << ++i;
+        LOG(INFO) << "Route #" << ++i << "/" << routes.size();
         LOG(INFO) << "Acyclic: "
                   << (r.routeType == RouteType::Acyclic ? "True" : "False");
         LOG(INFO) << "Convergence: "
@@ -171,7 +173,10 @@ int main(int argc, char *argv[]) {
                     << flashroute::parseIpv4FromIntToString(n.destination)
                     << " Distance:" << static_cast<uint32_t>(n.distance);
         }
-        getchar();
+        std::cin >> buf;
+        if (buf == "j") {
+          break;
+        }
       }
     }
 

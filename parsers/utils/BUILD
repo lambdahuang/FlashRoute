@@ -69,3 +69,20 @@ cc_binary(
         "//flashroute:utils",
     ],
 )
+
+
+cc_binary(
+    name = "route_generator",
+    srcs = ["route_generator.cc"],
+    deps = [
+        "//external:glog",
+        "//external:gflags",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse", 
+        "//flashroute:dump_result",
+        "//flashroute:address",
+        "@boost//:filesystem",
+        ":utils",
+        "//flashroute:utils",
+    ],
+)

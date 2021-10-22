@@ -232,6 +232,32 @@ sudo ./bazel-bin/flashroute/flashroute --interface eth0 --granularity 48 2607:f8
 
 `--seed` the seed to select destination IP addresses if users ask for auto-generated targets.
 
+# Result Parsing 
+
+We provide a sample app to parse the result. 
+
+```
+bazel run parsers/utils/route_generator -- --file /datastorage/test_temp_output/7_25_fast_scan_268
+...
+I1022 02:25:16.714200 83727 utils.cc:108] 99.9463% finished.
+I1022 02:25:16.730381 83727 utils.cc:111] Processing finished.
+I1022 02:25:24.619446 83727 route_generator.cc:31] Finished
+I1022 02:25:24.640774 83727 route_generator.cc:45] Destination: 74.188.92.117 Distance: 13
+I1022 02:25:24.640806 83727 route_generator.cc:47] Find routes:163
+I1022 02:25:24.640808 83727 route_generator.cc:50] Route #1/163
+I1022 02:25:24.640812 83727 route_generator.cc:51] Acyclic: False
+I1022 02:25:24.640815 83727 route_generator.cc:53] Convergence: 5
+I1022 02:25:24.640817 83727 route_generator.cc:55] Address:12.122.2.5 Destination:74.188.92.117 Distance:13
+I1022 02:25:24.640820 83727 route_generator.cc:55] Address:199.218.20.30 Destination:104.178.100.231 Distance:8
+I1022 02:25:24.640823 83727 route_generator.cc:55] Address:199.218.20.33 Destination:32.253.6.93 Distance:7
+I1022 02:25:24.640827 83727 route_generator.cc:55] Address:199.218.39.253 Destination:208.90.49.138 Distance:6
+I1022 02:25:24.640830 83727 route_generator.cc:55] Address:199.218.20.94 Destination:208.90.49.138 Distance:5
+I1022 02:25:24.640832 83727 route_generator.cc:55] Address:199.218.39.198 Destination:208.90.49.138 Distance:4
+I1022 02:25:24.640837 83727 route_generator.cc:55] Address:199.18.156.65 Destination:108.104.77.33 Distance:3
+I1022 02:25:24.640842 83727 route_generator.cc:55] Address:192.5.109.238 Destination:78.143.9.198 Distance:2
+```
+
+
 ## Referencing the FlashRoute
 
 ```

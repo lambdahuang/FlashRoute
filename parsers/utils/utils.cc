@@ -47,8 +47,6 @@ void readDataset(
 
   uint32_t records = 0;
 
-  std::shared_ptr<RouteNodev4> root;
-
   std::unordered_map<uint32_t,
                      std::shared_ptr<std::map<uint8_t, uint32_t>>>
       routeRawMap;
@@ -110,6 +108,7 @@ void readDataset(
     LOG_EVERY_N(INFO, 100000) << static_cast<double>(count) / routeRawMap.size() * 100 << "% finished.";
     count++;
   }
+  LOG(INFO) << "Processing finished.";
 }
 
 bool findRouteBack(uint32_t address, uint32_t dest,
@@ -144,9 +143,17 @@ bool findRouteBack(uint32_t address, uint32_t dest,
                       routes, visited, addressMap, convergencePoint);
     depth--;
   } else {
+    std::unordered_set<uint32_t> visitedPredecessor;
     for (auto &tmp : node->previous) {
       auto predecessorAddress = tmp.second->address;
       auto predecessorDestination = tmp.first;
+
+      if (visitedPredecessor.find(predecessorAddress) !=
+          visitedPredecessor.end())
+        continue;
+      else
+        visitedPredecessor.insert(predecessorAddress);
+
       depth++;
       success =
           findRouteBack(predecessorAddress, predecessorDestination, route,
