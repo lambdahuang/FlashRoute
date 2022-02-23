@@ -58,7 +58,7 @@ Tracerouter::Tracerouter(
     const int32_t predictionProximitySpan, const int32_t scanCount,
     const uint16_t srcPort, const uint16_t dstPort,
     const std::string& defaultPayloadMessage, const bool encodeTimestamp,
-    const uint8_t ttlOffset)
+    const uint8_t ttlOffset, bool randomizeAddressinExtraScans)
     : dcbManager_(dcbManager),
       stopProbing_(false),
       probePhase_(ProbePhase::NONE),
@@ -74,6 +74,7 @@ Tracerouter::Tracerouter(
       preprobingPredictionMark_(preprobingPrediction),
       preprobingPredictionProximitySpan_(predictionProximitySpan),
       scanCount_(scanCount),
+      randomizeAddressInExtraScans_(randomizeAddressinExtraScans),
       sentPreprobes_(0),
       preprobeUpdatedCount_(0),
       sentProbes_(0),
@@ -315,6 +316,10 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
                 << " extra round of main probing. Destination port offset "
                 << scanCount;
       dcbManager_->reset();
+      if (randomizeAddressInExtraScans_) {
+        LOG(INFO) << "Randomize addresses for the coming scan.";
+        dcbManager_->shuffleAddress();
+      }
       probingIterationRounds_ = 0;
       prober_->setChecksumOffset(scanCount);
     }

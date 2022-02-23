@@ -55,7 +55,8 @@ enum class ProberType { UDP_PROBER, UDP_IDEMPOTENT_PROBER };
  *                                // probe.   
  *    true,                       // Control whether to encode timestamp to each
  *                                // probe. (Test function).
- *    0)                          // ttl offset to shift the range of ttl
+ *    0,                          // ttl offset to shift the range of ttl
+ *    true                        // Randomize addresses in following scans.
  * );
  * 
  * // startScan accepts two parameters:
@@ -81,7 +82,8 @@ class Tracerouter {
               const int32_t predictionProximitySpan, const int32_t scanCount,
               const uint16_t srcPort, const uint16_t dstPort,
               const std::string& defaultPayloadMessage,
-              const bool encodeTimestamp, const uint8_t ttlOffset);
+              const bool encodeTimestamp, const uint8_t ttlOffset,
+              const bool randomizeAddressinExtraScans);
 
   ~Tracerouter();
 
@@ -131,6 +133,7 @@ class Tracerouter {
   int32_t preprobingPredictionProximitySpan_;
 
   int32_t scanCount_;
+  bool randomizeAddressInExtraScans_;
 
   // Metrics
   uint64_t sentPreprobes_;

@@ -112,6 +112,10 @@ ABSL_FLAG(int32_t, seed, 0,
 
 ABSL_FLAG(int32_t, scan_count, 1, "Number of main scans.");
 
+ABSL_FLAG(bool, randomize_address_in_extra_scans, false,
+          "If set to true, addresses will be randomized in the extra scans. "
+          "Otherwise, only port number will be randomized.");
+
 ABSL_FLAG(bool, verbose, false, "Verbose level 1.");
 
 ABSL_FLAG(bool, vverbose, false, "Verbose level 2.");
@@ -180,6 +184,10 @@ void printFlags() {
                    absl::GetFlag(FLAGS_seed);
   VLOG(1) << boost::format("Scan Count: %|30t|%1%") %
                    absl::GetFlag(FLAGS_scan_count);
+  VLOG(1) << boost::format("Randomize address: %|30t|%1%") %
+                 (absl::GetFlag(FLAGS_randomize_address_in_extra_scans)
+                      ? "true"
+                      : "false");
 
   VLOG(1) << " ========== Miscellaneous ========== ";
   VLOG(1) << boost::format("Backlist: %|15t|%1%") % absl::GetFlag(FLAGS_blacklist);
@@ -307,7 +315,8 @@ int main(int argc, char* argv[]) {
         absl::GetFlag(FLAGS_proximity_span), absl::GetFlag(FLAGS_scan_count),
         absl::GetFlag(FLAGS_src_port), absl::GetFlag(FLAGS_dst_port),
         absl::GetFlag(FLAGS_default_payload_message),
-        absl::GetFlag(FLAGS_encode_timestamp), absl::GetFlag(FLAGS_ttl_offset));
+        absl::GetFlag(FLAGS_encode_timestamp), absl::GetFlag(FLAGS_ttl_offset),
+        absl::GetFlag(FLAGS_randomize_address_in_extra_scans));
     traceRouterPtr = &traceRouter;
 
     // Load hitlist.
