@@ -65,6 +65,9 @@ class DcbManager {
   // recover to the snapshot.
   void reset();
 
+  // Shuffle address using the method.
+  void shuffleAddress();
+
   // return the number of the DCBs that are in iteration.
   uint64_t liveDcbSize();
 

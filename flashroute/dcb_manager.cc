@@ -267,6 +267,15 @@ void DcbManager::reset() {
   VLOG(2) << "DcbManager has been reset.";
 }
 
+void DcbManager::shuffleAddress() {
+  for (auto it = map_->begin(); it != map_->end(); ++it) {
+    // Shuffle address.
+    if (it->second != specialDcb_) {
+        it->second->ipAddress->randomizeAddress(granularity_); 
+    }
+  }
+}
+
 uint64_t DcbManager::size() {
   return map_->size() - 1;
 }
