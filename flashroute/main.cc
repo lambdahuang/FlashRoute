@@ -277,17 +277,23 @@ int main(int argc, char* argv[]) {
       resultDumper = new ResultDumper(absl::GetFlag(FLAGS_output));
     }
 
+    // We enable course address finding capability for dcbmanager if either we
+    // need to use distance prediction or we scan mulitple rounds with different
+    // target addresses.
+    bool enableCourseAddressFinding = absl::GetFlag(FLAGS_distance_prediction) |
+                                      (absl::GetFlag(FLAGS_scan_count) > 1);
+
     DcbManager* dcbManager;
     // Load targets.
     if (!absl::GetFlag(FLAGS_targets).empty()) {
       dcbManager = targetLoader.loadTargetsFromFile(
           absl::GetFlag(FLAGS_targets),
           static_cast<uint8_t>(absl::GetFlag(FLAGS_distance_prediction_prefix)),
-          absl::GetFlag(FLAGS_distance_prediction));
+          enableCourseAddressFinding);
     } else {
       dcbManager = targetLoader.generateTargetsFromNetwork(
           target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)),
-          absl::GetFlag(FLAGS_distance_prediction));
+          enableCourseAddressFinding);
     }
 
     // Learn route length from the history

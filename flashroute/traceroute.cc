@@ -424,8 +424,14 @@ bool Tracerouter::parseIcmpProbing(const IpAddress& destination,
   // Convert the target ip address to the corresponding block index.
   DestinationControlBlock* dcb = dcbManager_->getDcbByAddress(destination);
   if (dcb == nullptr) {
-    droppedResponses_++;
-    return false;
+    std::vector<DestinationControlBlock*>* result =
+        dcbManager_->getDcbsByAddress(destination);
+    if (result != nullptr && result->size() == 1) {
+      dcb = result->at(0);
+    } else {
+      droppedResponses_++;
+      return false;
+    }
   }
   if (!fromDestination) {
     // Time Exceeded
