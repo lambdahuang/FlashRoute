@@ -174,6 +174,12 @@ sudo ./bazel-bin/flashroute/flashroute --interface eth0 --probing_rate 10000 --g
 sudo ./bazel-bin/flashroute/flashroute --interface eth0 --granularity 48 2607:f8b0:4009:805::200e/44
 ```
 
+5. You may also store all flags/options using a flagfile and reuse it next time
+
+```
+sudo ./bazel-bin/flashroute/flashroute --flagfile ./examples/sample_scan.conf  8.8.8.8
+```
+
 ## Flags
 
 `--split_ttl` Specify initial TTL to start Scan. By default, 16.
