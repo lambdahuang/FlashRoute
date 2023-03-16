@@ -132,7 +132,7 @@ namespace flashroute {
     return false;
   }
 
-  uint64_t Ipv6Address::hash() const {
+  size_t Ipv6Address::hash() const {
     return (absl::Uint128High64(address_) ^ absl::Uint128Low64(address_)) %
            __SIZE_MAX__;
   }
