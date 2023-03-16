@@ -18,8 +18,8 @@ struct DataElement {
   absl::uint128 destination;
   absl::uint128 responder;
   uint32_t rtt;
-  uint8_t fromDestination;
   uint8_t distance;
+  uint8_t fromDestination;
   uint8_t ipv4;
 };
 
@@ -46,6 +46,7 @@ class ResultDumper {
   bool stopDumping_;
 
   uint64_t dumpedCount_;
+  uint64_t scheduledCount_;
 
   // Dumping thread.
   void runDumpingThread();

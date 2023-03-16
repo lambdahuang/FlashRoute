@@ -15,7 +15,10 @@ const uint32_t kDumpingIntervalMs = 100;      // Sleep interval.
 const uint32_t kDumpingBufferSize = 100000;
 
 ResultDumper::ResultDumper(const std::string& resultFilepath)
-    : resultFilepath_(resultFilepath), stopDumping_(false), dumpedCount_(0) {
+    : resultFilepath_(resultFilepath),
+      stopDumping_(false),
+      dumpedCount_(0),
+      scheduledCount_(0) {
   resultFilepath_ = resultFilepath;
   threadPool_ = std::make_unique<boost::asio::thread_pool>(kThreadPoolSize);
   dumpingBuffer_ =
@@ -36,10 +39,16 @@ ResultDumper::ResultDumper(const std::string& resultFilepath)
 }
 
 ResultDumper::~ResultDumper() {
+  while (!dumpingBuffer_->empty()) {
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(100));
+  }
   stopDumping_ = true;
+
   threadPool_->join();
-  VLOG(2) << "ResultDumper: ResultDumper recycled. " << dumpedCount_
-          << " responses have been dumped.";
+  VLOG(2) << "ResultDumper: ResultDumper recycled.";
+  VLOG(2) << "ResultDumper:" << scheduledCount_ << " scheduled " << dumpedCount_
+          << " dumped.";
 }
 
 void ResultDumper::scheduleDumpData(const IpAddress& destination,
@@ -47,6 +56,7 @@ void ResultDumper::scheduleDumpData(const IpAddress& destination,
                                     uint8_t distance, uint32_t rtt,
                                     bool fromDestination, bool ipv4,
                                     void* buffer, size_t size) {
+  scheduledCount_++;
   if (!stopDumping_) {
     absl::uint128 destinationAddr = 0;
     absl::uint128 responderAddr = 0;
@@ -66,7 +76,7 @@ void ResultDumper::scheduleDumpData(const IpAddress& destination,
 
 void ResultDumper::runDumpingThread() {
   VLOG(2) << "ResultDumper: Dumping thread initialized.";
-  while (!stopDumping_ || !dumpingBuffer_->empty()) {
+  while (!stopDumping_) {
     std::ofstream dumpFile;
     dumpFile.open(resultFilepath_, std::ofstream::binary | std::ofstream::app);
     uint8_t buffer[kDumpingTmpBufferSize];
@@ -90,7 +100,7 @@ size_t ResultDumper::binaryDumping(uint8_t* buffer, const size_t maxSize,
   *reinterpret_cast<absl::uint128*>(buffer + 0) = dataElement.destination;
   *reinterpret_cast<absl::uint128*>(buffer + 16) = dataElement.responder;
 
-  *reinterpret_cast<uint8_t*>(buffer + 32) = dataElement.rtt;
+  *reinterpret_cast<uint32_t*>(buffer + 32) = dataElement.rtt;
   *reinterpret_cast<uint8_t*>(buffer + 36) = dataElement.distance;
   *reinterpret_cast<uint8_t*>(buffer + 37) = dataElement.fromDestination;
   *reinterpret_cast<uint8_t*>(buffer + 38) = dataElement.ipv4;

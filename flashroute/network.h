@@ -79,7 +79,7 @@ class NetworkManager {
 
   // Scheduale to send a probe. Sending accords to the pre-determined sending
   // rate.
-  void schedualProbeRemoteHost(const IpAddress& destinationIp,
+  void scheduleProbeRemoteHost(const IpAddress& destinationIp,
                                const uint8_t ttl);
 
   // Start capturing the packets.

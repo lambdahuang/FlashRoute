@@ -31,7 +31,7 @@ namespace flashroute {
 // /24 ip address block, the corresponding value is 24
 const uint8_t kProbingGranularity = 24;
 
-const uint32_t kDiscoverySetCapacity = 100000;
+const uint32_t kDiscoverySetCapacity = 100;
 
 const uint32_t kThreadPoolSize = 2;
 
@@ -57,7 +57,8 @@ Tracerouter::Tracerouter(
     const bool preprobing, const bool preprobingPrediction,
     const int32_t predictionProximitySpan, const int32_t scanCount,
     const uint16_t srcPort, const uint16_t dstPort,
-    const std::string& defaultPayloadMessage, const bool encodeTimestamp)
+    const std::string& defaultPayloadMessage, const bool encodeTimestamp,
+    const uint8_t ttlOffset, bool randomizeAddressinExtraScans)
     : dcbManager_(dcbManager),
       stopProbing_(false),
       probePhase_(ProbePhase::NONE),
@@ -65,6 +66,7 @@ Tracerouter::Tracerouter(
       networkManager_(networkManager),
       defaultSplitTTL_(defaultSplitTTL),
       defaultPreprobingTTL_(defaultPreprobingTTL),
+      ttlOffset_(ttlOffset),
       forwardProbingMark_(forwardProbing),
       forwardProbingGapLimit_(forwardProbingGapLimit),
       redundancyRemovalMark_(redundancyRemoval),
@@ -72,6 +74,7 @@ Tracerouter::Tracerouter(
       preprobingPredictionMark_(preprobingPrediction),
       preprobingPredictionProximitySpan_(predictionProximitySpan),
       scanCount_(scanCount),
+      randomizeAddressInExtraScans_(randomizeAddressinExtraScans),
       sentPreprobes_(0),
       preprobeUpdatedCount_(0),
       sentProbes_(0),
@@ -215,17 +218,18 @@ void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
 
   if (proberType == ProberType::UDP_PROBER) {
     if (ipv4) {
-      prober_ =
-          std::make_unique<UdpProber>(&callback, 0, kPreProbePhase, dstPort_,
-                                      defaultPayloadMessage_, encodeTimestamp_);
+      prober_ = std::make_unique<UdpProber>(&callback, 0, kPreProbePhase,
+                                            dstPort_, defaultPayloadMessage_,
+                                            encodeTimestamp_, ttlOffset_);
     } else {
       prober_ = std::make_unique<UdpProberIpv6>(
-          &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_);
+          &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_,
+          ttlOffset_);
     }
   } else if (proberType == ProberType::UDP_IDEMPOTENT_PROBER) {
     prober_ = std::make_unique<UdpIdempotentProber>(
         &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_,
-        encodeTimestamp_);
+        encodeTimestamp_, ttlOffset_);
   } else {
     LOG(FATAL) << "Error in creating prober.";
   }
@@ -238,7 +242,7 @@ void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
   LOG(INFO) << "Start preprobing.";
   uint64_t dcbCount = dcbManager_->liveDcbSize();
   for (uint64_t i = 0; i < dcbCount && !stopProbing_; i++) {
-    networkManager_->schedualProbeRemoteHost(*(dcbManager_->next()->ipAddress),
+    networkManager_->scheduleProbeRemoteHost(*(dcbManager_->next()->ipAddress),
                                            defaultPreprobingTTL_);
   }
   std::this_thread::sleep_for(
@@ -275,18 +279,19 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
 
   if (proberType == ProberType::UDP_PROBER) {
     if (ipv4) {
-      prober_ =
-          std::make_unique<UdpProber>(&callback, 0, kMainProbePhase, dstPort_,
-                                      defaultPayloadMessage_, encodeTimestamp_);
+      prober_ = std::make_unique<UdpProber>(&callback, 0, kMainProbePhase,
+                                            dstPort_, defaultPayloadMessage_,
+                                            encodeTimestamp_, ttlOffset_);
 
     } else {
       prober_ = std::make_unique<UdpProberIpv6>(
-          &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_);
+          &callback, 0, kPreProbePhase, dstPort_, defaultPayloadMessage_,
+          ttlOffset_);
     }
   } else if (proberType == ProberType::UDP_IDEMPOTENT_PROBER) {
     prober_ = std::make_unique<UdpIdempotentProber>(
         &callback, 0, kMainProbePhase, dstPort_, defaultPayloadMessage_,
-        encodeTimestamp_);
+        encodeTimestamp_, ttlOffset_);
   } else {
     LOG(FATAL) << "Error in creating prober.";
   }
@@ -311,6 +316,10 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
                 << " extra round of main probing. Destination port offset "
                 << scanCount;
       dcbManager_->reset();
+      if (randomizeAddressInExtraScans_) {
+        LOG(INFO) << "Randomize addresses for the coming scan.";
+        dcbManager_->shuffleAddress();
+      }
       probingIterationRounds_ = 0;
       prober_->setChecksumOffset(scanCount);
     }
@@ -332,7 +341,7 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
       DestinationControlBlock& dcb = *dcbManager_->next();
 
       uint8_t nextForwardTask = dcb.pullForwardTask();
-      uint8_t nextBackwardTask = dcb.pullBackwardTask();
+      uint8_t nextBackwardTask = dcb.pullBackwardTask(ttlOffset_);
 
       bool hasForwardTask = nextForwardTask != 0;
       bool hasBackwardTask = nextBackwardTask != 0;
@@ -344,12 +353,12 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
       } else {
         if (forwardProbingMark_ && hasForwardTask) {
           // forward probing
-          networkManager_->schedualProbeRemoteHost(
+          networkManager_->scheduleProbeRemoteHost(
               *dcb.ipAddress, nextForwardTask);
         }
         if (hasBackwardTask) {
           // backward probing
-          networkManager_->schedualProbeRemoteHost(
+          networkManager_->scheduleProbeRemoteHost(
               *dcb.ipAddress, nextBackwardTask);
         }
       }
@@ -415,8 +424,14 @@ bool Tracerouter::parseIcmpProbing(const IpAddress& destination,
   // Convert the target ip address to the corresponding block index.
   DestinationControlBlock* dcb = dcbManager_->getDcbByAddress(destination);
   if (dcb == nullptr) {
-    droppedResponses_++;
-    return false;
+    std::vector<DestinationControlBlock*>* result =
+        dcbManager_->getDcbsByAddress(destination);
+    if (result != nullptr && result->size() == 1) {
+      dcb = result->at(0);
+    } else {
+      droppedResponses_++;
+      return false;
+    }
   }
   if (!fromDestination) {
     // Time Exceeded
@@ -440,8 +455,9 @@ bool Tracerouter::parseIcmpProbing(const IpAddress& destination,
     if (distance <= dcb->getMaxProbedDistance()) {
       // Set forward probing
       int16_t newMax = std::min<int16_t>(
-          distance + static_cast<int16_t>(forwardProbingGapLimit_), kMaxTtl);
-      if (newMax >= 0 && newMax <= kMaxTtl) {
+          distance + static_cast<int16_t>(forwardProbingGapLimit_),
+          kMaxTtl + ttlOffset_);
+      if (newMax > 0 && newMax <= kMaxTtl + ttlOffset_) {
         dcb->setForwardHorizon(static_cast<uint8_t>(newMax));
       }
     }

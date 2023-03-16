@@ -31,12 +31,14 @@ UdpProberIpv6::UdpProberIpv6(PacketReceiverCallback* callback,
                              const int32_t checksumOffset,
                              const uint8_t probePhaseCode,
                              const uint16_t destinationPort,
-                             const std::string& payloadMessage) {
+                             const std::string& payloadMessage,
+                             const uint8_t ttlOffset) {
   probePhaseCode_ = probePhaseCode;
   callback_ = callback;
   checksumOffset_ = checksumOffset;
   payloadMessage_ = payloadMessage;
   destinationPort_ = htons(destinationPort);
+  ttlOffset_ = ttlOffset;
   checksumMismatches_ = 0;
   distanceAbnormalities_ = 0;
   otherMismatches_ = 0;
@@ -182,6 +184,7 @@ void UdpProberIpv6::parseResponse(uint8_t* buffer, size_t size,
     return;
 
   if (initialTTL == 0) initialTTL = 32;
+  initialTTL += ttlOffset_;
 
   if (parsedPacket->icmp.icmp6_type == 1 &&
       (parsedPacket->icmp.icmp6_code == 4 ||
@@ -208,7 +211,7 @@ void UdpProberIpv6::parseResponse(uint8_t* buffer, size_t size,
     return;
   }
 
-  if (distance <= 0 || distance > kMaxTtl) {
+  if (distance <= ttlOffset_ || distance > (kMaxTtl + ttlOffset_)) {
     distanceAbnormalities_ += 1;
     return;
   }

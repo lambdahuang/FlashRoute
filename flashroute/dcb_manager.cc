@@ -10,7 +10,7 @@ namespace flashroute {
 // When granularity has been set to 0, it will be updated based on the type of
 // the first inserted address.
 DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
-                       const uint32_t seed)
+                       const uint32_t seed, const bool coarseFind)
     : scanRound(0),
       liveDcbCount_(0),
       granularity_(granularity),
@@ -24,21 +24,55 @@ DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
                                          IpAddressHash, IpAddressEquality>>(
           new std::unordered_map<IpAddress*, DestinationControlBlock*,
                                  IpAddressHash, IpAddressEquality>());
-
-  coarseMap_ = std::unique_ptr<
-      std::unordered_map<IpNetwork*, std::vector<DestinationControlBlock*>,
-                         IpNetworkHash, IpNetworkEquality>>(
-      new std::unordered_map<IpNetwork*, std::vector<DestinationControlBlock*>,
-                             IpNetworkHash, IpNetworkEquality>());
-
   map_->reserve(reservedSpace);
-  coarseMap_->reserve(reservedSpace);
+
+  if (coarseFind) {
+    coarseMap_ = std::unique_ptr<
+        std::unordered_map<IpNetwork*, std::vector<DestinationControlBlock*>,
+                           IpNetworkHash, IpNetworkEquality>>(
+        new std::unordered_map<IpNetwork*,
+                               std::vector<DestinationControlBlock*>,
+                               IpNetworkHash, IpNetworkEquality>());
+    coarseMap_->reserve(reservedSpace);
+  }
+
 
   // insert the special dcb.
   specialDcb_ = addDcb(Ipv4Address(0), 0);
   currentDcb_ = specialDcb_;
   // reset live Dcb count to 0
   liveDcbCount_ = 0;
+}
+
+void DcbManager::releaseCoarseMapping() {
+  if (coarseMap_.get() != nullptr) {
+    while (!coarseMap_->empty()) {
+      auto element = coarseMap_->begin();
+      auto keyAddress = element->first;
+      coarseMap_->erase(keyAddress);
+      delete keyAddress;
+    }
+    VLOG(2) << "DcbManager: coarse address mapping is released.";
+  }
+}
+
+void DcbManager::releaseAccurateMapping() {
+  if (map_.get() != nullptr) {
+    while (!map_->empty()) {
+      auto element = map_->begin();
+      auto keyAddress = element->first;
+      map_->erase(keyAddress);
+      delete keyAddress;
+    }
+
+    VLOG(2) << "DcbManager: accurate address mapping is released.";
+  }
+}
+
+DcbManager::~DcbManager() {
+  releaseCoarseMapping();
+  releaseAccurateMapping();
+  VLOG(2) << "DcbManager: cleanup is finished.";
 }
 
 bool DcbManager::hasNext() {
@@ -114,6 +148,7 @@ DestinationControlBlock* DcbManager::getDcbByAddress(
 
 std::vector<DestinationControlBlock*>* DcbManager::getDcbsByAddress(
     const IpAddress& pseudo) const {
+  if (coarseMap_.get() == nullptr) return nullptr;
   IpNetwork ipNetwork(pseudo, granularity_);
   auto result = coarseMap_->find(&ipNetwork);
   if (result != coarseMap_->end()) {
@@ -219,7 +254,8 @@ void DcbManager::reset() {
       } else {
         // If dcb does not have preprobing result, new TTL is generated based on
         // the lastest forward probed hop.
-        it->second->resetProbingProgress(rand() % it->second->peekForwardHop() + 1);
+        it->second->resetProbingProgress(rand() % it->second->peekForwardHop() +
+                                         1);
       }
     }
   }
@@ -229,6 +265,15 @@ void DcbManager::reset() {
 
   liveDcbCount_ = map_->size() - 1;
   VLOG(2) << "DcbManager has been reset.";
+}
+
+void DcbManager::shuffleAddress() {
+  for (auto it = map_->begin(); it != map_->end(); ++it) {
+    // Shuffle address.
+    if (it->second != specialDcb_) {
+        it->second->ipAddress->randomizeAddress(granularity_); 
+    }
+  }
 }
 
 uint64_t DcbManager::size() {
@@ -267,6 +312,7 @@ void DcbManager::swapDcbElementSequence(DestinationControlBlock* x,
 }
 
 void DcbManager::addToCoarseMap(DestinationControlBlock* dcb) {
+  if (coarseMap_.get() == nullptr) return;
   IpNetwork* ipNetwork = new IpNetwork(*dcb->ipAddress, granularity_);
   auto result = coarseMap_->find(ipNetwork);
   if (result != coarseMap_->end()) {

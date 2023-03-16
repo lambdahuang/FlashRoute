@@ -23,6 +23,8 @@
 #include "flashroute/udp_prober_v6.h"
 #include "flashroute/utils.h"
 #include "flashroute/single_host.h"
+#include "flashroute/output_parser.h"
+#include "flashroute/bogon_filter.h"
 
 ABSL_FLAG(bool, recommended_mode, false,
           "Use recommended configuration.");
@@ -33,6 +35,10 @@ ABSL_FLAG(std::string, dump_targets_file, "", "Dump targets to file.");
 
 ABSL_FLAG(std::string, prober_type, "udp",
           "The prober used for the scan. Options: udp, udp idempotent");
+
+ABSL_FLAG(int16_t, ttl_offset, 0,
+          "Offset of ttl. For example, if offset is 5, the scan will cover the "
+          "ttl in thhe range [6, 38].");
 
 ABSL_FLAG(int16_t, split_ttl, 16, "Default split ttl.");
 ABSL_FLAG(
@@ -70,7 +76,15 @@ ABSL_FLAG(int16_t, gaplimit, 5,
 ABSL_FLAG(bool, remove_redundancy, true,
           "Remove redundancy in backward probing.");
 
+// Optimization: Read route length information from history probing result.
+
+ABSL_FLAG(std::string, history_probing_result, "",
+          "Read history result to optimize the coming probing.");
+
 // Miscellaneous
+
+ABSL_FLAG(std::string, bogon_filter_potaroo, "",
+          "Bogon filter input in potaroo format.");
 ABSL_FLAG(std::string, output, "", "Output path.");
 
 ABSL_FLAG(std::string, tcpdump_output, "", "Tcpdump output path.");
@@ -97,6 +111,10 @@ ABSL_FLAG(int32_t, seed, 0,
           "generation and probing sequence.");
 
 ABSL_FLAG(int32_t, scan_count, 1, "Number of main scans.");
+
+ABSL_FLAG(bool, randomize_address_in_extra_scans, false,
+          "If set to true, addresses will be randomized in the extra scans. "
+          "Otherwise, only port number will be randomized.");
 
 ABSL_FLAG(bool, verbose, false, "Verbose level 1.");
 
@@ -125,6 +143,8 @@ void signalHandler(int signalNumber) {
 
 void printFlags() {
   VLOG(1) << boost::format("Boost version: %|30t|%1%") % BOOST_LIB_VERSION;
+
+  VLOG(1) << " ========== Network ========== ";
   VLOG(1) << boost::format("Prober Type: %|30t|%1%") %
                  ((absl::GetFlag(FLAGS_prober_type).compare("udp") == 0)
                       ? "udp"
@@ -140,6 +160,9 @@ void printFlags() {
                    (absl::GetFlag(FLAGS_sequential_scan) ? "true" : "false");
   VLOG(1) << boost::format("Probing rate: %|30t|%1% Packet Per Second") %
                    absl::GetFlag(FLAGS_probing_rate);
+
+  VLOG(1) << " ========== Experiment Feature ========== ";
+
   VLOG(1) << boost::format("Scan granularity: %|30t|%1%") %
                    absl::GetFlag(FLAGS_granularity);
   VLOG(1) << boost::format("Preprobing: %|30t|%1%") %
@@ -161,14 +184,28 @@ void printFlags() {
                    absl::GetFlag(FLAGS_seed);
   VLOG(1) << boost::format("Scan Count: %|30t|%1%") %
                    absl::GetFlag(FLAGS_scan_count);
+  VLOG(1) << boost::format("Randomize address: %|30t|%1%") %
+                 (absl::GetFlag(FLAGS_randomize_address_in_extra_scans)
+                      ? "true"
+                      : "false");
+
+  VLOG(1) << " ========== Miscellaneous ========== ";
+  VLOG(1) << boost::format("Backlist: %|15t|%1%") % absl::GetFlag(FLAGS_blacklist);
+  VLOG(1) << boost::format("Bgp: %|15t|%1%") % absl::GetFlag(FLAGS_bogon_filter_potaroo);
+  VLOG(1) << boost::format("History: %|15t|%1%") % absl::GetFlag(FLAGS_history_probing_result);
+  VLOG(1) << boost::format("Hitlist: %|15t|%1%") % absl::GetFlag(FLAGS_hitlist);
+  VLOG(1) << boost::format("Target: %|15t|%1%") % absl::GetFlag(FLAGS_targets);
+  VLOG(1) << boost::format("Output: %|15t|%1%") % absl::GetFlag(FLAGS_output);
 }
 
 int main(int argc, char* argv[]) {
-  FLAGS_logtostderr = 1;
+  absl::SetProgramUsageMessage("FlashRoute");
+  absl::ParseCommandLine(argc, argv);
+  FLAGS_alsologtostderr = 1;
+  std::string logOutput = absl::GetFlag(FLAGS_output) + "_log";
 
   google::InitGoogleLogging(argv[0]);
-  absl::SetProgramUsageMessage("This program does nothing.");
-  absl::ParseCommandLine(argc, argv);
+  google::SetLogDestination(0, logOutput.c_str());
 
   if (absl::GetFlag(FLAGS_vverbose)) {
     FLAGS_v = 2;
@@ -210,7 +247,14 @@ int main(int argc, char* argv[]) {
 
     std::time_t now = std::time(0);
     uint32_t seed = absl::GetFlag(FLAGS_seed);
-    if (seed == 0) seed = static_cast<std::uint32_t>(now);
+    if (seed == 0) {
+      seed = static_cast<std::uint32_t>(now);
+      LOG(INFO) << "Seed for random number generator is 0, we random generate "
+                   "the seed: "
+                << seed;
+    } else {
+      LOG(INFO) << "Seed for random number generator " << seed;
+    }
 
     // Remove exclusion/blacklist list.
     Blacklist blacklist;
@@ -218,26 +262,45 @@ int main(int argc, char* argv[]) {
     blacklist.loadRulesFromFile(absl::GetFlag(FLAGS_blacklist));
 
     // Remove reserved addresses.
-    if (absl::GetFlag(FLAGS_remove_reserved_addresses))
+    if (absl::GetFlag(FLAGS_remove_reserved_addresses)) {
       blacklist.loadRulesFromReservedAddress();
-    LOG(INFO) << "Load " << blacklist.size() << " blacklist rules.";
+      LOG(INFO) << "Load " << blacklist.size() << " blacklist rules.";
+    }
 
-    Targets targetLoader(absl::GetFlag(FLAGS_split_ttl), seed, &blacklist);
+    BogonFilter bogonFilter{absl::GetFlag(FLAGS_bogon_filter_potaroo)};
+
+    Targets targetLoader(absl::GetFlag(FLAGS_split_ttl), seed, &blacklist,
+                         &bogonFilter);
 
     ResultDumper* resultDumper = nullptr;
     if (!absl::GetFlag(FLAGS_output).empty()) {
       resultDumper = new ResultDumper(absl::GetFlag(FLAGS_output));
     }
 
+    // We enable course address finding capability for dcbmanager if either we
+    // need to use distance prediction or we scan mulitple rounds with different
+    // target addresses.
+    bool enableCourseAddressFinding = absl::GetFlag(FLAGS_distance_prediction) |
+                                      (absl::GetFlag(FLAGS_scan_count) > 1);
+
     DcbManager* dcbManager;
     // Load targets.
     if (!absl::GetFlag(FLAGS_targets).empty()) {
       dcbManager = targetLoader.loadTargetsFromFile(
-          absl::GetFlag(FLAGS_targets), static_cast<uint8_t>(absl::GetFlag(
-                                            FLAGS_distance_prediction_prefix)));
+          absl::GetFlag(FLAGS_targets),
+          static_cast<uint8_t>(absl::GetFlag(FLAGS_distance_prediction_prefix)),
+          enableCourseAddressFinding);
     } else {
       dcbManager = targetLoader.generateTargetsFromNetwork(
-          target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)));
+          target, static_cast<uint8_t>(absl::GetFlag(FLAGS_granularity)),
+          enableCourseAddressFinding);
+    }
+
+    // Learn route length from the history
+    if (!absl::GetFlag(FLAGS_history_probing_result).empty()) {
+      LOG(INFO) << "Update split TTL based on the history scan.";
+      updateDcbsBasedOnHistory(absl::GetFlag(FLAGS_history_probing_result),
+                               dcbManager);
     }
 
     // check if the scan is for ipv4 or ipv6.
@@ -258,7 +321,8 @@ int main(int argc, char* argv[]) {
         absl::GetFlag(FLAGS_proximity_span), absl::GetFlag(FLAGS_scan_count),
         absl::GetFlag(FLAGS_src_port), absl::GetFlag(FLAGS_dst_port),
         absl::GetFlag(FLAGS_default_payload_message),
-        absl::GetFlag(FLAGS_encode_timestamp));
+        absl::GetFlag(FLAGS_encode_timestamp), absl::GetFlag(FLAGS_ttl_offset),
+        absl::GetFlag(FLAGS_randomize_address_in_extra_scans));
     traceRouterPtr = &traceRouter;
 
     // Load hitlist.
@@ -289,7 +353,8 @@ int main(int argc, char* argv[]) {
 
     printFlags();
   } else {
-    SingleHost tracerouter(0, absl::GetFlag(FLAGS_dst_port));
+    SingleHost tracerouter(0, absl::GetFlag(FLAGS_dst_port),
+                           absl::GetFlag(FLAGS_ttl_offset));
     tracerouter.startScan(target, finalInterface);
   }
   LOG(INFO) << "The program ends.";

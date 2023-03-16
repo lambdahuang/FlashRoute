@@ -22,13 +22,16 @@ const uint8_t kMaxTtl = 32;
 const uint16_t kDefaultIPID = 1234;
 
 UdpIdempotentProber::UdpIdempotentProber(PacketReceiverCallback* callback,
-                     const int32_t checksumOffset, const uint8_t probePhaseCode,
-                     const uint16_t destinationPort,
-                     const std::string& payloadMessage,
-                     const bool encodeTimestamp) {
+                                         const int32_t checksumOffset,
+                                         const uint8_t probePhaseCode,
+                                         const uint16_t destinationPort,
+                                         const std::string& payloadMessage,
+                                         const bool encodeTimestamp,
+                                         const uint8_t ttlOffset) {
   probePhaseCode_ = probePhaseCode;
   callback_ = callback;
   checksumOffset_ = checksumOffset;
+  ttlOffset_ = ttlOffset;
   payloadMessage_ = payloadMessage;
   destinationPort_ = htons(destinationPort);
   encodeTimestamp_ = encodeTimestamp;
@@ -68,8 +71,8 @@ size_t UdpIdempotentProber::packProbe(const IpAddress& destinationIp,
   // packet-size encodes 3-bit destination group.
   packetExpectedSize = (groupOfDestination & 0x7) << 6;
   // packet-size encodes 6-bit: 5-bit TTL and 1 bit for encoding protoType.
-  packetExpectedSize =
-      packetExpectedSize | (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
+  packetExpectedSize = packetExpectedSize | ((ttl - ttlOffset_) & 0x1F) |
+                       ((probePhaseCode_ & 0x1) << 5);
 
   // In OSX, please use: packet->ip.ip_len = packetExpectedSize;
   // Otherwise, you will have an Errno-22.
@@ -173,6 +176,7 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
   uint32_t rtt = 0;
   int16_t initialTTL = static_cast<int16_t>(probeIpLen & 0x1F);
   if (initialTTL == 0) initialTTL = 32;
+  initialTTL+=ttlOffset_;
 
   if (parsedPacket->icmp.icmp_type == 3 &&
       (parsedPacket->icmp.icmp_code == 3 || parsedPacket->icmp.icmp_code == 2 ||
@@ -196,7 +200,7 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
     return;
   }
 
-  if (distance <= 0 || distance > kMaxTtl) {
+  if (distance <= ttlOffset_ || distance > (kMaxTtl + ttlOffset_)) {
     distanceAbnormalities_ += 1;
     return;
   }

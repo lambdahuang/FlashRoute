@@ -9,17 +9,15 @@ using namespace flashroute;
 const uint16_t kTestBufferSize = 512;
 
 TEST(UdpProber, PackProbeTest) {
-  uint32_t destinationIp = 12456;
-  uint32_t sourceIp = 6789;
+  Ipv4Address destinationIp{12456};
+  Ipv4Address sourceIp{6789};
   uint8_t initialTtl = 17;
   PacketReceiverCallback response_handler =
-      [](uint32_t destination, uint32_t responder, uint8_t distance,
-         bool fromDestination, uint32_t rtt, uint8_t probePhase,
-         uint16_t replyIpid, uint8_t replyTtl, uint32_t replySize,
-         uint32_t probeSize, uint16_t probeIpid, uint16_t probeSourcePort,
-         uint16_t probeDestinationPort) {};
+      [](const IpAddress& destination, const IpAddress& responder,
+         uint8_t distance, uint32_t rtt, bool fromDestination, bool ipv4,
+         void* packetHeader, size_t headerLen) {};
 
-  UdpProber prober(&response_handler, 0, 1, 0, "test", true);
+  UdpProber prober(&response_handler, 0, 1, 0, "test", true, 0);
 
   uint8_t buffer[kTestBufferSize];
   size_t size = prober.packProbe(destinationIp, sourceIp, initialTtl, buffer);
@@ -37,7 +35,7 @@ TEST(UdpProber, PackProbeTest) {
 
   EXPECT_EQ((packetIPID & 0x1F), 17);
   EXPECT_EQ(packetTtl, 17);
-  EXPECT_EQ(packetSourceIp, sourceIp);
-  EXPECT_EQ(packetDestinationIp, destinationIp);
+  EXPECT_EQ(packetSourceIp, htonl(sourceIp.getIpv4Address()));
+  EXPECT_EQ(packetDestinationIp, htonl(destinationIp.getIpv4Address()));
   EXPECT_EQ(probePhase, 1);
 }

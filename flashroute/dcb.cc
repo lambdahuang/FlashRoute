@@ -57,9 +57,9 @@ uint8_t DestinationControlBlock::stopBackwardProbing() {
   return remains;
 }
 
-uint8_t DestinationControlBlock::pullBackwardTask() {
+uint8_t DestinationControlBlock::pullBackwardTask(int16_t ttlOffset) {
   while (testAndSet->test_and_set(std::memory_order_acquire)) {}
-  if (nextBackwardHop_ > 0) {
+  if (nextBackwardHop_ > ttlOffset) {
     auto tmp = nextBackwardHop_--;
     testAndSet->clear(std::memory_order_release);
     return tmp;

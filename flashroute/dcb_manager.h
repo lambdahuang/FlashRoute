@@ -18,7 +18,9 @@ class DcbManager {
   int32_t scanRound = 0;
 
   explicit DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
-                      const uint32_t seed);
+                      const uint32_t seed, const bool coarseFind);
+
+  ~DcbManager();
 
   // return true if there is any dcb in iteration list.
   bool hasNext();
@@ -63,11 +65,17 @@ class DcbManager {
   // recover to the snapshot.
   void reset();
 
+  // Shuffle address using the method.
+  void shuffleAddress();
+
   // return the number of the DCBs that are in iteration.
   uint64_t liveDcbSize();
 
   // return the number of the DCBs.
   uint64_t size();
+
+  // release the resource allocated for coase address look up.
+  void releaseCoarseMapping();
 
  private:
   uint64_t liveDcbCount_ = 0;
@@ -94,6 +102,8 @@ class DcbManager {
                               DestinationControlBlock* y);
 
   void addToCoarseMap(DestinationControlBlock* dcb);
+
+  void releaseAccurateMapping();
 };
 
 }  // namespace flashroute

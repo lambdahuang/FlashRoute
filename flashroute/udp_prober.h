@@ -35,7 +35,7 @@ const uint32_t kTimestampSlot = 65536;
  * );
  *
  * // Pass prober instance to network manager, so users can call
- * schedualProbeRemoteHost to issue probe or process responses in callback func.
+ * scheduleProbeRemoteHost to issue probe or process responses in callback func.
  * NetworkManager networkManager(
  *  &prober,  // The prober to process packets.
  *  "eth0",   // The interface to send the probe.
@@ -48,7 +48,8 @@ class UdpProber : public virtual Prober {
  public:
   UdpProber(PacketReceiverCallback* callback, const int32_t checksumOffset,
             const uint8_t probePhaseCode, const uint16_t destinationPort,
-            const std::string& payloadMessage, const bool encodeTimestamp);
+            const std::string& payloadMessage, const bool encodeTimestamp,
+            const uint8_t ttlOffset);
 
   // Construct probe.
   size_t packProbe(const IpAddress& destinationIp, const IpAddress& sourceIp,
@@ -80,8 +81,9 @@ class UdpProber : public virtual Prober {
  private:
   PacketReceiverCallback* callback_;
   int32_t checksumOffset_;
-  uint8_t probePhaseCode_;
   uint16_t destinationPort_;
+  uint8_t probePhaseCode_;
+  uint8_t ttlOffset_;
   std::string payloadMessage_;
   bool encodeTimestamp_;
 

@@ -23,13 +23,14 @@ UdpProber::UdpProber(PacketReceiverCallback* callback,
                      const int32_t checksumOffset, const uint8_t probePhaseCode,
                      const uint16_t destinationPort,
                      const std::string& payloadMessage,
-                     const bool encodeTimestamp) {
+                     const bool encodeTimestamp, const uint8_t ttlOffset) {
   probePhaseCode_ = probePhaseCode;
   callback_ = callback;
   checksumOffset_ = checksumOffset;
   payloadMessage_ = payloadMessage;
   destinationPort_ = htons(destinationPort);
   encodeTimestamp_ = encodeTimestamp;
+  ttlOffset_ = ttlOffset;
   checksumMismatches_ = 0;
   distanceAbnormalities_ = 0;
   otherMismatches_ = 0;
@@ -61,7 +62,7 @@ size_t UdpProber::packProbe(const IpAddress& destinationIp,
   // ipid: 5-bit for encoding intiial TTL, 1 bit for encoding probeType, 10-bit
   // for encoding timestamp.
   // 0x3FF = 2^10 to extract first 10-bit of timestamp
-  uint16_t ipid = (ttl & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
+  uint16_t ipid = ((ttl - ttlOffset_) & 0x1F) | ((probePhaseCode_ & 0x1) << 5);
   int32_t packetExpectedSize = 128;
 
   if (encodeTimestamp_) {
@@ -177,6 +178,7 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
 
   int16_t initialTTL = static_cast<int16_t>(probeIpId & 0x1F);
   if (initialTTL == 0) initialTTL = 32;
+  initialTTL += ttlOffset_;
 
   if (parsedPacket->icmp.icmp_type == 3 &&
       (parsedPacket->icmp.icmp_code == 3 || parsedPacket->icmp.icmp_code == 2 ||
@@ -201,7 +203,7 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
     return;
   }
 
-  if (distance <= 0 || distance > kMaxTtl) {
+  if (distance <= ttlOffset_ || distance > (kMaxTtl + ttlOffset_)) {
     distanceAbnormalities_ += 1;
     return;
   }
