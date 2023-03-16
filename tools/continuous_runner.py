@@ -53,7 +53,7 @@ def main():
         if start_speed != 0 and speed_step !=0:
             speed_arg = f" --probing_rate {start_speed} "
             speed_label = f"probibng_rate_{start_speed}"
-            start_speed += start_speed
+            start_speed += speed_step
             output_filename = os.path.join(output_dir, f"{args.l}_{speed_label}")
         else:
             # generate output filename
