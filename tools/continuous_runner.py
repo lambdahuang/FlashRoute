@@ -25,6 +25,8 @@ def main():
                                  help='Probing initial speed.')
     argument_parser.add_argument("-si", type=int, required=False, default=0,
                                  help='Probing speed step.')
+    argument_parser.add_argument("-ps", type=int, required=False, default=0,
+                                 help='Initial prefix length.')
     argument_parser.add_argument("-test", type=bool, required=False, default=False,
                                  help='Test mode.')
     args = argument_parser.parse_args()
@@ -43,6 +45,9 @@ def main():
     speed_arg = ""
     speed_label = ""
 
+    # stair prefix
+    start_prefix = args.ps
+
     i = 0
     start = time.time()
     while (args.n != 0 and i < args.n) or ((time.time() - start) / 60 <= args.t):
@@ -55,17 +60,21 @@ def main():
             speed_label = f"probibng_rate_{start_speed}"
             output_filename = os.path.join(output_dir, f"{args.l}_{speed_label}")
             start_speed += speed_step
+        elif start_prefix != 0:
+            prefix_arg = f" --granularity {start_prefix} "
+            prefix_label = f"granularity_{start_prefix}"
+            output_filename = os.path.join(output_dir, f"{args.l}_{prefix_label}")
+            start_prefix += 1
         else:
             # generate output filename
             output_filename = os.path.join(output_dir, f"{args.l}_{i}")
 
-
-        command = f"{args.e} --output {output_filename}{read_history_arg}{speed_arg}{args.a}"
+        command = f"{args.e} --output {output_filename}{read_history_arg}{speed_arg}{prefix_arg}{args.a}"
         glog.info(command)
         if not args.test:
             os.system(command)
+            time.sleep(args.d)
         previous_output = output_filename
-        time.sleep(args.d)
         i += 1
 
 
