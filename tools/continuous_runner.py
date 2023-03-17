@@ -21,6 +21,8 @@ def main():
                                  help='Label of outputs.')
     argument_parser.add_argument("-a", type=str, required=True,
                                  help='Arguments for Flashroute.')
+    argument_parser.add_argument("-nohistory", type=bool, required=True, default=False,
+                                 help='Not reuse history.')
     argument_parser.add_argument("-ss", type=int, required=False, default=0,
                                  help='Probing initial speed.')
     argument_parser.add_argument("-si", type=int, required=False, default=0,
@@ -52,7 +54,7 @@ def main():
     start = time.time()
     while (args.n != 0 and i < args.n) or ((time.time() - start) / 60 <= args.t):
         glog.info(f"{i} round")
-        if previous_output != "":
+        if args.nohistory == False and previous_output != "":
             read_history_arg = f" --history_probing_result {previous_output}"
         
         if start_speed != 0 and speed_step !=0:
