@@ -37,15 +37,6 @@ ABSL_FLAG(int, step, 1, "Step to read outputs");
 ABSL_FLAG(bool, formatted, false, "Output machine-readable format.");
 ABSL_FLAG(std::string, output, "", "Directory of output");
 
-struct DataElement {
-  uint32_t destination[4];
-  uint32_t responder[4];
-  uint32_t rtt;
-  uint8_t distance;
-  uint8_t fromDestination;
-  uint8_t ipv4;
-} __attribute__((packed));;
-
 using EdgeMap = std::unordered_map<
     IpAddress *, std::shared_ptr<std::unordered_map<uint32_t, IpAddress *>>,
     IpAddressHash, IpAddressEquality>;
