@@ -1,12 +1,10 @@
-# load("@parser_dependencies//:requirements.bzl", "requirement")
-# load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
-
-# py_binary(
-#     name = "tcpdump_parser",
-#     srcs = ["tcpdump_parser.py"],
-#     python_version = "PY3",
-#     deps = [
-#         requirement("scapy"),
-#     ],
-# )
-
+cc_binary(
+    name = "interface_edge_counter",
+    srcs = ["interface_edge_counter.cc"],
+    deps = [
+        "//external:glog",
+        "//external:gflags",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse", 
+    ],
+)

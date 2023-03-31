@@ -103,8 +103,8 @@ pip_import(
 
 # Load the pip_install symbol for my_deps, and create the dependencies'
 # repositories.
-load("@parser_dependencies//:requirements.bzl", "pip_install")
-pip_install()
+# load("@parser_dependencies//:requirements.bzl", "pip_install")
+# pip_install()
 
 new_git_repository(
     name = "googletest",
