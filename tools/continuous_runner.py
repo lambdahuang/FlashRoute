@@ -21,7 +21,7 @@ def main():
                                  help='Label of outputs.')
     argument_parser.add_argument("-a", type=str, required=True,
                                  help='Arguments for Flashroute.')
-    argument_parser.add_argument("-nohistory", type=bool, required=True, default=False,
+    argument_parser.add_argument("-nohistory", type=bool, required=False, default=False,
                                  help='Not reuse history.')
     argument_parser.add_argument("-ss", type=int, required=False, default=0,
                                  help='Probing initial speed.')
@@ -71,7 +71,7 @@ def main():
             # generate output filename
             output_filename = os.path.join(output_dir, f"{args.l}_{i}")
 
-        command = f"{args.e} --output {output_filename}{read_history_arg}{speed_arg}{prefix_arg}{args.a}"
+        command = f"{args.e} --output {output_filename} {read_history_arg} {speed_arg} {prefix_arg} {args.a}"
         glog.info(command)
         if not args.test:
             os.system(command)
