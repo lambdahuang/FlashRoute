@@ -49,6 +49,7 @@ def main():
 
     # stair prefix
     start_prefix = args.ps
+    prefix_arg = ""
 
     i = 0
     start = time.time()
