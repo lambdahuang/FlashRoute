@@ -39,7 +39,6 @@ DcbManager* Targets::loadTargetsFromFile(
   auto filePathStr = std::string(filePath);
   std::ifstream in(filePathStr);
   int64_t count = 0;
-  std::unordered_set<uint32_t> addressBlocks;
   for (std::string line; std::getline(in, line);) {
     if (!line.empty()) {
       auto result = parseIpFromStringToIpAddress(line);
