@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
   std::unordered_set<uint64_t> edges;
   // Hot branch describes for each destination, the number of changes we
   // observed.
-  std::unordered_map<uint32_t, bool> hotBranch;
+  std::unordered_map<uint32_t, uint32_t> hotBranch;
   uint32_t hotBranchThreshold = absl::GetFlag(FLAGS_threshold);
 
   std::ifstream inFile;
