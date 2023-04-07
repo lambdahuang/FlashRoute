@@ -206,5 +206,8 @@ int main(int argc, char *argv[]) {
   LOG(INFO) << "Processed " << records << " records.";
   LOG(INFO) << "There are " << interface << " unique interfaces.";
   LOG(INFO) << "There are " << edges.size() << " unique edges.";
-  LOG(INFO) << "There are " << numberOfHotbranch << " hot branches.";
+  LOG(INFO) << "There are " << observedEdges.size() << " desintaions.";
+  LOG(INFO) << "There are " << numberOfHotbranch << "("
+            << static_cast<float>(numberOfHotbranch) / observedEdges.size()
+            << "%) hot branches.";
 }
