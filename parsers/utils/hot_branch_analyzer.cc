@@ -103,6 +103,7 @@ int main(int argc, char *argv[]) {
   uint64_t interface = 0;
   uint64_t previousInterface = 0;
   uint64_t previousEdge = 0;
+  uint32_t destinations = 0;
 
   for (auto file : targetFiles) {
     if (!absl::GetFlag(FLAGS_formatted)) {
@@ -180,6 +181,7 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    destinations = observedEdges.size();
     cleanEdgeMap(observedEdges);
     if (!absl::GetFlag(FLAGS_formatted)) {
       LOG(INFO) << "Created " << createdTime
@@ -206,8 +208,8 @@ int main(int argc, char *argv[]) {
   LOG(INFO) << "Processed " << records << " records.";
   LOG(INFO) << "There are " << interface << " unique interfaces.";
   LOG(INFO) << "There are " << edges.size() << " unique edges.";
-  LOG(INFO) << "There are " << observedEdges.size() << " desintaions.";
+  LOG(INFO) << "There are " << destinations << " desintaions.";
   LOG(INFO) << "There are " << numberOfHotbranch << "("
-            << static_cast<float>(numberOfHotbranch) / observedEdges.size()
+            << static_cast<float>(numberOfHotbranch) / destinations
             << "%) hot branches.";
 }
