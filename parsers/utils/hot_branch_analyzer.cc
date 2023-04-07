@@ -5,24 +5,25 @@
 #include <unordered_set>
 #include <vector>
 
-#include "glog/logging.h"
-#include "absl/flags/usage.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
-#include "absl/strings/str_cat.h"
+#include "absl/flags/usage.h"
 #include "absl/numeric/int128.h"
+#include "absl/strings/str_cat.h"
+#include "glog/logging.h"
 
 #include "flashroute/address.h"
 #include "flashroute/dump_result.h"
 #include "parsers/utils/utils.h"
 
 using flashroute::IpAddress;
-using flashroute::Ipv4Address;
-using flashroute::IpAddressHash;
 using flashroute::IpAddressEquality;
+using flashroute::IpAddressHash;
+using flashroute::Ipv4Address;
 
-ABSL_FLAG(std::vector<std::string>, targets, std::vector<std::string>{},
-          "Outputs of flashroute. If there are multiple files, split by comma.");
+ABSL_FLAG(
+    std::vector<std::string>, targets, std::vector<std::string>{},
+    "Outputs of flashroute. If there are multiple files, split by comma.");
 
 // Example:
 // bazel run parsers/utils/unique_interface_counter -- --directory
@@ -34,28 +35,29 @@ ABSL_FLAG(std::string, label, "", "Label of the data set");
 ABSL_FLAG(int, start, 0, "Starting index of the outputs");
 ABSL_FLAG(int, end, 0, "Ending index of the outputs");
 ABSL_FLAG(int, step, 1, "Step to read outputs");
+ABSL_FLAG(int, threshold, 2, "Hot branch threshold");
 ABSL_FLAG(bool, formatted, false, "Output machine-readable format.");
 ABSL_FLAG(std::string, output, "", "Directory of output");
 
 using EdgeMap = std::unordered_map<
     IpAddress *, std::shared_ptr<std::unordered_map<uint32_t, IpAddress *>>,
     IpAddressHash, IpAddressEquality>;
-void cleanEdgeMap(EdgeMap& map) {
-    while (!map.empty()) {
-      auto element = map.begin();
-      auto keyAddress = element->first;
-      auto routeMap = element->second;
-      while (!routeMap->empty()) {
-        auto pair = routeMap->begin();
-        delete pair->second;
-        routeMap->erase(pair->first);
-      }
-      map.erase(keyAddress);
-      delete keyAddress;
+void cleanEdgeMap(EdgeMap &map) {
+  while (!map.empty()) {
+    auto element = map.begin();
+    auto keyAddress = element->first;
+    auto routeMap = element->second;
+    while (!routeMap->empty()) {
+      auto pair = routeMap->begin();
+      delete pair->second;
+      routeMap->erase(pair->first);
     }
+    map.erase(keyAddress);
+    delete keyAddress;
+  }
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   FLAGS_alsologtostderr = 1;
   absl::SetProgramUsageMessage("This program does nothing.");
   absl::ParseCommandLine(argc, argv);
@@ -70,13 +72,15 @@ int main(int argc, char* argv[]) {
     google::SetLogDestination(0, logOutput.c_str());
   }
 
-  std::unordered_set<IpAddress *, IpAddressHash, IpAddressEquality> observedInterface;
+  std::unordered_set<IpAddress *, IpAddressHash, IpAddressEquality>
+      observedInterface;
 
   EdgeMap observedEdges;
   std::unordered_set<uint64_t> edges;
   // Hot branch describes for each destination, the number of changes we
   // observed.
   std::unordered_map<uint32_t, bool> hotBranch;
+  uint32_t hotBranchThreshold = absl::GetFlag(FLAGS_threshold);
 
   std::ifstream inFile;
   std::vector<std::string> targetFiles;
@@ -114,8 +118,7 @@ int main(int argc, char* argv[]) {
         IpAddressHash, IpAddressEquality>
         observedEdges;
 
-    std::unordered_set<uint32_t>
-        changedRoutesDestination;
+    std::unordered_set<uint32_t> changedRoutesDestination;
     while (inFile.peek() != EOF) {
       inFile.read(reinterpret_cast<char *>(&buffer), 39);
       records++;
@@ -134,7 +137,8 @@ int main(int argc, char* argv[]) {
 
         auto dest = new Ipv4Address(buffer.destination[0]);
         if (observedEdges.find(dest) == observedEdges.end()) {
-          auto tmp = std::make_shared<std::unordered_map<uint32_t, IpAddress *>>();
+          auto tmp =
+              std::make_shared<std::unordered_map<uint32_t, IpAddress *>>();
           observedEdges.insert({dest, tmp});
         }
         // tmp = <distance, ip address>
@@ -149,7 +153,6 @@ int main(int argc, char* argv[]) {
         // IPv6 address handling
         // TODO: we need to add the code logic handle IPv6 Address.
       }
-
     }
     inFile.clear();
     inFile.seekg(0);
@@ -169,12 +172,12 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    for(const uint32_t destination : changedRoutesDestination) {
-        if(hotBranch.find(destination) != hotBranch.end()) {
-            hotBranch.insert({destination, 1});
-        } else {
-            hotBranch[destination] = hotBranch[destination] + 1;
-        }
+    for (const uint32_t destination : changedRoutesDestination) {
+      if (hotBranch.find(destination) == hotBranch.end()) {
+        hotBranch.insert({destination, 1});
+      } else {
+        hotBranch[destination] = hotBranch[destination] + 1;
+      }
     }
 
     cleanEdgeMap(observedEdges);
@@ -185,10 +188,8 @@ int main(int argc, char* argv[]) {
                 << ") Unique edges: " << edges.size() << "(+"
                 << edges.size() - previousEdge << ")";
     } else {
-      LOG(INFO) << createdTime
-                << " " << interface << " "
-                << interface - previousInterface
-                << " " << edges.size() << " "
+      LOG(INFO) << createdTime << " " << interface << " "
+                << interface - previousInterface << " " << edges.size() << " "
                 << edges.size() - previousEdge;
     }
     previousInterface = interface;
@@ -196,8 +197,8 @@ int main(int argc, char* argv[]) {
   }
 
   uint32_t numberOfHotbranch = 0;
-  for(auto& it : hotBranch) {
-    if(it.second >= 2) {
+  for (auto &it : hotBranch) {
+    if (it.second >= hotBranchThreshold) {
       numberOfHotbranch++;
     }
   }
@@ -206,5 +207,4 @@ int main(int argc, char* argv[]) {
   LOG(INFO) << "There are " << interface << " unique interfaces.";
   LOG(INFO) << "There are " << edges.size() << " unique edges.";
   LOG(INFO) << "There are " << numberOfHotbranch << " hot branches.";
-
 }
