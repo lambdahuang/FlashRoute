@@ -114,6 +114,7 @@ int main(int argc, char *argv[]) {
     auto createdTime = getStartingTime(logFilename);
     inFile.open(file, std::ios::in | std::ios::binary);
     DataElement buffer;
+    // {destination, {hopDistance, Interface}}
     std::unordered_map<
         IpAddress *, std::shared_ptr<std::unordered_map<uint32_t, IpAddress *>>,
         IpAddressHash, IpAddressEquality>

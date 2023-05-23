@@ -95,3 +95,18 @@ cc_binary(
         ":utils",
     ],
 )
+
+
+cc_binary(
+    name = "reprobe_list_generator",
+    srcs = ["reprobe_list_generator.cc"],
+    deps = [
+        "//external:glog",
+        "//external:gflags",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse", 
+        "//flashroute:dump_result",
+        "//flashroute:address",
+        ":utils",
+    ],
+)
