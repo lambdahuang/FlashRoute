@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
       uint32_t destination = routeRecord.first;
       for (const auto &hopRecord : *routeRecord.second) {
         uint8_t hop = hopRecord.first;
-        uint32_t interface  = hopRecord.second;
+        uint32_t interface = hopRecord.second;
 
         std::shared_ptr<std::unordered_map<uint32_t, uint32_t>> edges;
         auto edgeRecord = edgeMap.find(interface);
@@ -223,7 +223,7 @@ int main(int argc, char *argv[]) {
   if (!absl::GetFlag(FLAGS_formatted)) {
     LOG(INFO) << " ProcessedRecords " << records;
     LOG(INFO) << " Total Interfaces " << edgeMap.size();
-    beInterfacesOG(INFO) << " Identified Reprobe Target "
+    LOG(INFO) << " Identified Reprobe Target "
                          << identifiedReprobeInterfaces;
     LOG(INFO) << " Planned Targets " << toProbeMap.size();
   } else {
