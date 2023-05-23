@@ -178,8 +178,6 @@ int main(int argc, char *argv[]) {
     if (!absl::GetFlag(FLAGS_formatted)) {
       LOG(INFO) << "Created " << createdTime;
       LOG(INFO) << " ProcessedRecords " << records;
-      LOG(INFO) << " Identified Reprobe Target " << identifiedReprobeInterfaces;
-      LOG(INFO) << " Planned Targets " << toProbeMap.size();
     } else {
       LOG(INFO) << createdTime;
     }
@@ -224,7 +222,9 @@ int main(int argc, char *argv[]) {
   }
   if (!absl::GetFlag(FLAGS_formatted)) {
     LOG(INFO) << " ProcessedRecords " << records;
-    LOG(INFO) << " Identified Reprobe Target " << identifiedReprobeInterfaces;
+    LOG(INFO) << " Total Interfaces " << edgeMap.size();
+    beInterfacesOG(INFO) << " Identified Reprobe Target "
+                         << identifiedReprobeInterfaces;
     LOG(INFO) << " Planned Targets " << toProbeMap.size();
   } else {
   }
