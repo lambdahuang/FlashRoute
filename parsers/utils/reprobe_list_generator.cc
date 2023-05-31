@@ -38,7 +38,38 @@ ABSL_FLAG(int, end, 0, "Ending index of the outputs");
 ABSL_FLAG(int, step, 1, "Step to read outputs");
 ABSL_FLAG(float, threshold, 2, "Hot branch threshold");
 ABSL_FLAG(bool, formatted, false, "Output machine-readable format.");
-ABSL_FLAG(std::string, output, "", "Directory of output");
+ABSL_FLAG(std::string, output, "reprobe_list.txt", "Directory of output");
+
+static std::string numericalToStringIp(uint32_t ip) {
+    struct in_addr ip_addr;
+    ip_addr.s_addr = ip;
+    std::string address(inet_ntoa(ip_addr));
+    return address;
+}
+
+static void dumpReprobeList(std::string output, std::unordered_map<uint32_t, uint8_t>& list) {
+    std::ofstream dumpFile(output);
+    for (auto& record : list) {
+      std::string ipAddress = numericalToStringIp(record.first);
+      int hopDistance = record.second;
+      dumpFile << ipAddress << ":" << hopDistance << std::endl;
+    }
+    dumpFile.close();
+}
+
+static int expectProbe(int n) {
+  static int probeTable[] = {
+      /*0*/ 0,   /*1*/ 0,   /*2*/ 6,   /*3*/ 11,  /*4*/ 16,
+      /*5*/ 21,  /*6*/ 27,  /*7*/ 33,  /*8*/ 38,
+      /*9*/ 44,  /*10*/ 51, /*11*/ 57, /*12*/ 63, /*13*/ 70,
+      /*14*/ 76, /*15*/ 83, /*16*/ 90, /*17*/ 96};
+  if (n < 2) {
+    return 2;
+  } else if (n > 18) {
+    return 97;
+  }
+  return probeTable[n];
+}
 
 int main(int argc, char *argv[]) {
   FLAGS_alsologtostderr = 1;
@@ -75,23 +106,25 @@ int main(int argc, char *argv[]) {
 
   uint64_t records = 0;
   uint64_t identifiedReprobeInterfaces = 0;
+  uint64_t identifiedFullyCoveredReprobeInterfaces = 0;
+  uint64_t hotInterface = 0;
 
   float threshold = absl::GetFlag(FLAGS_threshold);
 
   // {Interface, {Destination, hopDistance}}
-  std::unordered_map<uint32_t, std::shared_ptr<std::map<uint32_t, uint8_t>>>
+  std::unordered_map<uint32_t, std::unique_ptr<std::map<uint32_t, uint8_t>>>
       probeMap;
 
   // {interface, (hop-1) <interfaces, num of observations>}
   std::unordered_map<uint32_t,
-                     std::shared_ptr<std::unordered_map<uint32_t, uint32_t>>>
+                     std::unique_ptr<std::unordered_map<uint32_t, uint32_t>>>
       edgeMap;
 
   // {Destination, backward probe start hop}
   std::unordered_map<uint32_t, uint8_t> toProbeMap;
 
   // {desination, {hopDistance, interface}}
-  std::unordered_map<uint32_t, std::shared_ptr<std::map<uint8_t, uint32_t>>>
+  std::unordered_map<uint32_t, std::unique_ptr<std::map<uint8_t, uint32_t>>>
       routeMap;
 
   for (auto file : targetFiles) {
@@ -117,24 +150,31 @@ int main(int argc, char *argv[]) {
         uint32_t destination = buffer.destination[0];
         uint8_t hopDistance = buffer.distance;
         // Update ProbeMap
+        // if isFromDestination == true, it is from the destination instead of
+        // intermediate router interface, so we don't add it to the list.
+        if (isFromDestination == true) continue;
         auto interfaceRecord = probeMap.find(interface);
-        std::shared_ptr<std::map<uint32_t, uint8_t>> probeMapRecord;
+        std::map<uint32_t, uint8_t>* probeMapRecord;
         if (interfaceRecord == probeMap.end()) {
-          probeMapRecord = std::make_shared<std::map<uint32_t, uint8_t>>();
-          probeMap.insert({interface, probeMapRecord});
+          probeMapRecord = new std::map<uint32_t, uint8_t>();
+          probeMap.insert(
+              {interface,
+               std::unique_ptr<std::map<uint32_t, uint8_t>>(probeMapRecord)});
         } else {
-          probeMapRecord = interfaceRecord->second;
+          probeMapRecord = interfaceRecord->second.get();
         }
         probeMapRecord->insert({destination, hopDistance});
 
         // Update Route Map
         auto routeRecord = routeMap.find(destination);
-        std::shared_ptr<std::map<uint8_t, uint32_t>> route;
+        std::map<uint8_t, uint32_t>* route;
         if (routeRecord == routeMap.end()) {
-          route = std::make_shared<std::map<uint8_t, uint32_t>>();
-          routeMap.insert({destination, route});
+          route = new std::map<uint8_t, uint32_t>();
+          routeMap.insert(
+              {destination,
+               std::unique_ptr<std::map<uint8_t, uint32_t>>(route)});
         } else {
-          route = routeRecord->second;
+          route = routeRecord->second.get();
         }
         route->insert({hopDistance, interface});
 
@@ -151,33 +191,40 @@ int main(int argc, char *argv[]) {
 
     for (const auto &routeRecord : routeMap) {
       uint32_t destination = routeRecord.first;
+      int previousHop = -1;
+      int previousInterface = -1;
       for (const auto &hopRecord : *routeRecord.second) {
         uint8_t hop = hopRecord.first;
         uint32_t interface = hopRecord.second;
 
-        std::shared_ptr<std::unordered_map<uint32_t, uint32_t>> edges;
+        std::unordered_map<uint32_t, uint32_t>* edges;
         auto edgeRecord = edgeMap.find(interface);
         if (edgeRecord == edgeMap.end()) {
-          edges = std::make_shared<std::unordered_map<uint32_t, uint32_t>>();
-          edgeMap.insert({interface, edges});
+          edges = new std::unordered_map<uint32_t, uint32_t>();
+          edgeMap.insert(
+              {interface,
+               std::unique_ptr<std::unordered_map<uint32_t, uint32_t>>(edges)});
         } else {
-          edges = edgeRecord->second;
+          edges = edgeRecord->second.get();
         }
 
         // {hop, interface}
-        auto previousHopRecord = routeRecord.second->find(hop - 1);
-        if (previousHopRecord != routeRecord.second->end()) {
-          edges->insert({previousHopRecord->second, 1});
-        } else {
-          (*edges)[previousHopRecord->second]++;
+        if (previousHop != -1 && previousHop == hop -1) {
+          auto previousHopRecord = edges->find(previousInterface);
+          if (previousHopRecord == edges->end()) {
+            edges->insert({previousInterface, 1});
+          } else {
+            (*edges)[previousInterface]++;
+          }
         }
+        previousHop = hop;
+        previousInterface = interface;
       }
     }
     LOG(INFO) << "edges processed finished, start select candidate.";
 
     if (!absl::GetFlag(FLAGS_formatted)) {
-      LOG(INFO) << "Created " << createdTime;
-      LOG(INFO) << " ProcessedRecords " << records;
+      LOG(INFO) << "Created " << createdTime << " Processed Records " << records;
     } else {
       LOG(INFO) << createdTime;
     }
@@ -190,8 +237,10 @@ int main(int argc, char *argv[]) {
     for (const auto &edge : *edges.second) {
       totalProbeTimes += edge.second;
     }
-    if (static_cast<float>(totalProbeTimes) / totalDiscoveredInterfaces <=
-        threshold) {
+    if (expectProbe(totalDiscoveredInterfaces) == 97) {
+      hotInterface++;
+    }
+    if (expectProbe(totalDiscoveredInterfaces) > totalProbeTimes) {
       // Consider the upper link can be reprobed.
       identifiedReprobeInterfaces++;
       // Select the bullets to probe
@@ -213,19 +262,28 @@ int main(int argc, char *argv[]) {
         reprobeCandidate++;
         toProbeMap.insert({candidateAddr, candidateExpectedProbeHop});
         // Now we consider this candidate can be added
-        if (static_cast<float>(totalProbeTimes + reprobeCandidate) /
-                totalDiscoveredInterfaces >
-            threshold)
+        if (expectProbe(totalDiscoveredInterfaces) <=
+            totalProbeTimes + reprobeCandidate)
           break;
+      }
+      if (expectProbe(totalDiscoveredInterfaces) <=
+          totalProbeTimes + reprobeCandidate) {
+        identifiedFullyCoveredReprobeInterfaces++;
       }
     }
   }
+  dumpReprobeList(absl::GetFlag(FLAGS_output), toProbeMap);
+
   if (!absl::GetFlag(FLAGS_formatted)) {
     LOG(INFO) << " ProcessedRecords " << records;
     LOG(INFO) << " Total Interfaces " << edgeMap.size();
     LOG(INFO) << " Identified Reprobe Target "
                          << identifiedReprobeInterfaces;
+    LOG(INFO) << " Identified Fully Covered Reprobe Target "
+                         << identifiedFullyCoveredReprobeInterfaces;
     LOG(INFO) << " Planned Targets " << toProbeMap.size();
+    LOG(INFO) << " Hot Interface " << hotInterface;
   } else {
   }
+
 }

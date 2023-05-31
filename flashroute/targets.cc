@@ -41,13 +41,23 @@ DcbManager* Targets::loadTargetsFromFile(
   int64_t count = 0;
   for (std::string line; std::getline(in, line);) {
     if (!line.empty()) {
-      auto result = parseIpFromStringToIpAddress(line);
+      // Example
+      // 127.0.0.1:10   IPAddress is 127.0.0.1 and split ttl is 10
+      std::vector<absl::string_view> parts = absl::StrSplit(line, ":");
+      auto result = parseIpFromStringToIpAddress(std::string(parts[0]));
+      int splitTtl = defaultSplitTtl_;
+      if (parts.size() == 2) {
+        if (!absl::SimpleAtoi(parts[1], &splitTtl)) {
+          LOG(FATAL) << "split ttl convert fails.";
+        }
+      }
+
       if (result == NULL) continue;
       auto ip = std::unique_ptr<IpAddress>(result);
       // Set ip address
       if ((blacklist_ == nullptr || !blacklist_->contains(*ip)) &&
           (bogerFilter_ == nullptr || !bogerFilter_->isBogonAddress(*ip))) {
-        dcbManager->addDcb(*ip, defaultSplitTtl_);
+        dcbManager->addDcb(*ip, static_cast<uint8_t>(splitTtl));
       }
       count++;
     }
