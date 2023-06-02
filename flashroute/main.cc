@@ -33,6 +33,10 @@ ABSL_FLAG(bool, sequential_scan, false, "Sequentially scan all targets.");
 
 ABSL_FLAG(std::string, dump_targets_file, "", "Dump targets to file.");
 
+ABSL_FLAG(
+    std::string, nonstop_set_file, "",
+    "Set contains addresses that backward probing should stop when hitting.");
+
 ABSL_FLAG(std::string, prober_type, "udp",
           "The prober used for the scan. Options: udp, udp idempotent");
 
@@ -311,9 +315,14 @@ int main(int argc, char* argv[]) {
 
     NetworkManager networkManager(NULL, finalInterface,
                                   absl::GetFlag(FLAGS_probing_rate), ipv4);
+    NonstopSet* nonstopSet = nullptr;
+    if (!absl::GetFlag(FLAGS_nonstop_set_file).empty()) {
+      nonstopSet = new NonstopSet();
+      nonstopSet->loadFromFile(absl::GetFlag(FLAGS_nonstop_set_file));
+    }
 
     Tracerouter traceRouter(
-        dcbManager, &networkManager, resultDumper,
+        dcbManager, &networkManager, resultDumper, nonstopSet,
         absl::GetFlag(FLAGS_split_ttl), absl::GetFlag(FLAGS_preprobing_ttl),
         absl::GetFlag(FLAGS_forward_probing), absl::GetFlag(FLAGS_gaplimit),
         absl::GetFlag(FLAGS_remove_redundancy), absl::GetFlag(FLAGS_preprobing),

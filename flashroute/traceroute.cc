@@ -51,7 +51,7 @@ const uint32_t kHaltTimeAfterPreprobingSequenceMs = 3000;
 
 Tracerouter::Tracerouter(
     DcbManager* dcbManager, NetworkManager* networkManager,
-    ResultDumper* resultDumper, const uint8_t defaultSplitTTL,
+    ResultDumper* resultDumper, NonstopSet* nonstopSet, const uint8_t defaultSplitTTL,
     const uint8_t defaultPreprobingTTL, const bool forwardProbing,
     const uint8_t forwardProbingGapLimit, const bool redundancyRemoval,
     const bool preprobing, const bool preprobingPrediction,
@@ -64,6 +64,7 @@ Tracerouter::Tracerouter(
       probePhase_(ProbePhase::NONE),
       resultDumper_(resultDumper),
       networkManager_(networkManager),
+      nonstopSet_(nonstopSet),
       defaultSplitTTL_(defaultSplitTTL),
       defaultPreprobingTTL_(defaultPreprobingTTL),
       ttlOffset_(ttlOffset),
@@ -449,7 +450,10 @@ bool Tracerouter::parseIcmpProbing(const IpAddress& destination,
           static_cast<uint64_t>(dcb->stopBackwardProbing());
         }
       } else {
-        backwardProbingStopSet_.insert(responder.clone());
+        // Only add address to stop set if it is not in nonstop set.
+        if (nonstopSet_ != nullptr && nonstopSet_->contains(&responder)) {
+          backwardProbingStopSet_.insert(responder.clone());
+        }
       }
     }
     if (distance <= dcb->getMaxProbedDistance()) {
@@ -523,6 +527,33 @@ void Tracerouter::calculateStatistic(uint64_t elapsedTime) {
 //   dumpFile.close();
 //   LOG(INFO) << "All targets are dumped. File path: " << filePath;
 // }
+
+void NonstopSet::loadFromFile(absl::string_view filePath) {
+  if (filePath.empty()) {
+    VLOG(2) << "NonstopSet disabled.";
+    return;
+  }
+
+  VLOG(2) << "Load NonstopSet from file: " << filePath;
+  auto filePathStr = std::string(filePath);
+  std::ifstream in(filePathStr);
+  int64_t count = 0;
+  for (std::string line; std::getline(in, line);) {
+    if (!line.empty()) {
+      auto result = parseIpFromStringToIpAddress(std::string(line));
+      if (result == NULL) continue;
+      internalSet_.insert(result);
+      count++;
+    }
+  }
+  in.close();
+  VLOG(2) << "NonstopSet loads " << count << " addresses from file.";
+}
+
+bool NonstopSet::contains(const IpAddress* addr) {
+  return (internalSet_.find(const_cast<IpAddress*>(addr)) !=
+          internalSet_.end());
+}
 
 }  // namespace flashroute
 

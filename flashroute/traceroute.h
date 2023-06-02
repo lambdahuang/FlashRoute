@@ -28,12 +28,24 @@ enum class ProbePhase { PREPROBE, PROBE, NONE };
 
 enum class ProberType { UDP_PROBER, UDP_IDEMPOTENT_PROBER };
 
+class NonstopSet {
+  public:
+   void loadFromFile(absl::string_view filePath);
+   bool contains(const IpAddress* addr);
+
+  private:
+   std::unordered_set<IpAddress*, IpAddressHash, IpAddressEquality>
+       internalSet_;
+};
+
 /**
  * Traceroute module contains the major logics and strategies of probing.
  * Examples:
  * Tracerouter tracerouter(
  *    dcbManager,                 // an instance of DcbManager
  *    networkManager,             // an instance of NetworkManager
+ *    nonstopSet,                 // a set of addresses that backward probing
+ *                                // should not stop when hitting.
  *    16,                         // Split TTL
  *    32,                         // Preprobing TTL
  *    true,                       // Forward probing switch.
@@ -74,9 +86,9 @@ class Tracerouter {
   // Define the constructor for mock testing.
   Tracerouter() {}
   Tracerouter(DcbManager* dcbManager, NetworkManager* networkManager,
-              ResultDumper* resultDumper, const uint8_t defaultSplitTTL,
-              const uint8_t defaultPreprobingTTL, const bool forwardProbing,
-              const uint8_t forwardProbingGapLimit,
+              ResultDumper* resultDumper, NonstopSet* nonstopSet,
+              const uint8_t defaultSplitTTL, const uint8_t defaultPreprobingTTL,
+              const bool forwardProbing, const uint8_t forwardProbingGapLimit,
               const bool redundancyRemoval, const bool preprobing,
               const bool preprobingPrediction,
               const int32_t predictionProximitySpan, const int32_t scanCount,
@@ -105,6 +117,8 @@ class Tracerouter {
 
   std::unique_ptr<Prober> prober_;
   NetworkManager* networkManager_;
+  
+  NonstopSet* nonstopSet_;
 
   // The default max ttl which is also the starting hop-distance of probing.
   uint8_t defaultSplitTTL_;

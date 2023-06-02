@@ -33,12 +33,24 @@ ABSL_FLAG(
 
 ABSL_FLAG(std::string, directory, "", "Path to the directory of output files");
 ABSL_FLAG(std::string, label, "", "Label of the data set");
+ABSL_FLAG(int, prefix, 24,
+          "Prefix length, which is used to generate candidate addresses.");
 ABSL_FLAG(int, start, 0, "Starting index of the outputs");
 ABSL_FLAG(int, end, 0, "Ending index of the outputs");
 ABSL_FLAG(int, step, 1, "Step to read outputs");
 ABSL_FLAG(float, threshold, 2, "Hot branch threshold");
 ABSL_FLAG(bool, formatted, false, "Output machine-readable format.");
-ABSL_FLAG(std::string, output, "reprobe_list.txt", "Directory of output");
+ABSL_FLAG(std::string, output, "reprobe_list", "Directory of output");
+
+static uint32_t generateRandomAddress(uint32_t addr, int prefix) {
+  static uint64_t blockFactor =
+      static_cast<uint64_t>(std::pow(2, 32 - prefix));
+  uint32_t newAddr;
+  do {
+    newAddr = (addr << (32 - prefix)) + (rand() % (blockFactor - 3)) + 2
+  } while(newAddr != addr) 
+  return newAddr;
+}
 
 static std::string numericalToStringIp(uint32_t ip) {
     struct in_addr ip_addr;
@@ -53,6 +65,15 @@ static void dumpReprobeList(std::string output, std::unordered_map<uint32_t, uin
       std::string ipAddress = numericalToStringIp(record.first);
       int hopDistance = record.second;
       dumpFile << ipAddress << ":" << hopDistance << std::endl;
+    }
+    dumpFile.close();
+}
+
+static void dumpNonstopList(std::string output, std::unordered_map<uint32_t>& list) {
+    std::ofstream dumpFile(output);
+    for (auto& record : list) {
+      std::string ipAddress = numericalToStringIp(*record);
+      dumpFile << ipAddress << std::endl;
     }
     dumpFile.close();
 }
@@ -104,10 +125,12 @@ int main(int argc, char *argv[]) {
     LOG(ERROR) << "No valid input.";
   }
 
+  std::srand(0);
   uint64_t records = 0;
   uint64_t identifiedReprobeInterfaces = 0;
   uint64_t identifiedFullyCoveredReprobeInterfaces = 0;
   uint64_t hotInterface = 0;
+  int prefixLength = absl::GetFlag(FLAGS_prefix);
 
   float threshold = absl::GetFlag(FLAGS_threshold);
 
@@ -122,6 +145,9 @@ int main(int argc, char *argv[]) {
 
   // {Destination, backward probe start hop}
   std::unordered_map<uint32_t, uint8_t> toProbeMap;
+
+  // {Destination}
+  std::unordered_map<uint32_t> nonstopInterfaces;
 
   // {desination, {hopDistance, interface}}
   std::unordered_map<uint32_t, std::unique_ptr<std::map<uint8_t, uint32_t>>>
@@ -241,6 +267,7 @@ int main(int argc, char *argv[]) {
       hotInterface++;
     }
     if (expectProbe(totalDiscoveredInterfaces) > totalProbeTimes) {
+      nonstopInterfaces.insert(interface);
       // Consider the upper link can be reprobed.
       identifiedReprobeInterfaces++;
       // Select the bullets to probe
@@ -260,7 +287,7 @@ int main(int argc, char *argv[]) {
           // toProbeRecord->second /* hop */ >= candidateExpectedProbeHop)
           continue;
         reprobeCandidate++;
-        toProbeMap.insert({candidateAddr, candidateExpectedProbeHop});
+        toProbeMap.insert({candidateAddr, candidateExpectedProbeHop + 1});
         // Now we consider this candidate can be added
         if (expectProbe(totalDiscoveredInterfaces) <=
             totalProbeTimes + reprobeCandidate)
@@ -269,10 +296,23 @@ int main(int argc, char *argv[]) {
       if (expectProbe(totalDiscoveredInterfaces) <=
           totalProbeTimes + reprobeCandidate) {
         identifiedFullyCoveredReprobeInterfaces++;
+      } else {
+        // Select the random addresses
+        for (auto &candidate : candidates) {
+          uint32_t candidateAddr = generateRandomAddress(candidate.first);
+          uint8_t candidateExpectedProbeHop = candidate.second - 1;
+          reprobeCandidate++;
+          toProbeMap.insert({candidateAddr, candidateExpectedProbeHop + 1});
+          // Now we consider this candidate can be added
+          if (expectProbe(totalDiscoveredInterfaces) <=
+              totalProbeTimes + reprobeCandidate)
+            break;
+        }
       }
     }
   }
   dumpReprobeList(absl::GetFlag(FLAGS_output), toProbeMap);
+  dumpNonstopList(absl::GetFlag(FLAGS_output) + "_nonstop", nonstopInterfaces);
 
   if (!absl::GetFlag(FLAGS_formatted)) {
     LOG(INFO) << " ProcessedRecords " << records;
