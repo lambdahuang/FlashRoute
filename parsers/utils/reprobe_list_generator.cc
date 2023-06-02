@@ -47,8 +47,8 @@ static uint32_t generateRandomAddress(uint32_t addr, int prefix) {
       static_cast<uint64_t>(std::pow(2, 32 - prefix));
   uint32_t newAddr;
   do {
-    newAddr = (addr << (32 - prefix)) + (rand() % (blockFactor - 3)) + 2
-  } while(newAddr != addr) 
+    newAddr = (addr << (32 - prefix)) + (rand() % (blockFactor - 3)) + 2;
+  } while (newAddr != addr);
   return newAddr;
 }
 
@@ -69,10 +69,10 @@ static void dumpReprobeList(std::string output, std::unordered_map<uint32_t, uin
     dumpFile.close();
 }
 
-static void dumpNonstopList(std::string output, std::unordered_map<uint32_t>& list) {
+static void dumpNonstopList(std::string output, std::unordered_set<uint32_t>& list) {
     std::ofstream dumpFile(output);
     for (auto& record : list) {
-      std::string ipAddress = numericalToStringIp(*record);
+      std::string ipAddress = numericalToStringIp(record);
       dumpFile << ipAddress << std::endl;
     }
     dumpFile.close();
@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
   std::unordered_map<uint32_t, uint8_t> toProbeMap;
 
   // {Destination}
-  std::unordered_map<uint32_t> nonstopInterfaces;
+  std::unordered_set<uint32_t> nonstopInterfaces;
 
   // {desination, {hopDistance, interface}}
   std::unordered_map<uint32_t, std::unique_ptr<std::map<uint8_t, uint32_t>>>
@@ -299,7 +299,8 @@ int main(int argc, char *argv[]) {
       } else {
         // Select the random addresses
         for (auto &candidate : candidates) {
-          uint32_t candidateAddr = generateRandomAddress(candidate.first);
+          uint32_t candidateAddr =
+              generateRandomAddress(candidate.first, prefixLength);
           uint8_t candidateExpectedProbeHop = candidate.second - 1;
           reprobeCandidate++;
           toProbeMap.insert({candidateAddr, candidateExpectedProbeHop + 1});
