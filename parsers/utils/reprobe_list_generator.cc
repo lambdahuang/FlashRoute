@@ -42,13 +42,12 @@ ABSL_FLAG(float, threshold, 2, "Hot branch threshold");
 ABSL_FLAG(bool, formatted, false, "Output machine-readable format.");
 ABSL_FLAG(std::string, output, "reprobe_list", "Directory of output");
 
-static uint32_t generateRandomAddress(uint32_t addr, int prefix) {
-  static uint64_t blockFactor =
-      static_cast<uint64_t>(std::pow(2, 32 - prefix));
+static uint32_t generateRandomAddress(uint32_t addr, int prefix,
+                                      int subnetSize) {
   uint32_t newAddr;
   do {
-    newAddr = (addr << (32 - prefix)) + (rand() % (blockFactor - 3)) + 2;
-  } while (newAddr != addr);
+    newAddr = (addr << (32 - prefix)) + (rand() % (subnetSize - 3)) + 2;
+  } while (newAddr == addr);
   return newAddr;
 }
 
@@ -131,6 +130,7 @@ int main(int argc, char *argv[]) {
   uint64_t identifiedFullyCoveredReprobeInterfaces = 0;
   uint64_t hotInterface = 0;
   int prefixLength = absl::GetFlag(FLAGS_prefix);
+  int subnetSize = static_cast<int>(std::pow(2, 32 - prefixLength));
 
   float threshold = absl::GetFlag(FLAGS_threshold);
 
@@ -250,7 +250,7 @@ int main(int argc, char *argv[]) {
     LOG(INFO) << "edges processed finished, start select candidate.";
 
     if (!absl::GetFlag(FLAGS_formatted)) {
-      LOG(INFO) << "Created " << createdTime << " Processed Records " << records;
+      LOG(INFO) << "Dataset Created " << createdTime << " Processed Records " << records;
     } else {
       LOG(INFO) << createdTime;
     }
@@ -267,7 +267,6 @@ int main(int argc, char *argv[]) {
       hotInterface++;
     }
     if (expectProbe(totalDiscoveredInterfaces) > totalProbeTimes) {
-      nonstopInterfaces.insert(interface);
       // Consider the upper link can be reprobed.
       identifiedReprobeInterfaces++;
       // Select the bullets to probe
@@ -297,10 +296,11 @@ int main(int argc, char *argv[]) {
           totalProbeTimes + reprobeCandidate) {
         identifiedFullyCoveredReprobeInterfaces++;
       } else {
+        nonstopInterfaces.insert(interface);
         // Select the random addresses
         for (auto &candidate : candidates) {
           uint32_t candidateAddr =
-              generateRandomAddress(candidate.first, prefixLength);
+              generateRandomAddress(candidate.first, prefixLength, subnetSize);
           uint8_t candidateExpectedProbeHop = candidate.second - 1;
           reprobeCandidate++;
           toProbeMap.insert({candidateAddr, candidateExpectedProbeHop + 1});
@@ -321,6 +321,8 @@ int main(int argc, char *argv[]) {
     LOG(INFO) << " Identified Reprobe Target "
                          << identifiedReprobeInterfaces;
     LOG(INFO) << " Identified Fully Covered Reprobe Target "
+                         << identifiedFullyCoveredReprobeInterfaces;
+    LOG(INFO) << " Random generated  Reprobe Target "
                          << identifiedFullyCoveredReprobeInterfaces;
     LOG(INFO) << " Planned Targets " << toProbeMap.size();
     LOG(INFO) << " Hot Interface " << hotInterface;
