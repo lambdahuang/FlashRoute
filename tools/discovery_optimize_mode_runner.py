@@ -44,6 +44,7 @@ def main():
 
     reprobe_target_file = ""
     reprobe_nonstop_file = ""
+    reprobe_target_generator_command = ""
 
 
     i = 0
