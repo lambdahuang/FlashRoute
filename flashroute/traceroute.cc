@@ -446,8 +446,8 @@ bool Tracerouter::parseIcmpProbing(const IpAddress& destination,
           backwardProbingStopSet_.end()) {
         // We stop only for router interfaces discovered in backward
         // probing.
-        if (redundancyRemovalMark_ || nonstopSet_ == nullptr ||
-            !nonstopSet_->contains(&responder)) {
+        if (redundancyRemovalMark_ &&
+            (nonstopSet_ == nullptr || !nonstopSet_->contains(&responder))) {
           static_cast<uint64_t>(dcb->stopBackwardProbing());
         }
       } else {
