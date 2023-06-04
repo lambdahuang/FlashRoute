@@ -62,6 +62,7 @@ def main():
             reprobe_target_file = f"{reprobe_target_file_prefix}"
             reprobe_nonstop_file = f"{reprobe_target_file_prefix}_nonstop"
             command = f"{args.e} --output {output_filename} --noforward_probing --targets {reprobe_target_file} --nonstop_set_file {reprobe_nonstop_file} {extra_scan_argument}"
+            glog.info(command)
        
         if not args.test:
             os.system(command)
@@ -69,6 +70,7 @@ def main():
 
         # Run reprobe target generator
         reprobe_target_generator_command = f"{args.r} --directory {output_dir} --label {scan_label} --start 0 --end {i} --output {reprobe_target_file_prefix}"
+        glog.info(reprobe_target_generator_command)
         if not args.test:
             os.system(reprobe_target_generator_command)
             time.sleep(args.d)
