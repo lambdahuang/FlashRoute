@@ -67,7 +67,7 @@ def main():
             time.sleep(args.d)
 
         # Run reprobe target generator
-        reprobe_target_generator_command = f"{args.f} --directory {output_dir} --label {scan_label} --start {0} --end {i} --output {reprobe_target_file_prefix}"
+        reprobe_target_generator_command = f"{args.f} --directory {output_dir} --label {scan_label} --start 0 --end {i} --output {reprobe_target_file_prefix}"
         if not args.test:
             os.system(reprobe_target_generator_command)
             time.sleep(args.d)
