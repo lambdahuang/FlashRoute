@@ -128,6 +128,7 @@ int main(int argc, char *argv[]) {
   uint64_t records = 0;
   uint64_t identifiedReprobeInterfaces = 0;
   uint64_t identifiedFullyCoveredReprobeInterfaces = 0;
+  uint64_t randomGeneratedReprobeInterfaces = 0;
   uint64_t hotInterface = 0;
   int prefixLength = absl::GetFlag(FLAGS_prefix);
   int subnetSize = static_cast<int>(std::pow(2, 32 - prefixLength));
@@ -296,6 +297,7 @@ int main(int argc, char *argv[]) {
           totalProbeTimes + reprobeCandidate) {
         identifiedFullyCoveredReprobeInterfaces++;
       } else {
+        randomGeneratedReprobeInterfaces++;
         nonstopInterfaces.insert(interface);
         // Select the random addresses
         for (auto &candidate : candidates) {
@@ -323,7 +325,7 @@ int main(int argc, char *argv[]) {
     LOG(INFO) << " Identified Fully Covered Reprobe Target "
                          << identifiedFullyCoveredReprobeInterfaces;
     LOG(INFO) << " Random generated  Reprobe Target "
-                         << identifiedFullyCoveredReprobeInterfaces;
+                         << randomGeneratedReprobeInterfaces;
     LOG(INFO) << " Planned Targets " << toProbeMap.size();
     LOG(INFO) << " Hot Interface " << hotInterface;
   } else {
