@@ -53,14 +53,15 @@ def main():
         glog.info(f"{i} round")
         output_filename = os.path.join(output_dir, f"{scan_label}_{i}")
         reprobe_target_file_prefix = os.path.join(output_dir, f"{scan_label}_{i}_reprobe_target")
+        previous_reprobe_target_file_prefix = os.path.join(output_dir, f"{scan_label}_{i-1}_reprobe_target")
 
         command = ""
         if i == 0:
             command = f"{args.e} --output {output_filename} {main_scan_argument}"
             glog.info(command)
         else:
-            reprobe_target_file = f"{reprobe_target_file_prefix}"
-            reprobe_nonstop_file = f"{reprobe_target_file_prefix}_nonstop"
+            reprobe_target_file = f"{previous_reprobe_target_file_prefix}"
+            reprobe_nonstop_file = f"{previous_reprobe_target_file_prefix}_nonstop"
             command = f"{args.e} --output {output_filename} --noforward_probing --targets {reprobe_target_file} --nonstop_set_file {reprobe_nonstop_file} {extra_scan_argument}"
             glog.info(command)
        
