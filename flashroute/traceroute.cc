@@ -446,14 +446,13 @@ bool Tracerouter::parseIcmpProbing(const IpAddress& destination,
           backwardProbingStopSet_.end()) {
         // We stop only for router interfaces discovered in backward
         // probing.
-        if (redundancyRemovalMark_) {
+        if (redundancyRemovalMark_ || nonstopSet_ == nullptr ||
+            !nonstopSet_->contains(&responder)) {
           static_cast<uint64_t>(dcb->stopBackwardProbing());
         }
       } else {
         // Only add address to stop set if it is not in nonstop set.
-        if (nonstopSet_ != nullptr && nonstopSet_->contains(&responder)) {
-          backwardProbingStopSet_.insert(responder.clone());
-        }
+        backwardProbingStopSet_.insert(responder.clone());
       }
     }
     if (distance <= dcb->getMaxProbedDistance()) {
