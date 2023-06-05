@@ -130,6 +130,7 @@ int main(int argc, char *argv[]) {
   uint64_t identifiedFullyCoveredReprobeInterfaces = 0;
   uint64_t randomGeneratedReprobeInterfaces = 0;
   uint64_t hotInterface = 0;
+  uint32_t totalUniqueEdgeCount = 0;
   int prefixLength = absl::GetFlag(FLAGS_prefix);
   int subnetSize = static_cast<int>(std::pow(2, 32 - prefixLength));
 
@@ -240,6 +241,7 @@ int main(int argc, char *argv[]) {
           auto previousHopRecord = edges->find(previousInterface);
           if (previousHopRecord == edges->end()) {
             edges->insert({previousInterface, 1});
+            totalUniqueEdgeCount++;
           } else {
             (*edges)[previousInterface]++;
           }
@@ -320,6 +322,8 @@ int main(int argc, char *argv[]) {
   if (!absl::GetFlag(FLAGS_formatted)) {
     LOG(INFO) << " ProcessedRecords " << records;
     LOG(INFO) << " Total Interfaces " << edgeMap.size();
+    LOG(INFO) << " Unique Edge Count "
+                         << totalUniqueEdgeCount;
     LOG(INFO) << " Identified Reprobe Target "
                          << identifiedReprobeInterfaces;
     LOG(INFO) << " Identified Fully Covered Reprobe Target "

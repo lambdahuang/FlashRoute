@@ -161,6 +161,7 @@ class Tracerouter {
   uint64_t droppedResponses_;
   uint64_t checksumMismatches_;
   uint64_t distanceAbnormalities_;
+  uint64_t hitNonstopCount_;
 
   // Record all observed interfaces in backward probing.
   std::unordered_set<IpAddress*, IpAddressHash,

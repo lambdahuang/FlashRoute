@@ -2,6 +2,9 @@
 #include "flashroute/traceroute.h"
 
 #include <algorithm>
+#include <boost/asio.hpp>
+#include <boost/asio/thread_pool.hpp>
+#include <boost/format.hpp>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -12,18 +15,14 @@
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
-#include <boost/asio.hpp>
-#include <boost/asio/thread_pool.hpp>
-#include <boost/format.hpp>
-#include "glog/logging.h"
-
 #include "flashroute/dcb.h"
-#include "flashroute/utils.h"
 #include "flashroute/network.h"
 #include "flashroute/prober.h"
+#include "flashroute/udp_idempotent_prober.h"
 #include "flashroute/udp_prober.h"
 #include "flashroute/udp_prober_v6.h"
-#include "flashroute/udp_idempotent_prober.h"
+#include "flashroute/utils.h"
+#include "glog/logging.h"
 
 namespace flashroute {
 
@@ -51,12 +50,12 @@ const uint32_t kHaltTimeAfterPreprobingSequenceMs = 3000;
 
 Tracerouter::Tracerouter(
     DcbManager* dcbManager, NetworkManager* networkManager,
-    ResultDumper* resultDumper, NonstopSet* nonstopSet, const uint8_t defaultSplitTTL,
-    const uint8_t defaultPreprobingTTL, const bool forwardProbing,
-    const uint8_t forwardProbingGapLimit, const bool redundancyRemoval,
-    const bool preprobing, const bool preprobingPrediction,
-    const int32_t predictionProximitySpan, const int32_t scanCount,
-    const uint16_t srcPort, const uint16_t dstPort,
+    ResultDumper* resultDumper, NonstopSet* nonstopSet,
+    const uint8_t defaultSplitTTL, const uint8_t defaultPreprobingTTL,
+    const bool forwardProbing, const uint8_t forwardProbingGapLimit,
+    const bool redundancyRemoval, const bool preprobing,
+    const bool preprobingPrediction, const int32_t predictionProximitySpan,
+    const int32_t scanCount, const uint16_t srcPort, const uint16_t dstPort,
     const std::string& defaultPayloadMessage, const bool encodeTimestamp,
     const uint8_t ttlOffset, bool randomizeAddressinExtraScans)
     : dcbManager_(dcbManager),
@@ -165,6 +164,7 @@ void Tracerouter::startScan(ProberType proberType, bool ipv4,
   checksumMismatches_ = 0;
   distanceAbnormalities_ = 0;
   droppedResponses_ = 0;
+  hitNonstopCount_ = 0;
   auto startTimestamp = std::chrono::steady_clock::now();
   VLOG(2) << "There are " << dcbManager_->size() << " targets to probe.";
 
@@ -244,7 +244,7 @@ void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
   uint64_t dcbCount = dcbManager_->liveDcbSize();
   for (uint64_t i = 0; i < dcbCount && !stopProbing_; i++) {
     networkManager_->scheduleProbeRemoteHost(*(dcbManager_->next()->ipAddress),
-                                           defaultPreprobingTTL_);
+                                             defaultPreprobingTTL_);
   }
   std::this_thread::sleep_for(
       std::chrono::milliseconds(kHaltTimeAfterPreprobingSequenceMs));
@@ -265,18 +265,19 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
   // Update status
   probePhase_ = ProbePhase::PROBE;
   // Set up callback function.
-  PacketReceiverCallback callback =
-      [this](const IpAddress& destination, const IpAddress& responder,
-             uint8_t distance, uint32_t rtt, bool fromDestination, bool ipv4,
-             void* receivedPacket, size_t packetLen) {
-        if (parseIcmpProbing(destination, responder, distance,
-                             fromDestination) &&
-            resultDumper_ != nullptr) {
-          resultDumper_->scheduleDumpData(destination, responder, distance, rtt,
-                                          fromDestination, ipv4, receivedPacket,
-                                          packetLen);
-        }
-      };
+  PacketReceiverCallback callback = [this](const IpAddress& destination,
+                                           const IpAddress& responder,
+                                           uint8_t distance, uint32_t rtt,
+                                           bool fromDestination, bool ipv4,
+                                           void* receivedPacket,
+                                           size_t packetLen) {
+    if (parseIcmpProbing(destination, responder, distance, fromDestination) &&
+        resultDumper_ != nullptr) {
+      resultDumper_->scheduleDumpData(destination, responder, distance, rtt,
+                                      fromDestination, ipv4, receivedPacket,
+                                      packetLen);
+    }
+  };
 
   if (proberType == ProberType::UDP_PROBER) {
     if (ipv4) {
@@ -308,7 +309,7 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
   }
 
   LOG(INFO) << "Start main probing.";
-  int32_t scanRound  = -1;
+  int32_t scanRound = -1;
   for (int scanCount = 0; scanCount < scanCount_ && !stopProbing_;
        scanCount++) {
     if (scanCount > 0) {
@@ -354,13 +355,13 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
       } else {
         if (forwardProbingMark_ && hasForwardTask) {
           // forward probing
-          networkManager_->scheduleProbeRemoteHost(
-              *dcb.ipAddress, nextForwardTask);
+          networkManager_->scheduleProbeRemoteHost(*dcb.ipAddress,
+                                                   nextForwardTask);
         }
         if (hasBackwardTask) {
           // backward probing
-          networkManager_->scheduleProbeRemoteHost(
-              *dcb.ipAddress, nextBackwardTask);
+          networkManager_->scheduleProbeRemoteHost(*dcb.ipAddress,
+                                                   nextBackwardTask);
         }
       }
     } while (!stopProbing_ && dcbManager_->hasNext());
@@ -446,9 +447,12 @@ bool Tracerouter::parseIcmpProbing(const IpAddress& destination,
           backwardProbingStopSet_.end()) {
         // We stop only for router interfaces discovered in backward
         // probing.
-        if (redundancyRemovalMark_ &&
-            (nonstopSet_ == nullptr || !nonstopSet_->contains(&responder))) {
-          static_cast<uint64_t>(dcb->stopBackwardProbing());
+        if (redundancyRemovalMark_) {
+          if (nonstopSet_ == nullptr || !nonstopSet_->contains(&responder)) {
+            static_cast<uint64_t>(dcb->stopBackwardProbing());
+          } else {
+            hitNonstopCount_++;
+          }
         }
       } else {
         // Only add address to stop set if it is not in nonstop set.
@@ -487,22 +491,21 @@ void Tracerouter::calculateStatistic(uint64_t elapsedTime) {
   LOG(INFO) << boost::format("Total Dropped responses: %|30t|%ld") %
                    (checksumMismatches_ + distanceAbnormalities_ +
                     droppedResponses_);
-  LOG(INFO) << boost::format("Other dropped: %|30t|%ld") %
-                   (droppedResponses_);
+  LOG(INFO) << boost::format("Other dropped: %|30t|%ld") % (droppedResponses_);
   LOG(INFO) << boost::format("Checksum Mismatches: %|30t|%ld") %
                    (checksumMismatches_);
   LOG(INFO) << boost::format("Distance Abnormalities: %|30t|%ld") %
                    (distanceAbnormalities_);
   LOG(INFO) << boost::format("Sent probes: %|30t|%1%") % sentProbes_;
   LOG(INFO) << boost::format("Sent preprobes: %|30t|%ld") % sentPreprobes_;
+  LOG(INFO) << boost::format("Hit nonstop: %|30t|%ld") % hitNonstopCount_;
 
   LOG(INFO) << boost::format("Interfaces Forward-probing: %|30t|%ld") %
                    forwardProbingDiscoverySet_.size();
   LOG(INFO) << boost::format("Interfaces Backward-probing: %|30t|%ld") %
                    backwardProbingStopSet_.size();
-  backwardProbingStopSet_.insert(
-      forwardProbingDiscoverySet_.begin(),
-      forwardProbingDiscoverySet_.end());
+  backwardProbingStopSet_.insert(forwardProbingDiscoverySet_.begin(),
+                                 forwardProbingDiscoverySet_.end());
   LOG(INFO) << boost::format("Discovered Interfaces: %|30t|%1%") %
                    (backwardProbingStopSet_.size());
 }
@@ -555,4 +558,3 @@ bool NonstopSet::contains(const IpAddress* addr) {
 }
 
 }  // namespace flashroute
-

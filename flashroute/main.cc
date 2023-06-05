@@ -200,6 +200,7 @@ void printFlags() {
   VLOG(1) << boost::format("Hitlist: %|15t|%1%") % absl::GetFlag(FLAGS_hitlist);
   VLOG(1) << boost::format("Target: %|15t|%1%") % absl::GetFlag(FLAGS_targets);
   VLOG(1) << boost::format("Output: %|15t|%1%") % absl::GetFlag(FLAGS_output);
+  VLOG(1) << boost::format("Nonstop set: %|15t|%1%") % absl::GetFlag(FLAGS_nonstop_set_file);
 }
 
 int main(int argc, char* argv[]) {
