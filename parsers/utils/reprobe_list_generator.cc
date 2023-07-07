@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <set>
 #include <unordered_set>
 #include <vector>
 
@@ -52,29 +53,31 @@ static uint32_t generateRandomAddress(uint32_t addr, int prefix,
 }
 
 static std::string numericalToStringIp(uint32_t ip) {
-    struct in_addr ip_addr;
-    ip_addr.s_addr = ip;
-    std::string address(inet_ntoa(ip_addr));
-    return address;
+  struct in_addr ip_addr;
+  ip_addr.s_addr = ip;
+  std::string address(inet_ntoa(ip_addr));
+  return address;
 }
 
-static void dumpReprobeList(std::string output, std::unordered_map<uint32_t, uint8_t>& list) {
-    std::ofstream dumpFile(output);
-    for (auto& record : list) {
-      std::string ipAddress = numericalToStringIp(record.first);
-      int hopDistance = record.second;
-      dumpFile << ipAddress << ":" << hopDistance << std::endl;
-    }
-    dumpFile.close();
+static void dumpReprobeList(std::string output,
+                            std::unordered_map<uint32_t, uint8_t> &list) {
+  std::ofstream dumpFile(output);
+  for (auto &record : list) {
+    std::string ipAddress = numericalToStringIp(record.first);
+    int hopDistance = record.second;
+    dumpFile << ipAddress << ":" << hopDistance << std::endl;
+  }
+  dumpFile.close();
 }
 
-static void dumpNonstopList(std::string output, std::unordered_set<uint32_t>& list) {
-    std::ofstream dumpFile(output);
-    for (auto& record : list) {
-      std::string ipAddress = numericalToStringIp(record);
-      dumpFile << ipAddress << std::endl;
-    }
-    dumpFile.close();
+static void dumpNonstopList(std::string output,
+                            std::unordered_set<uint32_t> &list) {
+  std::ofstream dumpFile(output);
+  for (auto &record : list) {
+    std::string ipAddress = numericalToStringIp(record);
+    dumpFile << ipAddress << std::endl;
+  }
+  dumpFile.close();
 }
 
 static int expectProbe(int n) {
@@ -89,6 +92,68 @@ static int expectProbe(int n) {
     return 97;
   }
   return probeTable[n];
+}
+
+static std::pair<uint8_t, uint8_t> getMediaHopDistanceFromVantagePoint(
+    std::map<uint32_t, uint8_t> &destinationToHop,
+    std::unordered_map<uint32_t, std::unique_ptr<std::map<uint8_t, uint32_t>>>
+        &routeMap) {
+  std::multiset<uint8_t> distancesToVantagePoint;
+  std::multiset<uint8_t> distancesToDestination;
+  for (auto &pair : destinationToHop) {
+    uint32_t destination = pair.first;
+    uint8_t hop = pair.second;
+    auto route = *(routeMap.find(destination))->second;
+    distancesToVantagePoint.insert(hop);
+    distancesToDestination.insert(route.rbegin()->first - hop + 1);
+  }
+  std::set<uint8_t>::iterator it1 = distancesToVantagePoint.begin();
+  std::advance(it1, distancesToVantagePoint.size() / 2);
+
+  std::set<uint8_t>::iterator it2 = distancesToDestination.begin();
+  std::advance(it2, distancesToDestination.size() / 2);
+  return {*it1, *it2};
+}
+
+static void interfaceDemographicAnalysis(
+    std::unordered_map<uint32_t, std::unique_ptr<std::map<uint32_t, uint8_t>>>
+        &probeMap,
+    std::unordered_map<uint32_t, std::unique_ptr<std::map<uint8_t, uint32_t>>>
+        &routeMap,
+    std::unordered_set<uint32_t> &targetInterfaces) {
+  std::map<uint8_t, uint32_t> distanceFromVantagePointToCount;
+  std::map<uint8_t, uint32_t> distanceFromDestinationToCount;
+  for (auto &interface : targetInterfaces) {
+    auto it = probeMap.find(interface);
+    if (it != probeMap.end()) {
+      auto destinationToDistance = *it->second;
+      auto result =
+          getMediaHopDistanceFromVantagePoint(destinationToDistance, routeMap);
+      uint8_t interfaceMediaDistanceFromVantagePoint = result.first;
+      uint8_t interfaceMediaDistanceFromDestination = result.second;
+      if (distanceFromVantagePointToCount.find(
+              interfaceMediaDistanceFromVantagePoint) !=
+          distanceFromVantagePointToCount.end()) {
+        distanceFromVantagePointToCount
+            [interfaceMediaDistanceFromVantagePoint]++;
+      } else {
+        distanceFromVantagePointToCount
+            [interfaceMediaDistanceFromVantagePoint] = 0;
+      }
+      if (distanceFromDestinationToCount.find(
+              interfaceMediaDistanceFromDestination) !=
+          distanceFromDestinationToCount.end()) {
+        distanceFromDestinationToCount[interfaceMediaDistanceFromDestination]++;
+      } else {
+        distanceFromDestinationToCount[interfaceMediaDistanceFromDestination] =
+            0;
+      }
+    }
+  }
+  for (int i = 0; i < 64; i++) {
+    LOG(INFO) << (int)i << " " << distanceFromVantagePointToCount[i] << " "
+              << distanceFromDestinationToCount[i];
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -180,9 +245,10 @@ int main(int argc, char *argv[]) {
         // Update ProbeMap
         // if isFromDestination == true, it is from the destination instead of
         // intermediate router interface, so we don't add it to the list.
-        if (isFromDestination == true) continue;
+        if (isFromDestination == true)
+          continue;
         auto interfaceRecord = probeMap.find(interface);
-        std::map<uint32_t, uint8_t>* probeMapRecord;
+        std::map<uint32_t, uint8_t> *probeMapRecord;
         if (interfaceRecord == probeMap.end()) {
           probeMapRecord = new std::map<uint32_t, uint8_t>();
           probeMap.insert(
@@ -195,7 +261,7 @@ int main(int argc, char *argv[]) {
 
         // Update Route Map
         auto routeRecord = routeMap.find(destination);
-        std::map<uint8_t, uint32_t>* route;
+        std::map<uint8_t, uint32_t> *route;
         if (routeRecord == routeMap.end()) {
           route = new std::map<uint8_t, uint32_t>();
           routeMap.insert(
@@ -217,6 +283,7 @@ int main(int argc, char *argv[]) {
     inFile.seekg(0);
     inFile.close();
 
+    // Update edgeMap: {interface, (hop-1) <interfaces, num of observations>}
     for (const auto &routeRecord : routeMap) {
       uint32_t destination = routeRecord.first;
       int previousHop = -1;
@@ -225,7 +292,7 @@ int main(int argc, char *argv[]) {
         uint8_t hop = hopRecord.first;
         uint32_t interface = hopRecord.second;
 
-        std::unordered_map<uint32_t, uint32_t>* edges;
+        std::unordered_map<uint32_t, uint32_t> *edges;
         auto edgeRecord = edgeMap.find(interface);
         if (edgeRecord == edgeMap.end()) {
           edges = new std::unordered_map<uint32_t, uint32_t>();
@@ -237,7 +304,7 @@ int main(int argc, char *argv[]) {
         }
 
         // {hop, interface}
-        if (previousHop != -1 && previousHop == hop -1) {
+        if (previousHop != -1 && previousHop == hop - 1) {
           auto previousHopRecord = edges->find(previousInterface);
           if (previousHopRecord == edges->end()) {
             edges->insert({previousInterface, 1});
@@ -253,7 +320,8 @@ int main(int argc, char *argv[]) {
     LOG(INFO) << "edges processed finished, start select candidate.";
 
     if (!absl::GetFlag(FLAGS_formatted)) {
-      LOG(INFO) << "Dataset Created " << createdTime << " Processed Records " << records;
+      LOG(INFO) << "Dataset Created " << createdTime << " Processed Records "
+                << records;
     } else {
       LOG(INFO) << createdTime;
     }
@@ -316,23 +384,21 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+  interfaceDemographicAnalysis(probeMap, routeMap, nonstopInterfaces);
   dumpReprobeList(absl::GetFlag(FLAGS_output), toProbeMap);
   dumpNonstopList(absl::GetFlag(FLAGS_output) + "_nonstop", nonstopInterfaces);
 
   if (!absl::GetFlag(FLAGS_formatted)) {
     LOG(INFO) << " ProcessedRecords " << records;
     LOG(INFO) << " Total Interfaces " << edgeMap.size();
-    LOG(INFO) << " Unique Edge Count "
-                         << totalUniqueEdgeCount;
-    LOG(INFO) << " Identified Reprobe Target "
-                         << identifiedReprobeInterfaces;
+    LOG(INFO) << " Unique Edge Count " << totalUniqueEdgeCount;
+    LOG(INFO) << " Identified Reprobe Target " << identifiedReprobeInterfaces;
     LOG(INFO) << " Identified Fully Covered Reprobe Target "
-                         << identifiedFullyCoveredReprobeInterfaces;
+              << identifiedFullyCoveredReprobeInterfaces;
     LOG(INFO) << " Random generated  Reprobe Target "
-                         << randomGeneratedReprobeInterfaces;
+              << randomGeneratedReprobeInterfaces;
     LOG(INFO) << " Planned Targets " << toProbeMap.size();
     LOG(INFO) << " Hot Interface " << hotInterface;
   } else {
   }
-
 }
