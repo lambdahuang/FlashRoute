@@ -65,19 +65,22 @@ void NetworkManager::resetProber(Prober* prober) {
 }
 
 void NetworkManager::probeRemoteHost(const IpAddress& destinationIp,
-                                     const uint8_t ttl) {
+                                     const uint8_t ttl, uint16_t sourcePort) {
   static uint8_t buffer[kPacketBufferSize];
   size_t packetSize =
-      prober_->packProbe(destinationIp, *localIpAddress_, ttl, buffer);
+      prober_->packProbe(destinationIp, *localIpAddress_, sourcePort,
+                         0 /* destPort */, ttl, buffer);
 
   sendRawPacket(buffer, packetSize);
 }
 
 void NetworkManager::scheduleProbeRemoteHost(const IpAddress& destinationIp,
-                                             const uint8_t ttl) {
+                                             const uint8_t ttl,
+                                             const uint16_t sourcePort) {
   if (expectedRate_ >= 1) {
     if (destinationIp.isIpv4()) {
-      ProbeUnitIpv4 tmp(dynamic_cast<const Ipv4Address&>(destinationIp), ttl);
+      ProbeUnitIpv4 tmp(dynamic_cast<const Ipv4Address&>(destinationIp), ttl,
+                        sourcePort);
       sendingBuffer_->pushFront(tmp);
     } else {
       // TODO(neohuang): handle IPv6.
@@ -86,7 +89,7 @@ void NetworkManager::scheduleProbeRemoteHost(const IpAddress& destinationIp,
     }
   } else {
     // if we disable rate limit.
-    probeRemoteHost(destinationIp, ttl);
+    probeRemoteHost(destinationIp, ttl, sourcePort);
   }
 }
 
@@ -220,10 +223,10 @@ void NetworkManager::runSendingThread() {
     }
     if (ipv4_) {
       sendingBuffer_->popBack(&tmp);
-      probeRemoteHost(tmp.ip, tmp.ttl);
+      probeRemoteHost(tmp.ip, tmp.ttl, tmp.sourcePort);
     } else {
       sendingBuffer6_->popBack(&tmp6);
-      probeRemoteHost(tmp6.ip, tmp6.ttl);
+      probeRemoteHost(tmp6.ip, tmp6.ttl, 0);
     }
     sentProbes += 1;
   }

@@ -42,13 +42,21 @@ DcbManager* Targets::loadTargetsFromFile(
   for (std::string line; std::getline(in, line);) {
     if (!line.empty()) {
       // Example
-      // 127.0.0.1:10   IPAddress is 127.0.0.1 and split ttl is 10
+      // 127.0.0.1:10:12345   IPAddress is 127.0.0.1 and split ttl is 10, and
+      // source port is 12345
       std::vector<absl::string_view> parts = absl::StrSplit(line, ":");
       auto result = parseIpFromStringToIpAddress(std::string(parts[0]));
       int splitTtl = defaultSplitTtl_;
-      if (parts.size() == 2) {
+      uint32_t sourcePort = 0;
+      if (parts.size() > 1) {
         if (!absl::SimpleAtoi(parts[1], &splitTtl)) {
           LOG(FATAL) << "split ttl convert fails.";
+        }
+      }
+
+      if (parts.size() > 2) {
+        if (!absl::SimpleAtoi(parts[2], &sourcePort)) {
+          LOG(FATAL) << "parse port number failed.";
         }
       }
 
@@ -57,7 +65,8 @@ DcbManager* Targets::loadTargetsFromFile(
       // Set ip address
       if ((blacklist_ == nullptr || !blacklist_->contains(*ip)) &&
           (bogerFilter_ == nullptr || !bogerFilter_->isBogonAddress(*ip))) {
-        dcbManager->addDcb(*ip, static_cast<uint8_t>(splitTtl));
+        dcbManager->addDcb(*ip, static_cast<uint8_t>(splitTtl),
+                           static_cast<uint16_t>(sourcePort));
       }
       count++;
     }
@@ -123,7 +132,7 @@ DcbManager* Targets::generateTargetsFromNetwork(
 
       if ((blacklist_ == nullptr || !blacklist_->contains(tmp)) &&
           (bogerFilter_ == nullptr || !bogerFilter_->isBogonAddress(tmp))) {
-        dcbManager->addDcb(tmp, defaultSplitTtl_);
+        dcbManager->addDcb(tmp, defaultSplitTtl_, 0);
         actualCount++;
       } else if (bogerFilter_ != nullptr && bogerFilter_->isBogonAddress(tmp)) {
         bogonCount ++;
@@ -152,7 +161,7 @@ DcbManager* Targets::generateTargetsFromNetwork(
           ntohll(targetNetworkFirstAddress_->getIpv6Address()) +
           ((i) << (128 - granularity)) + (rand() % (blockFactor_ - 3)) + 2));
       if (blacklist_ != nullptr && !blacklist_->contains(tmp)) {
-        dcbManager->addDcb(tmp, defaultSplitTtl_);
+        dcbManager->addDcb(tmp, defaultSplitTtl_, 0);
         actualCount++;
       }
     }

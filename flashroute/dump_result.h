@@ -17,12 +17,12 @@ namespace flashroute {
 struct DataElement {
   absl::uint128 destination;
   absl::uint128 responder;
+  uint16_t sourcePort;
   uint32_t rtt;
   uint8_t distance;
   uint8_t fromDestination;
   uint8_t ipv4;
 };
-
 
 class ResultDumper {
  public:
@@ -30,9 +30,9 @@ class ResultDumper {
   ~ResultDumper();
 
   void scheduleDumpData(const IpAddress& destination,
-                        const IpAddress& responder, uint8_t distance,
-                        uint32_t rtt, bool fromDestination, bool ipv4,
-                        void* buffer, size_t size);
+                        const IpAddress& responder, uint16_t sourcePort,
+                        uint8_t distance, uint32_t rtt, bool fromDestination,
+                        bool ipv4, void* buffer, size_t size);
 
  private:
   // File path to dump the result.

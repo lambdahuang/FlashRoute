@@ -32,11 +32,11 @@ void SingleHost::startScan(const std::string& target,
   std::string localIpAddress =
       getAddressByInterface(interface, remoteHost->isIpv4());
 
-
   PacketReceiverCallback response_handler =
       [this](const IpAddress& destination, const IpAddress& responder,
-             uint8_t distance, uint32_t rtt, bool fromDestination, bool ipv4,
-             void* packetBuffer, uint32_t packetLen) {
+             uint16_t sourcePort, uint16_t destPort, uint8_t distance,
+             uint32_t rtt, bool fromDestination, bool ipv4, void* packetBuffer,
+             uint32_t packetLen) {
         parseIcmpProbing(destination, responder, distance, rtt, fromDestination,
                          ipv4, packetBuffer, packetLen);
       };
@@ -53,7 +53,8 @@ void SingleHost::startScan(const std::string& target,
   networkManager.startListening();
 
   for (uint8_t i = 1 + ttlOffset_; i <= 32 + ttlOffset_; i ++) {
-    networkManager.scheduleProbeRemoteHost(*remoteHost, i);
+    networkManager.scheduleProbeRemoteHost(*remoteHost, i,
+                                           12345 /* sourcePort */);
   }
 
   sleep(3);

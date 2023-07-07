@@ -46,8 +46,10 @@ UdpProberIpv6::UdpProberIpv6(PacketReceiverCallback* callback,
 }
 
 size_t UdpProberIpv6::packProbe(const IpAddress& destinationIp,
-                            const IpAddress& sourceIp, const uint8_t ttl,
-                            uint8_t* packetBuffer) {
+                                const IpAddress& sourceIp,
+                                uint16_t /* sourcePort */,
+                                uint16_t /* destPort */, const uint8_t ttl,
+                                uint8_t* packetBuffer) {
   absl::uint128 destinationIpDecimal =
       (dynamic_cast<const Ipv6Address&>(destinationIp)).getIpv6Address();
   absl::uint128 sourceIpDecimal =
@@ -219,8 +221,9 @@ void UdpProberIpv6::parseResponse(uint8_t* buffer, size_t size,
   Ipv6Address ipv4Destination(destination);
   Ipv6Address ipv4Responder(responder);
 
-  (*callback_)(ipv4Destination, ipv4Responder, static_cast<uint8_t>(distance),
-               rtt, fromDestination, false, buffer, size);
+  (*callback_)(ipv4Destination, ipv4Responder, 0 /* sourcePort */,
+               0 /* destPort */, static_cast<uint8_t>(distance), rtt,
+               fromDestination, false, buffer, size);
 }
 
 uint16_t UdpProberIpv6::getTimestamp() const {

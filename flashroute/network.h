@@ -22,9 +22,11 @@ class ProbeUnitIpv4 {
  public:
   Ipv4Address ip;
   uint8_t ttl;
+  uint16_t sourcePort = 0;
   ProbeUnitIpv4() : ip(0), ttl(0) {}
-  ProbeUnitIpv4(const Ipv4Address& _ip, const uint8_t _ttl)
-      : ip(_ip), ttl(_ttl) {}
+  ProbeUnitIpv4(const Ipv4Address& _ip, const uint8_t _ttl,
+                uint16_t _sourcePort)
+      : ip(_ip), ttl(_ttl), sourcePort(_sourcePort) {}
 };
 
 class ProbeUnitIpv6 {
@@ -80,7 +82,7 @@ class NetworkManager {
   // Scheduale to send a probe. Sending accords to the pre-determined sending
   // rate.
   void scheduleProbeRemoteHost(const IpAddress& destinationIp,
-                               const uint8_t ttl);
+                               const uint8_t ttl, const uint16_t sourcePort);
 
   // Start capturing the packets.
   void startListening();
@@ -136,7 +138,8 @@ class NetworkManager {
   void runSendingThread();
 
   // Send the probe immediately.
-  void probeRemoteHost(const IpAddress& destinationIp, const uint8_t ttl);
+  void probeRemoteHost(const IpAddress& destinationIp, const uint8_t ttl,
+                       uint16_t sourcePort);
 
   void receiveIcmpPacket();
 

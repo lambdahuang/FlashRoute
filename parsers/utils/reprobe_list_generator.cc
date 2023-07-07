@@ -338,6 +338,7 @@ int main(int argc, char *argv[]) {
       hotInterface++;
     }
     if (expectProbe(totalDiscoveredInterfaces) > totalProbeTimes) {
+      nonstopInterfaces.insert(interface);
       // Consider the upper link can be reprobed.
       identifiedReprobeInterfaces++;
       // Select the bullets to probe
@@ -368,7 +369,6 @@ int main(int argc, char *argv[]) {
         identifiedFullyCoveredReprobeInterfaces++;
       } else {
         randomGeneratedReprobeInterfaces++;
-        nonstopInterfaces.insert(interface);
         // Select the random addresses
         for (auto &candidate : candidates) {
           uint32_t candidateAddr =

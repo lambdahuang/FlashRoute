@@ -39,13 +39,15 @@ struct PacketTcp {
 
 using PacketReceiverCallback =
     std::function<void(const IpAddress& destination, const IpAddress& responder,
+                       uint16_t sourcePort, uint16_t destinationPort,
                        uint8_t distance, uint32_t rtt, bool fromDestination,
                        bool ipv4, void* packetHeader, size_t headerLen)>;
 
 class Prober {
  public:
   virtual size_t packProbe(const IpAddress& destinationIp,
-                           const IpAddress& sourceIp, const uint8_t ttl,
+                           const IpAddress& sourceIp, uint16_t sourcePort,
+                           uint16_t destPort, const uint8_t ttl,
                            uint8_t* packetBuffer) = 0;
 
   virtual void parseResponse(uint8_t* buffer, size_t size,

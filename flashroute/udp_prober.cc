@@ -38,8 +38,9 @@ UdpProber::UdpProber(PacketReceiverCallback* callback,
 }
 
 size_t UdpProber::packProbe(const IpAddress& destinationIp,
-                            const IpAddress& sourceIp, const uint8_t ttl,
-                            uint8_t* packetBuffer) {
+                            const IpAddress& sourceIp,
+                            uint16_t /* sourcePort */, uint16_t /* destPort */,
+                            const uint8_t ttl, uint8_t* packetBuffer) {
   uint32_t destinationIpDecimal =
       htonl((dynamic_cast<const Ipv4Address&>(destinationIp)).getIpv4Address());
   uint32_t sourceIpDecimal =
@@ -136,17 +137,21 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
   bool fromDestination = false;
 
 #ifdef __FAVOR_BSD
+  uint16_t sourcePort = residualUdpPacket->udp.uh_sport;
+  uint16_t destinationPort = residualUdpPacket->udp.uh_dport;
   if (getChecksum(
           reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
-          checksumOffset_) != residualUdpPacket->udp.uh_sport) {
+          checksumOffset_) != sourcePort) {
     // Checksum unmatched.
     checksumMismatches += 1;
     return;
   }
 #else
+  uint16_t sourcePort = residualUdpPacket->udp.source;
+  uint16_t destinationPort = residualUdpPacket->udp.dest;
   if (getChecksum(
           reinterpret_cast<uint16_t*>(&residualUdpPacket->ip.ip_dst.s_addr),
-          checksumOffset_) != residualUdpPacket->udp.source) {
+          checksumOffset_) != sourcePort) {
     // Checksum unmatched.
     checksumMismatches_ += 1;
     return;
@@ -211,8 +216,9 @@ void UdpProber::parseResponse(uint8_t* buffer, size_t size,
   Ipv4Address ipv4Destination(destination);
   Ipv4Address ipv4Responder(responder);
 
-  (*callback_)(ipv4Destination, ipv4Responder, static_cast<uint8_t>(distance),
-               rtt, fromDestination, true, buffer, size);
+  (*callback_)(ipv4Destination, ipv4Responder, sourcePort, destinationPort,
+               static_cast<uint8_t>(distance), rtt, fromDestination, true,
+               buffer, size);
 }
 
 uint16_t UdpProber::getTimestamp() const {

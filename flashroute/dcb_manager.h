@@ -49,7 +49,8 @@ class DcbManager {
 
   // insert address.
   DestinationControlBlock* addDcb(const IpAddress& addr,
-                                  const uint8_t initialTtl);
+                                  const uint8_t initialTtl,
+                                  uint16_t sourcePort);
 
   void removeDcbFromIteration(DestinationControlBlock* dcb);
 

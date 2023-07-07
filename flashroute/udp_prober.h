@@ -53,7 +53,8 @@ class UdpProber : public virtual Prober {
 
   // Construct probe.
   size_t packProbe(const IpAddress& destinationIp, const IpAddress& sourceIp,
-                   const uint8_t ttl, uint8_t* packetBuffer) override;
+                   uint16_t sourcePort, uint16_t destPort, const uint8_t ttl,
+                   uint8_t* packetBuffer) override;
 
   // Parse responses.
   void parseResponse(uint8_t* buffer, size_t size,

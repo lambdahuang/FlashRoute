@@ -53,9 +53,9 @@ ResultDumper::~ResultDumper() {
 
 void ResultDumper::scheduleDumpData(const IpAddress& destination,
                                     const IpAddress& responder,
-                                    uint8_t distance, uint32_t rtt,
-                                    bool fromDestination, bool ipv4,
-                                    void* buffer, size_t size) {
+                                    uint16_t sourcePort, uint8_t distance,
+                                    uint32_t rtt, bool fromDestination,
+                                    bool ipv4, void* buffer, size_t size) {
   scheduledCount_++;
   if (!stopDumping_) {
     absl::uint128 destinationAddr = 0;
@@ -68,7 +68,8 @@ void ResultDumper::scheduleDumpData(const IpAddress& destination,
       responderAddr = ntohll(responder.getIpv6Address());
     }
 
-    dumpingBuffer_->pushFront({destinationAddr, responderAddr, rtt, distance,
+    dumpingBuffer_->pushFront({destinationAddr, responderAddr, sourcePort, rtt,
+                               distance,
                                static_cast<uint8_t>(fromDestination ? 1 : 0),
                                static_cast<uint8_t>(ipv4 ? 1 : 0)});
   }
@@ -96,15 +97,16 @@ void ResultDumper::runDumpingThread() {
 
 size_t ResultDumper::binaryDumping(uint8_t* buffer, const size_t maxSize,
                                    const DataElement& dataElement) {
-  if (maxSize < 39) return 0;
+  if (maxSize < 41) return 0;
   *reinterpret_cast<absl::uint128*>(buffer + 0) = dataElement.destination;
   *reinterpret_cast<absl::uint128*>(buffer + 16) = dataElement.responder;
+  *reinterpret_cast<uint16_t*>(buffer + 32) = dataElement.sourcePort;
 
-  *reinterpret_cast<uint32_t*>(buffer + 32) = dataElement.rtt;
-  *reinterpret_cast<uint8_t*>(buffer + 36) = dataElement.distance;
-  *reinterpret_cast<uint8_t*>(buffer + 37) = dataElement.fromDestination;
-  *reinterpret_cast<uint8_t*>(buffer + 38) = dataElement.ipv4;
-  return 39;
+  *reinterpret_cast<uint32_t*>(buffer + 34) = dataElement.rtt;
+  *reinterpret_cast<uint8_t*>(buffer + 38) = dataElement.distance;
+  *reinterpret_cast<uint8_t*>(buffer + 39) = dataElement.fromDestination;
+  *reinterpret_cast<uint8_t*>(buffer + 40) = dataElement.ipv4;
+  return 41;
 }
 
 }  // namespace flashroute

@@ -10,10 +10,12 @@ namespace flashroute {
 
 DestinationControlBlock::DestinationControlBlock(
     const IpAddress* ip, DestinationControlBlock* _nextElement,
-    DestinationControlBlock* _previousElement, const uint8_t initialTtl)
+    DestinationControlBlock* _previousElement, const uint8_t initialTtl,
+    uint16_t _sourcePort)
     : nextElement(_nextElement),
       previousElement(_previousElement),
       removed(false),
+      sourcePort(_sourcePort),
       initialBackwardProbingTtl(initialTtl),
       nextBackwardHop_(initialTtl),
       preprobedMark_(false),

@@ -43,6 +43,7 @@ UdpIdempotentProber::UdpIdempotentProber(PacketReceiverCallback* callback,
 
 size_t UdpIdempotentProber::packProbe(const IpAddress& destinationIp,
                                       const IpAddress& sourceIp,
+                                      uint16_t sourcePort, uint16_t destPort,
                                       const uint8_t ttl,
                                       uint8_t* packetBuffer) {
   uint32_t destinationIpDecimal =
@@ -70,7 +71,7 @@ size_t UdpIdempotentProber::packProbe(const IpAddress& destinationIp,
 
   // packet-size encodes 3-bit destination group.
   packetExpectedSize = (groupOfDestination & 0x7) << 6;
-  // packet-size encodes 6-bit: 5-bit TTL and 1 bit for encoding protoType.
+  // packet-size encodes 6-bit: 5-bit TTL and 1 bit for encoding probeType.
   packetExpectedSize = packetExpectedSize | ((ttl - ttlOffset_) & 0x1F) |
                        ((probePhaseCode_ & 0x1) << 5);
 
@@ -91,8 +92,7 @@ size_t UdpIdempotentProber::packProbe(const IpAddress& destinationIp,
 
 #ifdef __FAVOR_BSD
   packet->udp.uh_dport = destinationPort_;
-  packet->udp.uh_sport =
-      getChecksum(reinterpret_cast<uint16_t*>(packetBuffer), checksumOffset_);
+  packet->udp.uh_sport = htons(sourcePort);
   packet->udp.uh_ulen = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
@@ -165,11 +165,15 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
   uint16_t replyIpLen = parsedPacket->ip.ip_len;
   uint16_t probeIpLen = residualUdpPacket->ip.ip_len;
   uint16_t probeIpId = residualUdpPacket->ip.ip_id;
+  uint16_t probeSourcePort = residualUdpPacket->udp.uh_sport;
+  uint16_t probeDestPort = residualUdpPacket->udp.uh_dport;
 #else
   uint16_t replyIpId = ntohs(parsedPacket->ip.ip_id);
   uint16_t replyIpLen = ntohs(parsedPacket->ip.ip_len);
   uint16_t probeIpLen = ntohs(residualUdpPacket->ip.ip_len);
   uint16_t probeIpId = ntohs(residualUdpPacket->ip.ip_id);
+  uint16_t probeSourcePort = ntohs(residualUdpPacket->udp.source);
+  uint16_t probeDestPort = ntohs(residualUdpPacket->udp.dest);
 #endif
 
   uint8_t probePhase = (probeIpLen >> 5) & 0x1;
@@ -208,8 +212,9 @@ void UdpIdempotentProber::parseResponse(uint8_t* buffer, size_t size,
   Ipv4Address ipv4Destination(destination);
   Ipv4Address ipv4Responder(responder);
 
-  (*callback_)(ipv4Destination, ipv4Responder, static_cast<uint8_t>(distance),
-               rtt, fromDestination, true, buffer, size);
+  (*callback_)(ipv4Destination, ipv4Responder, probeSourcePort, probeDestPort,
+               static_cast<uint8_t>(distance), rtt, fromDestination, true,
+               buffer, size);
 }
 
 uint16_t UdpIdempotentProber::getDestAddrChecksum(const uint16_t* ipAddress,

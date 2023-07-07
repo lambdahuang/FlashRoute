@@ -206,14 +206,15 @@ void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
   // Set up callback function.
   PacketReceiverCallback callback =
       [this](const IpAddress& destination, const IpAddress& responder,
-             uint8_t distance, uint32_t rtt, bool fromDestination, bool ipv4,
+             uint16_t sourcePort, uint16_t destinationPort, uint8_t distance,
+             uint32_t rtt, bool fromDestination, bool ipv4,
              void* receivedPacket, size_t packetLen) {
         if (parseIcmpPreprobing(destination, responder, distance,
                                 fromDestination) &&
             resultDumper_ != nullptr) {
-          resultDumper_->scheduleDumpData(destination, responder, distance, rtt,
-                                          fromDestination, ipv4, receivedPacket,
-                                          packetLen);
+          resultDumper_->scheduleDumpData(destination, responder, sourcePort,
+                                          distance, rtt, fromDestination, ipv4,
+                                          receivedPacket, packetLen);
         }
       };
 
@@ -243,8 +244,9 @@ void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
   LOG(INFO) << "Start preprobing.";
   uint64_t dcbCount = dcbManager_->liveDcbSize();
   for (uint64_t i = 0; i < dcbCount && !stopProbing_; i++) {
-    networkManager_->scheduleProbeRemoteHost(*(dcbManager_->next()->ipAddress),
-                                             defaultPreprobingTTL_);
+    DestinationControlBlock& dcb = *dcbManager_->next();
+    networkManager_->scheduleProbeRemoteHost(
+        *dcb.ipAddress, defaultPreprobingTTL_, dcb.sourcePort);
   }
   std::this_thread::sleep_for(
       std::chrono::milliseconds(kHaltTimeAfterPreprobingSequenceMs));
@@ -267,15 +269,17 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
   // Set up callback function.
   PacketReceiverCallback callback = [this](const IpAddress& destination,
                                            const IpAddress& responder,
+                                           uint16_t sourcePort,
+                                           uint16_t destinationPort,
                                            uint8_t distance, uint32_t rtt,
                                            bool fromDestination, bool ipv4,
                                            void* receivedPacket,
                                            size_t packetLen) {
     if (parseIcmpProbing(destination, responder, distance, fromDestination) &&
         resultDumper_ != nullptr) {
-      resultDumper_->scheduleDumpData(destination, responder, distance, rtt,
-                                      fromDestination, ipv4, receivedPacket,
-                                      packetLen);
+      resultDumper_->scheduleDumpData(destination, responder, sourcePort,
+                                      distance, rtt, fromDestination, ipv4,
+                                      receivedPacket, packetLen);
     }
   };
 
@@ -355,13 +359,13 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
       } else {
         if (forwardProbingMark_ && hasForwardTask) {
           // forward probing
-          networkManager_->scheduleProbeRemoteHost(*dcb.ipAddress,
-                                                   nextForwardTask);
+          networkManager_->scheduleProbeRemoteHost(
+              *dcb.ipAddress, nextForwardTask, dcb.sourcePort);
         }
         if (hasBackwardTask) {
           // backward probing
-          networkManager_->scheduleProbeRemoteHost(*dcb.ipAddress,
-                                                   nextBackwardTask);
+          networkManager_->scheduleProbeRemoteHost(
+              *dcb.ipAddress, nextBackwardTask, dcb.sourcePort);
         }
       }
     } while (!stopProbing_ && dcbManager_->hasNext());

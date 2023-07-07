@@ -14,6 +14,7 @@ class DestinationControlBlock {
   DestinationControlBlock* nextElement;
   DestinationControlBlock* previousElement;
   bool removed;
+  uint16_t sourcePort = 0;
   // the initial TTL when we start backward probing. This value will be used to
   // prevent the traceroute to put router interfaces discovered in
   // forward-probing into the stop set.
@@ -22,7 +23,7 @@ class DestinationControlBlock {
   DestinationControlBlock(const IpAddress* ip,
                           DestinationControlBlock* _nextElement,
                           DestinationControlBlock* _previousElement,
-                          const uint8_t initialTtl);
+                          const uint8_t initialTtl, uint16_t _sourcePort);
 
   /**
    * set the split-TTL, if the given TTL is confirmed, the second variabble

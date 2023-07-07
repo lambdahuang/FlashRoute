@@ -38,7 +38,7 @@ DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
 
 
   // insert the special dcb.
-  specialDcb_ = addDcb(Ipv4Address(0), 0);
+  specialDcb_ = addDcb(Ipv4Address(0), 0, 0);
   currentDcb_ = specialDcb_;
   // reset live Dcb count to 0
   liveDcbCount_ = 0;
@@ -158,7 +158,8 @@ std::vector<DestinationControlBlock*>* DcbManager::getDcbsByAddress(
 }
 
 DestinationControlBlock* DcbManager::addDcb(const IpAddress& addr,
-                                            const uint8_t initialTtl) {
+                                            const uint8_t initialTtl,
+                                            uint16_t sourcePort) {
   // if granularity is not set, update granularity based on the dcb.
   if (map_->size() != 0 && granularity_ == 0) {
     if (addr.isIpv4())
@@ -172,7 +173,7 @@ DestinationControlBlock* DcbManager::addDcb(const IpAddress& addr,
   }
 
   DestinationControlBlock* tmp =
-      new DestinationControlBlock(&addr, NULL, NULL, initialTtl);
+      new DestinationControlBlock(&addr, NULL, NULL, initialTtl, sourcePort);
   map_->insert({addr.clone(), tmp});
 
   if (lastAddedDcb_ == NULL && firstAddedDcb_ == NULL) {
