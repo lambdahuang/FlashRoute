@@ -88,7 +88,7 @@ static void dumpReprobeList(std::string output, NewProbeTargetMapType &list) {
   std::ofstream dumpFile(output);
   for (auto &record : list) {
     std::string ipAddress = numericalToStringIp(record.first >> 32);
-    uint16_t sourcePort = static_cast<uint16_t>(record.first & 0xFF);
+    uint16_t sourcePort = static_cast<uint16_t>(record.first & 0xFFFF);
     int hopDistance = record.second;
     dumpFile << ipAddress << ":" << hopDistance << ":" << sourcePort
              << std::endl;
@@ -126,7 +126,7 @@ getMediaHopDistanceFromVantagePoint(FlowIdentityHopMapType &destinationToHop,
   std::multiset<uint8_t> distancesToDestination;
   for (auto &pair : destinationToHop) {
     uint32_t destination = static_cast<uint32_t>(pair.first >> 32);
-    uint16_t port = static_cast<uint32_t>(pair.first & 0xFF);
+    uint16_t port = static_cast<uint32_t>(pair.first & 0xFFFF);
     uint8_t hop = pair.second;
     auto route = *(routeMap.find(destination))->second;
     distancesToVantagePoint.insert(hop);
@@ -415,7 +415,7 @@ int main(int argc, char *argv[]) {
           auto it = candidates.begin();
           std::advance(it, rand() % (candidates.size()));
           uint32_t destination = it->first >> 32;
-          uint16_t sourcePort = it->first & 0xFF;
+          uint16_t sourcePort = it->first & 0xFFFF;
           uint64_t newFlowIdentity = generateRandomFlowLabel(destination);
           uint8_t candidateExpectedProbeHop = it->second - 1;
           if (toProbeMap.find(newFlowIdentity) == toProbeMap.end()) {
