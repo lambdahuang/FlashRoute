@@ -41,7 +41,8 @@ class DcbManager {
   void randomizeAddress();
 
   // get DCB based on the address.
-  DestinationControlBlock* getDcbByAddress(const IpAddress& pseudo) const;
+  DestinationControlBlock* getDcbByAddress(const IpAddress& pseudo,
+                                           uint16_t sourcePort) const;
 
   // get all DCBs fall in prefix.
   std::vector<DestinationControlBlock*>* getDcbsByAddress(
@@ -55,10 +56,10 @@ class DcbManager {
   void removeDcbFromIteration(DestinationControlBlock* dcb);
 
   // remove DCB from future iteration.
-  void removeDcbFromIteration(const IpAddress& addr);
+  void removeDcbFromIteration(const IpAddress& addr, uint16_t sourcePort);
 
   // remove DCB permanently. This is for blacklist.
-  void deleteDcb(const IpAddress& addr);
+  void deleteDcb(const IpAddress& addr, uint16_t sourcePort);
 
   // snapshot the current status.
   void snapshot();
@@ -83,8 +84,8 @@ class DcbManager {
   uint32_t granularity_;
   uint32_t seed_;
 
-  std::unique_ptr<std::unordered_map<IpAddress*, DestinationControlBlock*,
-                                     IpAddressHash, IpAddressEquality>>
+  std::unique_ptr<std::unordered_map<FlowIdentity, DestinationControlBlock*,
+                                     FlowIdentityHash, FlowIdentityEquality>>
       map_;
 
   std::unique_ptr<

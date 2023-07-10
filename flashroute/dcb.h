@@ -8,6 +8,30 @@
 
 namespace flashroute {
 
+// Load balancer uses ip addresses and source ports combination to mark a flow,
+// Flow Identity is the similar to that concept, since destination port and
+// source address is fixed, we use source port and destination address to
+// represent a flow identity here.
+struct FlowIdentity {
+  FlowIdentity(IpAddress* _address, uint16_t _sourcePort)
+      : address(_address), sourcePort(_sourcePort) {}
+  IpAddress* address;
+  uint16_t sourcePort;
+};
+
+struct FlowIdentityHash {
+  std::size_t operator()(const FlowIdentity tmp) const { 
+    // We can just use ip address's hash.
+    return tmp.address->hash(); }
+};
+
+struct FlowIdentityEquality {
+  std::size_t operator()(const FlowIdentity lhs, const FlowIdentity rhs) const {
+    return lhs.sourcePort == rhs.sourcePort && *lhs.address == *rhs.address;
+  }
+};
+
+
 class DestinationControlBlock {
  public:
   std::unique_ptr<IpAddress> ipAddress;
@@ -24,6 +48,10 @@ class DestinationControlBlock {
                           DestinationControlBlock* _nextElement,
                           DestinationControlBlock* _previousElement,
                           const uint8_t initialTtl, uint16_t _sourcePort);
+
+  FlowIdentity getFlowIdentity() {
+    return FlowIdentity{ipAddress.get(), sourcePort};
+  }
 
   /**
    * set the split-TTL, if the given TTL is confirmed, the second variabble

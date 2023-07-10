@@ -44,6 +44,7 @@ using RouteFullMap = std::unordered_map<uint32_t, std::shared_ptr<RouteNodev4>>;
 struct DataElement {
   uint32_t destination[4];
   uint32_t responder[4];
+  uint16_t sourcePort;
   uint32_t rtt;
   uint8_t distance;
   uint8_t fromDestination;

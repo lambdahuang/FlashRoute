@@ -19,11 +19,11 @@ DcbManager::DcbManager(const uint64_t reservedSpace, const uint32_t granularity,
       lastAddedDcb_(NULL),
       firstAddedDcb_(NULL),
       specialDcb_(NULL) {
-  map_ =
-      std::unique_ptr<std::unordered_map<IpAddress*, DestinationControlBlock*,
-                                         IpAddressHash, IpAddressEquality>>(
-          new std::unordered_map<IpAddress*, DestinationControlBlock*,
-                                 IpAddressHash, IpAddressEquality>());
+  map_ = std::unique_ptr<
+      std::unordered_map<FlowIdentity, DestinationControlBlock*,
+                         FlowIdentityHash, FlowIdentityEquality>>(
+      new std::unordered_map<FlowIdentity, DestinationControlBlock*,
+                             FlowIdentityHash, FlowIdentityEquality>());
   map_->reserve(reservedSpace);
 
   if (coarseFind) {
@@ -62,7 +62,6 @@ void DcbManager::releaseAccurateMapping() {
       auto element = map_->begin();
       auto keyAddress = element->first;
       map_->erase(keyAddress);
-      delete keyAddress;
     }
 
     VLOG(2) << "DcbManager: accurate address mapping is released.";
@@ -138,8 +137,8 @@ void DcbManager::randomizeAddress() {
 }
 
 DestinationControlBlock* DcbManager::getDcbByAddress(
-    const IpAddress& addr) const {
-  auto result = map_->find(&(const_cast<IpAddress&>(addr)));
+    const IpAddress& addr, uint16_t sourcePort) const {
+  auto result = map_->find({&(const_cast<IpAddress&>(addr)), sourcePort});
   if (result != map_->end()) {
     return result->second;
   }
@@ -168,13 +167,14 @@ DestinationControlBlock* DcbManager::addDcb(const IpAddress& addr,
       granularity_ = 128;
   }
 
-  if (map_->find(&(const_cast<IpAddress&>(addr))) != map_->end()) {
+  if (map_->find({&(const_cast<IpAddress&>(addr)), sourcePort}) !=
+      map_->end()) {
     return nullptr;
   }
 
   DestinationControlBlock* tmp =
       new DestinationControlBlock(&addr, NULL, NULL, initialTtl, sourcePort);
-  map_->insert({addr.clone(), tmp});
+  map_->insert({tmp->getFlowIdentity(), tmp});
 
   if (lastAddedDcb_ == NULL && firstAddedDcb_ == NULL) {
     lastAddedDcb_ = tmp;
@@ -201,8 +201,9 @@ void DcbManager::removeDcbFromIteration(DestinationControlBlock* dcb) {
   liveDcbCount_--;
 }
 
-void DcbManager::removeDcbFromIteration(const IpAddress& addr) {
-  auto result = map_->find(&(const_cast<IpAddress&>(addr)));
+void DcbManager::removeDcbFromIteration(const IpAddress& addr,
+                                        uint16_t sourcePort) {
+  auto result = map_->find({&(const_cast<IpAddress&>(addr)), sourcePort});
   if (result == map_->end()) {
     return;
   }
@@ -214,16 +215,16 @@ void DcbManager::removeDcbFromIteration(const IpAddress& addr) {
 }
 
 // remove DCB permanently. This is for blacklist.
-void DcbManager::deleteDcb(const IpAddress& addr) {
-  auto result = map_->find(&(const_cast<IpAddress&>(addr)));
+void DcbManager::deleteDcb(const IpAddress& addr, uint16_t sourcePort) {
+  auto result = map_->find({&(const_cast<IpAddress&>(addr)), sourcePort});
   if (result == map_->end()) {
     return;
   }
 
-  IpAddress* tmpKey  = result->first;
+  // IpAddress* tmpKey  = result->first;
   DestinationControlBlock* tmpValue  = result->second;
   map_->erase(result);
-  free(tmpKey);
+  // free(tmpKey);
   free(tmpValue);
   liveDcbCount_--;
   return;

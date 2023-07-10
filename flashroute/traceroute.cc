@@ -209,7 +209,7 @@ void Tracerouter::startPreprobing(ProberType proberType, bool ipv4) {
              uint16_t sourcePort, uint16_t destinationPort, uint8_t distance,
              uint32_t rtt, bool fromDestination, bool ipv4,
              void* receivedPacket, size_t packetLen) {
-        if (parseIcmpPreprobing(destination, responder, distance,
+        if (parseIcmpPreprobing(destination, responder, sourcePort, distance,
                                 fromDestination) &&
             resultDumper_ != nullptr) {
           resultDumper_->scheduleDumpData(destination, responder, sourcePort,
@@ -275,7 +275,8 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
                                            bool fromDestination, bool ipv4,
                                            void* receivedPacket,
                                            size_t packetLen) {
-    if (parseIcmpProbing(destination, responder, distance, fromDestination) &&
+    if (parseIcmpProbing(destination, responder, sourcePort, distance,
+                         fromDestination) &&
         resultDumper_ != nullptr) {
       resultDumper_->scheduleDumpData(destination, responder, sourcePort,
                                       distance, rtt, fromDestination, ipv4,
@@ -391,13 +392,14 @@ void Tracerouter::startProbing(ProberType proberType, bool ipv4) {
 
 bool Tracerouter::parseIcmpPreprobing(const IpAddress& destination,
                                       const IpAddress& responder,
-                                      uint8_t distance, bool fromDestination) {
+                                      uint16_t sourcePort, uint8_t distance,
+                                      bool fromDestination) {
   if (!fromDestination) {
     droppedResponses_++;
     return false;
   }
 
-  DestinationControlBlock* dcb = dcbManager_->getDcbByAddress(destination);
+  DestinationControlBlock* dcb = dcbManager_->getDcbByAddress(destination, sourcePort);
   if (dcb == nullptr) {
     droppedResponses_++;
     return false;
@@ -425,10 +427,11 @@ bool Tracerouter::parseIcmpPreprobing(const IpAddress& destination,
 }
 
 bool Tracerouter::parseIcmpProbing(const IpAddress& destination,
-                                   const IpAddress& responder, uint8_t distance,
+                                   const IpAddress& responder,
+                                   uint16_t sourcePort, uint8_t distance,
                                    bool fromDestination) {
   // Convert the target ip address to the corresponding block index.
-  DestinationControlBlock* dcb = dcbManager_->getDcbByAddress(destination);
+  DestinationControlBlock* dcb = dcbManager_->getDcbByAddress(destination, sourcePort);
   if (dcb == nullptr) {
     std::vector<DestinationControlBlock*>* result =
         dcbManager_->getDcbsByAddress(destination);

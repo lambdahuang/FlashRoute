@@ -196,12 +196,12 @@ class Tracerouter {
   void startProbing(ProberType proberType, bool ipv4);
 
   bool parseIcmpPreprobing(const IpAddress& destination,
-                           const IpAddress& responder, uint8_t distance,
-                           bool fromDestination);
+                           const IpAddress& responder, uint16_t sourcePort,
+                           uint8_t distance, bool fromDestination);
 
   bool parseIcmpProbing(const IpAddress& destination,
-                        const IpAddress& responder, uint8_t distance,
-                        bool fromDestination);
+                        const IpAddress& responder, uint16_t sourcePort,
+                        uint8_t distance, bool fromDestination);
 
   void startMetricMonitoring();
 

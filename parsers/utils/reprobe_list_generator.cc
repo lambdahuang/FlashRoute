@@ -41,6 +41,10 @@ ABSL_FLAG(int, end, 0, "Ending index of the outputs");
 ABSL_FLAG(int, step, 1, "Step to read outputs");
 ABSL_FLAG(float, threshold, 2, "Hot branch threshold");
 ABSL_FLAG(bool, formatted, false, "Output machine-readable format.");
+ABSL_FLAG(bool, use_random_address, false,
+          "Generate random addresses if not enough reprobe candidate.");
+ABSL_FLAG(bool, show_statistic, false,
+          "Show distribution of reprobe interfaces on hops");
 ABSL_FLAG(std::string, output, "reprobe_list", "Directory of output");
 
 static uint32_t generateRandomAddress(uint32_t addr, int prefix,
@@ -367,7 +371,7 @@ int main(int argc, char *argv[]) {
       if (expectProbe(totalDiscoveredInterfaces) <=
           totalProbeTimes + reprobeCandidate) {
         identifiedFullyCoveredReprobeInterfaces++;
-      } else {
+      } else if (absl::GetFlag(FLAGS_show_statistic)) {
         randomGeneratedReprobeInterfaces++;
         // Select the random addresses
         for (auto &candidate : candidates) {
@@ -384,7 +388,9 @@ int main(int argc, char *argv[]) {
       }
     }
   }
-  interfaceDemographicAnalysis(probeMap, routeMap, nonstopInterfaces);
+  if (absl::GetFlag(FLAGS_show_statistic)) {
+    interfaceDemographicAnalysis(probeMap, routeMap, nonstopInterfaces);
+  }
   dumpReprobeList(absl::GetFlag(FLAGS_output), toProbeMap);
   dumpNonstopList(absl::GetFlag(FLAGS_output) + "_nonstop", nonstopInterfaces);
 

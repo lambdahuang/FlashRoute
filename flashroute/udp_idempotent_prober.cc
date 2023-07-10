@@ -92,7 +92,10 @@ size_t UdpIdempotentProber::packProbe(const IpAddress& destinationIp,
 
 #ifdef __FAVOR_BSD
   packet->udp.uh_dport = destinationPort_;
-  packet->udp.uh_sport = htons(sourcePort);
+  packet->udp.uh_sport =
+      sourcePort == 0 ? getChecksum(reinterpret_cast<uint16_t*>(packetBuffer),
+                                    checksumOffset_)
+                      : sourcePort;
   packet->udp.uh_ulen = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
@@ -106,7 +109,9 @@ size_t UdpIdempotentProber::packProbe(const IpAddress& destinationIp,
 #else
   packet->udp.dest = destinationPort_;
   packet->udp.source =
-      getChecksum(reinterpret_cast<uint16_t*>(packetBuffer), checksumOffset_);
+      sourcePort == 0 ? getChecksum(reinterpret_cast<uint16_t*>(packetBuffer),
+                                    checksumOffset_)
+                      : sourcePort;
   packet->udp.len = htons(packetExpectedSize - sizeof(packet->ip));
 
   // if you set a checksum to zero, your kernel's IP stack should fill in
