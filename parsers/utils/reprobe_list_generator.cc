@@ -248,7 +248,7 @@ int main(int argc, char *argv[]) {
 
     LOG(INFO) << "start read from file.";
     while (inFile.peek() != EOF) {
-      inFile.read(reinterpret_cast<char *>(&buffer), 39);
+      inFile.read(reinterpret_cast<char *>(&buffer), sizeof(DataElement));
       records++;
 
       if (buffer.ipv4 == 1) {

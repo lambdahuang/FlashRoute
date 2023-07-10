@@ -53,7 +53,7 @@ void readDataset(
   // <destination, <distance, address>>
 
   while (inFile.peek() != EOF) {
-    inFile.read(reinterpret_cast<char *>(&buffer), 39);
+    inFile.read(reinterpret_cast<char *>(&buffer), 41);
     records++;
     if (buffer.ipv4 == 1) {
       // IPv4 address handling.
