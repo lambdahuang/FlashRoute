@@ -64,7 +64,7 @@ ABSL_FLAG(bool, show_statistic, false,
 ABSL_FLAG(std::string, output, "reprobe_list", "Directory of output");
 
 static uint64_t generateRandomFlowLabel(uint32_t addr) {
-  uint16_t newPort = rand() % (50000) + 10000;
+  uint16_t newPort = rand() % 50000 + 10000;
   return static_cast<uint64_t>(addr) << 32 | newPort;
 }
 
@@ -88,7 +88,7 @@ static void dumpReprobeList(std::string output, NewProbeTargetMapType &list) {
   std::ofstream dumpFile(output);
   for (auto &record : list) {
     std::string ipAddress = numericalToStringIp(record.first >> 32);
-    int sourcePort = static_cast<uint16_t>(record.first & 0xFF);
+    uint16_t sourcePort = static_cast<uint16_t>(record.first & 0xFF);
     int hopDistance = record.second;
     dumpFile << ipAddress << ":" << hopDistance << ":" << sourcePort
              << std::endl;
