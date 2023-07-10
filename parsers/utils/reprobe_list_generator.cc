@@ -87,9 +87,11 @@ static std::string numericalToStringIp(uint32_t ip) {
 static void dumpReprobeList(std::string output, NewProbeTargetMapType &list) {
   std::ofstream dumpFile(output);
   for (auto &record : list) {
-    std::string ipAddress = numericalToStringIp(record.first);
+    std::string ipAddress = numericalToStringIp(record.first >> 32);
+    int sourcePort = static_cast<uint16_t>(record.first & 0xFF);
     int hopDistance = record.second;
-    dumpFile << ipAddress << ":" << hopDistance << std::endl;
+    dumpFile << ipAddress << ":" << hopDistance << ":" << sourcePort
+             << std::endl;
   }
   dumpFile.close();
 }
@@ -377,7 +379,8 @@ int main(int argc, char *argv[]) {
           // toProbeRecord->second /* hop */ >= candidateExpectedProbeHop)
           continue;
         reprobeCandidate++;
-        toProbeMap.insert({candidateFlowIdentity, candidateExpectedProbeHop + 1});
+        toProbeMap.insert(
+            {candidateFlowIdentity, candidateExpectedProbeHop + 1});
         // Now we consider this candidate can be added
         if (expectProbe(totalDiscoveredInterfaces) <=
             totalProbeTimes + reprobeCandidate)
@@ -386,7 +389,8 @@ int main(int argc, char *argv[]) {
 
       uint32_t gap = expectProbe(totalDiscoveredInterfaces) - totalProbeTimes +
                      reprobeCandidate;
-      // if probes are not enough after selection, we create new flow identities.
+      // if probes are not enough after selection, we create new flow
+      // identities.
       if (gap <= 0) {
         identifiedFullyCoveredReprobeInterfaces++;
       } else if (absl::GetFlag(FLAGS_use_random_address)) {
@@ -407,7 +411,7 @@ int main(int argc, char *argv[]) {
         }
       } else {
         // Use random flow labels
-        for (int i = 0; i < gap; i ++) {
+        for (int i = 0; i < gap; i++) {
           auto it = candidates.begin();
           std::advance(it, rand() % (candidates.size()));
           uint32_t destination = it->first >> 32;
