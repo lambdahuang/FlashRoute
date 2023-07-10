@@ -387,8 +387,8 @@ int main(int argc, char *argv[]) {
           break;
       }
 
-      uint32_t gap = expectProbe(totalDiscoveredInterfaces) - totalProbeTimes +
-                     reprobeCandidate;
+      int gap = expectProbe(totalDiscoveredInterfaces) - totalProbeTimes +
+                reprobeCandidate;
       // if probes are not enough after selection, we create new flow
       // identities.
       if (gap <= 0) {
