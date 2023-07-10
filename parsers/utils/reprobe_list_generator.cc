@@ -23,6 +23,22 @@ using flashroute::IpAddressEquality;
 using flashroute::IpAddressHash;
 using flashroute::Ipv4Address;
 
+using FlowIdentityHopMapType = std::map<uint64_t, uint8_t>;
+
+using ProbeMapType =
+    std::unordered_map<uint32_t, std::unique_ptr<FlowIdentityHopMapType>>;
+
+using EdgeMapType =
+    std::unordered_map<uint32_t,
+                       std::unique_ptr<std::unordered_map<uint32_t, uint32_t>>>;
+
+using RouteMapType =
+    std::unordered_map<uint32_t, std::unique_ptr<std::map<uint8_t, uint32_t>>>;
+
+using NewProbeTargetMapType = std::unordered_map<uint64_t, uint8_t>;
+
+using NonstopInterfaceSetType = std::unordered_set<uint32_t>;
+
 ABSL_FLAG(
     std::vector<std::string>, targets, std::vector<std::string>{},
     "Outputs of flashroute. If there are multiple files, split by comma.");
@@ -47,6 +63,11 @@ ABSL_FLAG(bool, show_statistic, false,
           "Show distribution of reprobe interfaces on hops");
 ABSL_FLAG(std::string, output, "reprobe_list", "Directory of output");
 
+static uint64_t generateRandomFlowLabel(uint32_t addr) {
+  uint16_t newPort = rand() % (50000) + 10000;
+  return static_cast<uint64_t>(addr) << 32 | newPort;
+}
+
 static uint32_t generateRandomAddress(uint32_t addr, int prefix,
                                       int subnetSize) {
   uint32_t newAddr;
@@ -63,8 +84,7 @@ static std::string numericalToStringIp(uint32_t ip) {
   return address;
 }
 
-static void dumpReprobeList(std::string output,
-                            std::unordered_map<uint32_t, uint8_t> &list) {
+static void dumpReprobeList(std::string output, NewProbeTargetMapType &list) {
   std::ofstream dumpFile(output);
   for (auto &record : list) {
     std::string ipAddress = numericalToStringIp(record.first);
@@ -74,8 +94,7 @@ static void dumpReprobeList(std::string output,
   dumpFile.close();
 }
 
-static void dumpNonstopList(std::string output,
-                            std::unordered_set<uint32_t> &list) {
+static void dumpNonstopList(std::string output, NonstopInterfaceSetType &list) {
   std::ofstream dumpFile(output);
   for (auto &record : list) {
     std::string ipAddress = numericalToStringIp(record);
@@ -98,14 +117,14 @@ static int expectProbe(int n) {
   return probeTable[n];
 }
 
-static std::pair<uint8_t, uint8_t> getMediaHopDistanceFromVantagePoint(
-    std::map<uint32_t, uint8_t> &destinationToHop,
-    std::unordered_map<uint32_t, std::unique_ptr<std::map<uint8_t, uint32_t>>>
-        &routeMap) {
+static std::pair<uint8_t, uint8_t>
+getMediaHopDistanceFromVantagePoint(FlowIdentityHopMapType &destinationToHop,
+                                    RouteMapType &routeMap) {
   std::multiset<uint8_t> distancesToVantagePoint;
   std::multiset<uint8_t> distancesToDestination;
   for (auto &pair : destinationToHop) {
-    uint32_t destination = pair.first;
+    uint32_t destination = static_cast<uint32_t>(pair.first >> 32);
+    uint16_t port = static_cast<uint32_t>(pair.first & 0xFF);
     uint8_t hop = pair.second;
     auto route = *(routeMap.find(destination))->second;
     distancesToVantagePoint.insert(hop);
@@ -119,12 +138,9 @@ static std::pair<uint8_t, uint8_t> getMediaHopDistanceFromVantagePoint(
   return {*it1, *it2};
 }
 
-static void interfaceDemographicAnalysis(
-    std::unordered_map<uint32_t, std::unique_ptr<std::map<uint32_t, uint8_t>>>
-        &probeMap,
-    std::unordered_map<uint32_t, std::unique_ptr<std::map<uint8_t, uint32_t>>>
-        &routeMap,
-    std::unordered_set<uint32_t> &targetInterfaces) {
+static void
+interfaceDemographicAnalysis(ProbeMapType &probeMap, RouteMapType &routeMap,
+                             std::unordered_set<uint32_t> &targetInterfaces) {
   std::map<uint8_t, uint32_t> distanceFromVantagePointToCount;
   std::map<uint8_t, uint32_t> distanceFromDestinationToCount;
   for (auto &interface : targetInterfaces) {
@@ -205,24 +221,20 @@ int main(int argc, char *argv[]) {
 
   float threshold = absl::GetFlag(FLAGS_threshold);
 
-  // {Interface, {Destination, hopDistance}}
-  std::unordered_map<uint32_t, std::unique_ptr<std::map<uint32_t, uint8_t>>>
-      probeMap;
+  // {Interface, {Destination:SourcePort, hopDistance}}
+  ProbeMapType probeMap;
 
   // {interface, (hop-1) <interfaces, num of observations>}
-  std::unordered_map<uint32_t,
-                     std::unique_ptr<std::unordered_map<uint32_t, uint32_t>>>
-      edgeMap;
+  EdgeMapType edgeMap;
 
   // {Destination, backward probe start hop}
-  std::unordered_map<uint32_t, uint8_t> toProbeMap;
+  NewProbeTargetMapType toProbeMap;
 
   // {Destination}
-  std::unordered_set<uint32_t> nonstopInterfaces;
+  NonstopInterfaceSetType nonstopInterfaces;
 
   // {desination, {hopDistance, interface}}
-  std::unordered_map<uint32_t, std::unique_ptr<std::map<uint8_t, uint32_t>>>
-      routeMap;
+  RouteMapType routeMap;
 
   for (auto file : targetFiles) {
     if (!absl::GetFlag(FLAGS_formatted)) {
@@ -246,22 +258,24 @@ int main(int argc, char *argv[]) {
         uint32_t interface = buffer.responder[0];
         uint32_t destination = buffer.destination[0];
         uint8_t hopDistance = buffer.distance;
+        uint16_t sourcePort = buffer.sourcePort;
         // Update ProbeMap
         // if isFromDestination == true, it is from the destination instead of
         // intermediate router interface, so we don't add it to the list.
         if (isFromDestination == true)
           continue;
         auto interfaceRecord = probeMap.find(interface);
-        std::map<uint32_t, uint8_t> *probeMapRecord;
+        FlowIdentityHopMapType *probeMapRecord;
         if (interfaceRecord == probeMap.end()) {
-          probeMapRecord = new std::map<uint32_t, uint8_t>();
-          probeMap.insert(
-              {interface,
-               std::unique_ptr<std::map<uint32_t, uint8_t>>(probeMapRecord)});
+          probeMapRecord = new FlowIdentityHopMapType();
+          probeMap.insert({interface, std::unique_ptr<FlowIdentityHopMapType>(
+                                          probeMapRecord)});
         } else {
           probeMapRecord = interfaceRecord->second.get();
         }
-        probeMapRecord->insert({destination, hopDistance});
+        probeMapRecord->insert(
+            {static_cast<uint64_t>(destination) << 32 | sourcePort,
+             hopDistance});
 
         // Update Route Map
         auto routeRecord = routeMap.find(destination);
@@ -350,40 +364,59 @@ int main(int argc, char *argv[]) {
       uint32_t reprobeCandidate = 0;
       // if the destination does not probe any lesser
       for (auto &candidate : candidates) {
-        uint32_t candidateAddr = candidate.first;
+        uint32_t destination = candidate.first >> 32;
+        uint64_t candidateFlowIdentity = candidate.first;
         uint8_t candidateExpectedProbeHop = candidate.second - 1;
         if (candidateExpectedProbeHop <= 1)
           continue;
-        auto route = *(routeMap.find(candidateAddr)->second);
+        auto route = *(routeMap.find(destination)->second);
         if (route.find(candidateExpectedProbeHop) != route.end())
           continue;
-        auto toProbeRecord = toProbeMap.find(candidateAddr);
+        auto toProbeRecord = toProbeMap.find(destination);
         if (toProbeRecord != toProbeMap.end())
           // toProbeRecord->second /* hop */ >= candidateExpectedProbeHop)
           continue;
         reprobeCandidate++;
-        toProbeMap.insert({candidateAddr, candidateExpectedProbeHop + 1});
+        toProbeMap.insert({candidateFlowIdentity, candidateExpectedProbeHop + 1});
         // Now we consider this candidate can be added
         if (expectProbe(totalDiscoveredInterfaces) <=
             totalProbeTimes + reprobeCandidate)
           break;
       }
-      if (expectProbe(totalDiscoveredInterfaces) <=
-          totalProbeTimes + reprobeCandidate) {
+
+      uint32_t gap = expectProbe(totalDiscoveredInterfaces) - totalProbeTimes +
+                     reprobeCandidate;
+      // if probes are not enough after selection, we create new flow identities.
+      if (gap <= 0) {
         identifiedFullyCoveredReprobeInterfaces++;
-      } else if (absl::GetFlag(FLAGS_show_statistic)) {
+      } else if (absl::GetFlag(FLAGS_use_random_address)) {
         randomGeneratedReprobeInterfaces++;
         // Select the random addresses
         for (auto &candidate : candidates) {
+          uint32_t destination = candidate.first >> 32;
           uint32_t candidateAddr =
-              generateRandomAddress(candidate.first, prefixLength, subnetSize);
+              generateRandomAddress(destination, prefixLength, subnetSize);
           uint8_t candidateExpectedProbeHop = candidate.second - 1;
           reprobeCandidate++;
-          toProbeMap.insert({candidateAddr, candidateExpectedProbeHop + 1});
+          toProbeMap.insert({static_cast<uint64_t>(candidateAddr) << 32,
+                             candidateExpectedProbeHop + 1});
           // Now we consider this candidate can be added
           if (expectProbe(totalDiscoveredInterfaces) <=
               totalProbeTimes + reprobeCandidate)
             break;
+        }
+      } else {
+        // Use random flow labels
+        for (int i = 0; i < gap; i ++) {
+          auto it = candidates.begin();
+          std::advance(it, rand() % (candidates.size()));
+          uint32_t destination = it->first >> 32;
+          uint16_t sourcePort = it->first & 0xFF;
+          uint64_t newFlowIdentity = generateRandomFlowLabel(destination);
+          uint8_t candidateExpectedProbeHop = it->second - 1;
+          if (toProbeMap.find(newFlowIdentity) == toProbeMap.end()) {
+            toProbeMap.insert({newFlowIdentity, candidateExpectedProbeHop + 1});
+          }
         }
       }
     }

@@ -161,7 +161,7 @@ DcbManager* Targets::generateTargetsFromNetwork(
           ntohll(targetNetworkFirstAddress_->getIpv6Address()) +
           ((i) << (128 - granularity)) + (rand() % (blockFactor_ - 3)) + 2));
       if (blacklist_ != nullptr && !blacklist_->contains(tmp)) {
-        dcbManager->addDcb(tmp, defaultSplitTtl_, 0);
+        dcbManager->addDcb(tmp, defaultSplitTtl_, 0 /* sourcePort */);
         actualCount++;
       }
     }
