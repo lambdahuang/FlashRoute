@@ -12,6 +12,7 @@
 #include "absl/flags/usage.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 #include "glog/logging.h"
 
 #include "flashroute/address.h"
@@ -62,7 +63,7 @@ ABSL_FLAG(bool, use_random_address, false,
 ABSL_FLAG(bool, show_statistic, false,
           "Show distribution of reprobe interfaces on hops");
 ABSL_FLAG(std::string, output, "reprobe_list", "Directory of output");
-ABSL_FLAG(std::string, previousReprobe, "previous_reprobe", "Previous reprobe list");
+ABSL_FLAG(std::string, previous_reprobe, "previous_reprobe", "Previous reprobe list");
 
 static uint64_t generateRandomFlowLabel(uint32_t addr) {
   uint16_t newPort = rand() % 50000 + 10000;
@@ -123,15 +124,13 @@ static void readReprobeList(std::string filePath, NewProbeTargetMapType &list) {
     }
   }
   in.close();
-  LOG(1) << "Load " << count << " addresses from file.";
-
-  return dcbManager;
+  LOG(INFO) << "Load " << count << " addresses from file.";
 }
 
-static calculateTargetResponseRate(
-    NewProbeTargetMapType &list,
-    std::unordered_set<uint64_t> &respondedDestination, uint64_t flowId,
-    uint8_t hop) {
+static void
+calculateTargetResponseRate(NewProbeTargetMapType &list,
+                            std::unordered_set<uint64_t> &respondedDestination,
+                            uint64_t flowId, uint8_t hop) {
   if (respondedDestination.find(flowId) != respondedDestination.end()) {
     return;
   }
@@ -273,8 +272,8 @@ int main(int argc, char *argv[]) {
 
   NewProbeTargetMapType previousToProbeMap;
   std::unordered_set<uint64_t> respondedDestination;
-  if (!absl::GetFlag(FLAGS_preivous_reprobe).empty()) {
-    readReprobeList(absl::GetFlag(FLAGS_preivous_reprobe), previousToProbeMap);
+  if (!absl::GetFlag(FLAGS_previous_reprobe).empty()) {
+    readReprobeList(absl::GetFlag(FLAGS_previous_reprobe), previousToProbeMap);
   }
 
   std::srand(0);
