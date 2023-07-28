@@ -63,7 +63,7 @@ ABSL_FLAG(bool, use_random_address, false,
 ABSL_FLAG(bool, show_statistic, false,
           "Show distribution of reprobe interfaces on hops");
 ABSL_FLAG(std::string, output, "reprobe_list", "Directory of output");
-ABSL_FLAG(std::string, previous_reprobe, "previous_reprobe", "Previous reprobe list");
+ABSL_FLAG(std::string, previous_reprobe, "", "Previous reprobe list");
 
 static uint64_t generateRandomFlowLabel(uint32_t addr) {
   uint16_t newPort = rand() % 50000 + 10000;
@@ -517,6 +517,11 @@ int main(int argc, char *argv[]) {
     LOG(INFO) << " Hot Interface " << hotInterface;
 
     if (!previousToProbeMap.empty()) {
+      LOG(INFO) << " Last Reprobe Responded FlowId Number: "
+                << respondedDestination.size();
+
+      LOG(INFO) << " Previous Reprobe List Size: " << previousToProbeMap.size();
+
       LOG(INFO) << " Last Reprobe Responding Rate "
                 << static_cast<float>(respondedDestination.size()) /
                        previousToProbeMap.size() * 100
