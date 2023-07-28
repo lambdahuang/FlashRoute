@@ -138,7 +138,7 @@ calculateTargetResponseRate(NewProbeTargetMapType &list,
   auto result = list.find(flowId);
   if (result != list.end()) {
     uint8_t plannedHop = result->second;
-    if (plannedHop - hop >= -absl::GetFlag(FLAGS_response_hop_gap_distance) &&
+    if (plannedHop - hop >= 0 &&
         plannedHop - hop <= absl::GetFlag(FLAGS_response_hop_gap_distance)) {
       respondedDestination.insert(flowId);
     }
