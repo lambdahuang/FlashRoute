@@ -64,6 +64,7 @@ ABSL_FLAG(bool, show_statistic, false,
           "Show distribution of reprobe interfaces on hops");
 ABSL_FLAG(std::string, output, "reprobe_list", "Directory of output");
 ABSL_FLAG(std::string, previous_reprobe, "", "Previous reprobe list");
+ABSL_FLAG(int, response_hop_gap_distance, 1, "Previous reprobe list");
 
 static uint64_t generateRandomFlowLabel(uint32_t addr) {
   uint16_t newPort = rand() % 50000 + 10000;
@@ -137,7 +138,8 @@ calculateTargetResponseRate(NewProbeTargetMapType &list,
   auto result = list.find(flowId);
   if (result != list.end()) {
     uint8_t plannedHop = result->second;
-    if (plannedHop - hop >= 0 && plannedHop - hop <= 1) {
+    if (plannedHop - hop >= -absl::GetFlag(FLAGS_response_hop_gap_distance) &&
+        plannedHop - hop <= absl::GetFlag(FLAGS_response_hop_gap_distance)) {
       respondedDestination.insert(flowId);
     }
   }
