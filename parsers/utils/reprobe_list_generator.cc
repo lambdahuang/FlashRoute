@@ -62,6 +62,7 @@ ABSL_FLAG(bool, use_random_address, false,
 ABSL_FLAG(bool, show_statistic, false,
           "Show distribution of reprobe interfaces on hops");
 ABSL_FLAG(std::string, output, "reprobe_list", "Directory of output");
+ABSL_FLAG(std::string, previousReprobe, "previous_reprobe", "Previous reprobe list");
 
 static uint64_t generateRandomFlowLabel(uint32_t addr) {
   uint16_t newPort = rand() % 50000 + 10000;
@@ -77,11 +78,70 @@ static uint32_t generateRandomAddress(uint32_t addr, int prefix,
   return newAddr;
 }
 
+static uint32_t ipStringToInteger(const std::string &stringIp) {
+  return ntohl(inet_addr(stringIp.c_str()));
+}
+
 static std::string numericalToStringIp(uint32_t ip) {
   struct in_addr ip_addr;
   ip_addr.s_addr = ip;
   std::string address(inet_ntoa(ip_addr));
   return address;
+}
+
+static void readReprobeList(std::string filePath, NewProbeTargetMapType &list) {
+  if (filePath.empty()) {
+    return;
+  }
+
+  std::ifstream in(filePath);
+  int64_t count = 0;
+  for (std::string line; std::getline(in, line);) {
+    if (!line.empty()) {
+      // Example
+      // 127.0.0.1:10:12345   IPAddress is 127.0.0.1 and split ttl is 10, and
+      // source port is 12345
+      std::vector<absl::string_view> parts = absl::StrSplit(line, ":");
+      auto destination = ipStringToInteger(std::string(parts[0]));
+      int splitTtl = 16;
+      uint32_t sourcePort = 0;
+      if (parts.size() > 1) {
+        if (!absl::SimpleAtoi(parts[1], &splitTtl)) {
+          return;
+        }
+      }
+      if (parts.size() > 2) {
+        if (!absl::SimpleAtoi(parts[2], &sourcePort)) {
+          return;
+        }
+      }
+      uint64_t newFlowIdentity =
+          static_cast<uint64_t>(destination) << 32 | sourcePort;
+      if (list.find(newFlowIdentity) == list.end()) {
+        list.insert({newFlowIdentity, splitTtl});
+      }
+    }
+  }
+  in.close();
+  LOG(1) << "Load " << count << " addresses from file.";
+
+  return dcbManager;
+}
+
+static calculateTargetResponseRate(
+    NewProbeTargetMapType &list,
+    std::unordered_set<uint64_t> &respondedDestination, uint64_t flowId,
+    uint8_t hop) {
+  if (respondedDestination.find(flowId) != respondedDestination.end()) {
+    return;
+  }
+  auto result = list.find(flowId);
+  if (result != list.end()) {
+    uint8_t plannedHop = result->second;
+    if (plannedHop - hop >= 0 && plannedHop - hop <= 1) {
+      respondedDestination.insert(flowId);
+    }
+  }
 }
 
 static void dumpReprobeList(std::string output, NewProbeTargetMapType &list) {
@@ -211,6 +271,12 @@ int main(int argc, char *argv[]) {
     LOG(ERROR) << "No valid input.";
   }
 
+  NewProbeTargetMapType previousToProbeMap;
+  std::unordered_set<uint64_t> respondedDestination;
+  if (!absl::GetFlag(FLAGS_preivous_reprobe).empty()) {
+    readReprobeList(absl::GetFlag(FLAGS_preivous_reprobe), previousToProbeMap);
+  }
+
   std::srand(0);
   uint64_t records = 0;
   uint64_t identifiedReprobeInterfaces = 0;
@@ -266,6 +332,14 @@ int main(int argc, char *argv[]) {
         // intermediate router interface, so we don't add it to the list.
         if (isFromDestination == true)
           continue;
+
+        // Last file
+        if (file == *targetFiles.rbegin() && !previousToProbeMap.empty()) {
+          calculateTargetResponseRate(
+              previousToProbeMap, respondedDestination,
+              (static_cast<uint64_t>(destination) << 32 | sourcePort),
+              hopDistance);
+        }
         auto interfaceRecord = probeMap.find(interface);
         FlowIdentityHopMapType *probeMapRecord;
         if (interfaceRecord == probeMap.end()) {
@@ -442,6 +516,14 @@ int main(int argc, char *argv[]) {
               << randomGeneratedReprobeInterfaces;
     LOG(INFO) << " Planned Targets " << toProbeMap.size();
     LOG(INFO) << " Hot Interface " << hotInterface;
+
+    if (!previousToProbeMap.empty()) {
+      LOG(INFO) << " Last Reprobe Responding Rate "
+                << static_cast<float>(respondedDestination.size()) /
+                       previousToProbeMap.size() * 100
+                << "%";
+    }
+
   } else {
   }
 }
