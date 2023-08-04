@@ -285,6 +285,7 @@ int main(int argc, char *argv[]) {
   uint64_t randomGeneratedReprobeInterfaces = 0;
   uint64_t hotInterface = 0;
   uint32_t totalUniqueEdgeCount = 0;
+  uint64_t ignoredInterface = 0;
   int prefixLength = absl::GetFlag(FLAGS_prefix);
   int subnetSize = static_cast<int>(std::pow(2, 32 - prefixLength));
 
@@ -412,6 +413,7 @@ int main(int argc, char *argv[]) {
         previousInterface = interface;
       }
     }
+
     LOG(INFO) << "edges processed finished, start select candidate.";
 
     if (!absl::GetFlag(FLAGS_formatted)) {
@@ -500,6 +502,14 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+
+  // Find the interface ignored by measuerment.
+  for (const auto &inteface : ProbeMapType) {
+    if (edgeMap.find(inteface) == edgeMap.end()) {
+      ignoredInterface++;
+    }
+  }
+
   if (absl::GetFlag(FLAGS_show_statistic)) {
     interfaceDemographicAnalysis(probeMap, routeMap, nonstopInterfaces);
   }
@@ -517,6 +527,7 @@ int main(int argc, char *argv[]) {
               << randomGeneratedReprobeInterfaces;
     LOG(INFO) << " Planned Targets " << toProbeMap.size();
     LOG(INFO) << " Hot Interface " << hotInterface;
+    LOG(INFO) << " Ignored Interface " << ignoredInterface;
 
     if (!previousToProbeMap.empty()) {
       LOG(INFO) << " Last Reprobe Responded FlowId Number: "
