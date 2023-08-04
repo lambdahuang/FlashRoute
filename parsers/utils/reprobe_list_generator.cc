@@ -504,8 +504,8 @@ int main(int argc, char *argv[]) {
   }
 
   // Find the interface ignored by measuerment.
-  for (const auto &inteface : ProbeMapType) {
-    if (edgeMap.find(inteface) == edgeMap.end()) {
+  for (const auto &inteface : probeMap) {
+    if (edgeMap.find(inteface.first) == edgeMap.end()) {
       ignoredInterface++;
     }
   }
