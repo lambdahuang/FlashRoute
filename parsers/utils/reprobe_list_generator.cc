@@ -56,6 +56,8 @@ ABSL_FLAG(int, prefix, 24,
 ABSL_FLAG(int, start, 0, "Starting index of the outputs");
 ABSL_FLAG(int, end, 0, "Ending index of the outputs");
 ABSL_FLAG(int, step, 1, "Step to read outputs");
+ABSL_FLAG(int, max_reprobe_per_interface, 100,
+          "Max number of reprobe generated for a single interface.");
 ABSL_FLAG(float, threshold, 2, "Hot branch threshold");
 ABSL_FLAG(bool, formatted, false, "Output machine-readable format.");
 ABSL_FLAG(bool, use_random_address, false,
@@ -515,6 +517,11 @@ int main(int argc, char *argv[]) {
       identifiedReprobeInterfaces++;
       uint32_t expectReprobes =
           expectProbe(totalDiscoveredInterfaces) - totalProbeTimes;
+
+      expectReprobes =
+          expectReprobes > absl::GetFlag(FLAGS_max_reprobe_per_interface)
+              ? absl::GetFlag(FLAGS_max_reprobe_per_interface)
+              : expectReprobes;
 
       uint32_t reprobeNumber = generateReprobeListFromExistingFlowIdentity(
           expectReprobes, interface, routeMap, probeMap, toProbeMap);
