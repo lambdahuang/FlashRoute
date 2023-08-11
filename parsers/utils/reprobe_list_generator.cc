@@ -67,7 +67,7 @@ ABSL_FLAG(std::string, previous_reprobe, "", "Previous reprobe list");
 ABSL_FLAG(int, response_hop_gap_distance, 1, "Previous reprobe list");
 
 static uint64_t generateRandomFlowLabel(uint32_t addr) {
-  uint16_t newPort = rand() % 50000 + 10000;
+  uint16_t newPort = rand() % 40000 + 10000;
   return static_cast<uint64_t>(addr) << 32 | newPort;
 }
 
@@ -146,6 +146,8 @@ calculateTargetResponseRate(NewProbeTargetMapType &list,
 }
 
 static void dumpReprobeList(std::string output, NewProbeTargetMapType &list) {
+  if (output.empty())
+    return;
   std::ofstream dumpFile(output);
   for (auto &record : list) {
     std::string ipAddress = numericalToStringIp(record.first >> 32);
@@ -158,6 +160,8 @@ static void dumpReprobeList(std::string output, NewProbeTargetMapType &list) {
 }
 
 static void dumpNonstopList(std::string output, NonstopInterfaceSetType &list) {
+  if (output.empty())
+    return;
   std::ofstream dumpFile(output);
   for (auto &record : list) {
     std::string ipAddress = numericalToStringIp(record);
@@ -178,6 +182,79 @@ static int expectProbe(int n) {
     return 97;
   }
   return probeTable[n];
+}
+
+static uint32_t generateReprobeListFromExistingFlowIdentity(
+    uint32_t expectProbe, uint32_t interface, RouteMapType &routeMap,
+    ProbeMapType &probeMap, NewProbeTargetMapType &toProbeMap) {
+  // Select the bullets to probe
+  auto candidates = *(probeMap.find(interface)->second);
+  uint32_t reprobeCandidate = 0;
+  // if the destination does not probe any lesser
+  for (auto &candidate : candidates) {
+    uint32_t destination = candidate.first >> 32;
+    uint64_t candidateFlowIdentity = candidate.first;
+    uint8_t candidateExpectedProbeHop = candidate.second - 1;
+    if (candidateExpectedProbeHop <= 1)
+      continue;
+    auto route = *(routeMap.find(destination)->second);
+    if (route.find(candidateExpectedProbeHop) != route.end())
+      continue;
+    auto toProbeRecord = toProbeMap.find(destination);
+    if (toProbeRecord != toProbeMap.end())
+      // toProbeRecord->second /* hop */ >= candidateExpectedProbeHop)
+      continue;
+    reprobeCandidate++;
+    toProbeMap.insert({candidateFlowIdentity, candidateExpectedProbeHop + 1});
+    // Now we consider this candidate can be added
+    if (expectProbe <= reprobeCandidate)
+      break;
+  }
+  return reprobeCandidate;
+}
+
+static uint32_t
+generateReprobeListFromRandomFlowId(uint32_t expectProbe, uint32_t interface,
+                                    uint64_t &randomGeneratedReprobeInterfaces,
+                                    ProbeMapType &probeMap,
+                                    NewProbeTargetMapType &toProbeMap) {
+  int prefixLength = absl::GetFlag(FLAGS_prefix);
+  int subnetSize = static_cast<int>(std::pow(2, 32 - prefixLength));
+
+  uint32_t reprobeCandidate = 0;
+  // Select the bullets to probe
+  auto candidates = *(probeMap.find(interface)->second);
+  if (absl::GetFlag(FLAGS_use_random_address)) {
+    randomGeneratedReprobeInterfaces++;
+    // Select the random addresses
+    for (auto &candidate : candidates) {
+      uint32_t destination = candidate.first >> 32;
+      uint32_t candidateAddr =
+          generateRandomAddress(destination, prefixLength, subnetSize);
+      uint8_t candidateExpectedProbeHop = candidate.second - 1;
+      reprobeCandidate++;
+      toProbeMap.insert({static_cast<uint64_t>(candidateAddr) << 32,
+                         candidateExpectedProbeHop + 1});
+      // Now we consider this candidate can be added
+      if (expectProbe <= reprobeCandidate)
+        break;
+    }
+  } else {
+    // Use random flow labels
+    for (int i = 0; i < expectProbe; i++) {
+      auto it = candidates.begin();
+      std::advance(it, rand() % (candidates.size()));
+      uint32_t destination = it->first >> 32;
+      uint16_t sourcePort = it->first & 0xFFFF;
+      uint64_t newFlowIdentity = generateRandomFlowLabel(destination);
+      uint8_t candidateExpectedProbeHop = it->second - 1;
+      if (toProbeMap.find(newFlowIdentity) == toProbeMap.end()) {
+        toProbeMap.insert({newFlowIdentity, candidateExpectedProbeHop + 1});
+      }
+      reprobeCandidate++;
+    }
+  }
+  return reprobeCandidate;
 }
 
 static std::pair<uint8_t, uint8_t>
@@ -286,9 +363,6 @@ int main(int argc, char *argv[]) {
   uint64_t hotInterface = 0;
   uint32_t totalUniqueEdgeCount = 0;
   uint64_t ignoredInterface = 0;
-  int prefixLength = absl::GetFlag(FLAGS_prefix);
-  int subnetSize = static_cast<int>(std::pow(2, 32 - prefixLength));
-
   float threshold = absl::GetFlag(FLAGS_threshold);
 
   // {Interface, {Destination:SourcePort, hopDistance}}
@@ -435,70 +509,25 @@ int main(int argc, char *argv[]) {
       hotInterface++;
     }
     if (expectProbe(totalDiscoveredInterfaces) > totalProbeTimes) {
+
       nonstopInterfaces.insert(interface);
       // Consider the upper link can be reprobed.
       identifiedReprobeInterfaces++;
-      // Select the bullets to probe
-      auto candidates = *(probeMap.find(interface)->second);
-      uint32_t reprobeCandidate = 0;
-      // if the destination does not probe any lesser
-      for (auto &candidate : candidates) {
-        uint32_t destination = candidate.first >> 32;
-        uint64_t candidateFlowIdentity = candidate.first;
-        uint8_t candidateExpectedProbeHop = candidate.second - 1;
-        if (candidateExpectedProbeHop <= 1)
-          continue;
-        auto route = *(routeMap.find(destination)->second);
-        if (route.find(candidateExpectedProbeHop) != route.end())
-          continue;
-        auto toProbeRecord = toProbeMap.find(destination);
-        if (toProbeRecord != toProbeMap.end())
-          // toProbeRecord->second /* hop */ >= candidateExpectedProbeHop)
-          continue;
-        reprobeCandidate++;
-        toProbeMap.insert(
-            {candidateFlowIdentity, candidateExpectedProbeHop + 1});
-        // Now we consider this candidate can be added
-        if (expectProbe(totalDiscoveredInterfaces) <=
-            totalProbeTimes + reprobeCandidate)
-          break;
-      }
+      uint32_t expectReprobes =
+          expectProbe(totalDiscoveredInterfaces) - totalProbeTimes;
 
-      int gap = expectProbe(totalDiscoveredInterfaces) - totalProbeTimes -
-                reprobeCandidate;
+      uint32_t reprobeNumber = generateReprobeListFromExistingFlowIdentity(
+          expectReprobes, interface, routeMap, probeMap, toProbeMap);
+
+      int gap = expectReprobes - totalProbeTimes - reprobeNumber;
       // if probes are not enough after selection, we create new flow
       // identities.
       if (gap <= 0) {
         identifiedFullyCoveredReprobeInterfaces++;
-      } else if (absl::GetFlag(FLAGS_use_random_address)) {
-        randomGeneratedReprobeInterfaces++;
-        // Select the random addresses
-        for (auto &candidate : candidates) {
-          uint32_t destination = candidate.first >> 32;
-          uint32_t candidateAddr =
-              generateRandomAddress(destination, prefixLength, subnetSize);
-          uint8_t candidateExpectedProbeHop = candidate.second - 1;
-          reprobeCandidate++;
-          toProbeMap.insert({static_cast<uint64_t>(candidateAddr) << 32,
-                             candidateExpectedProbeHop + 1});
-          // Now we consider this candidate can be added
-          if (expectProbe(totalDiscoveredInterfaces) <=
-              totalProbeTimes + reprobeCandidate)
-            break;
-        }
       } else {
-        // Use random flow labels
-        for (int i = 0; i < gap; i++) {
-          auto it = candidates.begin();
-          std::advance(it, rand() % (candidates.size()));
-          uint32_t destination = it->first >> 32;
-          uint16_t sourcePort = it->first & 0xFFFF;
-          uint64_t newFlowIdentity = generateRandomFlowLabel(destination);
-          uint8_t candidateExpectedProbeHop = it->second - 1;
-          if (toProbeMap.find(newFlowIdentity) == toProbeMap.end()) {
-            toProbeMap.insert({newFlowIdentity, candidateExpectedProbeHop + 1});
-          }
-        }
+        reprobeNumber += generateReprobeListFromRandomFlowId(
+            gap, interface, randomGeneratedReprobeInterfaces, probeMap,
+            toProbeMap);
       }
     }
   }
