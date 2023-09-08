@@ -242,13 +242,6 @@ uint16_t UdpIdempotentProber::getChecksum(const uint8_t protocolValue,
                                      const uint16_t* sourceIpAddress,
                                      const uint16_t* destinationIpAddress,
                                      uint16_t* buff) const {
-  /* Check if the tcp length is even or odd.  Add padding if odd. */
-  if ((packetLength % 2) == 1) {
-    // Empty space in the ip buffer should be 0 anyway.
-    buff[packetLength] = 0;
-    packetLength += 1;  // incrase length to make even.
-  }
-
   uint32_t sum = 0;
   /* add the pseudo header */
   sum += ntohs(sourceIpAddress[0]);
